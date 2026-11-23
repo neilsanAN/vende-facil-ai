@@ -1,0 +1,36 @@
+name: OTA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "apps/mobile/**"
+      - "packages/ui-tokens/**"
+      - "packages/api-client/**"
+      - "packages/types/**"
+      - "packages/validation/**"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Publicar atualização no canal preview
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PUBLIC_EAS_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_EAS_PROJECT_ID }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ] || [ -z "$EXPO_PUBLIC_EAS_PROJECT_ID" ]; then
+            echo "OTA pronto, mas EXPO_TOKEN ou EXPO_PUBLIC_EAS_PROJECT_ID ainda não está no repositório."
+            exit 0
+          fi
+          pnpm --filter @vendefacil/mobile update:preview -- --message "${GITHUB_SHA}"

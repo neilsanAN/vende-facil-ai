@@ -1,0 +1,75 @@
+# VendeFácil AI — banco, app web e worker.
+# Um blueprint cria os três. A URL pública fica https://vende-facil-ai.onrender.com
+
+databases:
+  - name: vende-facil-db
+    plan: free
+    databaseName: vendefacil
+    user: vendefacil
+
+services:
+  - type: keyvalue
+    name: vende-facil-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
+
+  - type: web
+    name: vende-facil-ai
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./apps/web/Dockerfile
+    dockerContext: .
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_URL
+        value: https://vende-facil-ai.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vende-facil-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: vende-facil-redis
+          type: keyvalue
+          property: connectionString
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: STORAGE_DRIVER
+        value: local
+      - key: TRUST_PROXY
+        value: "true"
+
+  - type: worker
+    name: vende-facil-worker
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./apps/worker/Dockerfile
+    dockerContext: .
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_URL
+        value: https://vende-facil-ai.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vende-facil-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: vende-facil-redis
+          type: keyvalue
+          property: connectionString
+      - key: ENCRYPTION_KEY
+        fromService:
+          name: vende-facil-ai
+          type: web
+          envVarKey: ENCRYPTION_KEY
+      - key: STORAGE_DRIVER
+        value: local
+      - key: TRUST_PROXY
+        value: "true"

@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: vendefacil
+          POSTGRES_PASSWORD: vendefacil
+          POSTGRES_DB: vendefacil
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U vendefacil -d vendefacil"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://vendefacil:vendefacil@localhost:5432/vendefacil
+      ENCRYPTION_KEY: 0123456789abcdeffedcba98765432100123456789abcdeffedcba9876543210
+      APP_URL: http://localhost:3000
+      RUN_INTEGRATION: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm exec prisma migrate deploy --schema packages/database/prisma/schema.prisma
+      - run: pnpm test
+      - run: pnpm --filter @vendefacil/web typecheck
+      - run: pnpm --filter @vendefacil/business typecheck

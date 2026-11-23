@@ -1,0 +1,16 @@
+{
+  "name": "@vendefacil/media",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.758.0",
+    "@aws-sdk/s3-request-presigner": "^3.758.0",
+    "@vendefacil/config": "workspace:*",
+    "@vendefacil/types": "workspace:*",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": { "typescript": "^5.8.2" }
+}

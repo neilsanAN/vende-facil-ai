@@ -1,0 +1,36 @@
+{
+  "name": "@vendefacil/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "typecheck": "tsc --noEmit",
+    "build:apk": "eas build --profile preview --platform android --non-interactive",
+    "update:preview": "eas update --channel preview --non-interactive",
+    "update:production": "eas update --channel production --non-interactive"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "14.0.0",
+    "@tanstack/react-query": "^5.69.0",
+    "@vendefacil/api-client": "workspace:*",
+    "@vendefacil/ui-tokens": "workspace:*",
+    "expo": "~53.0.9",
+    "expo-constants": "~17.1.6",
+    "expo-image-picker": "~16.1.4",
+    "expo-linking": "~7.1.5",
+    "expo-router": "~5.0.7",
+    "expo-secure-store": "~14.2.3",
+    "expo-status-bar": "~2.2.3",
+    "expo-updates": "~0.28.18",
+    "react": "19.0.0",
+    "react-native": "0.79.2",
+    "react-native-safe-area-context": "5.4.0",
+    "react-native-screens": "~4.10.0",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/react": "~19.0.10",
+    "typescript": "^5.8.2"
+  }
+}

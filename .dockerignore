@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+.git
+storage
+**/*.md
+apps/mobile
+coverage
+.env
+.env.local
