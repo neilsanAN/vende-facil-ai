@@ -45,7 +45,6 @@ const schema = z.object({
   FACEBOOK_APP_ID: z.string().optional().default(""),
   FACEBOOK_APP_SECRET: z.string().optional().default(""),
   TRUST_PROXY: z.enum(["true", "false"]).default("false"),
-  WORKER_PORT: z.coerce.number().default(3001),
   MAX_IMAGE_BYTES: z.coerce.number().default(10 * 1024 * 1024),
   MAX_AUDIO_BYTES: z.coerce.number().default(15 * 1024 * 1024),
   MAX_VIDEO_BYTES: z.coerce.number().default(100 * 1024 * 1024),

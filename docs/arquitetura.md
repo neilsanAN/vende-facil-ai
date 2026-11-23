@@ -5,7 +5,6 @@
 Monorepo pnpm e Turborepo.
 
 - `apps/web`: Next.js App Router. A interface e os Route Handlers.
-- `apps/worker`: processo contínuo. FFmpeg, limpeza e renovação de período. Não roda dentro da função serverless.
 - `apps/mobile`: Expo. Consome a mesma API e não compartilha componente de DOM.
 - `packages/business`: regras, autorização e transações.
 - `packages/database`: Prisma e PostgreSQL.
@@ -21,7 +20,6 @@ Toda linha comercial carrega `organizationId`. Serviço de leitura e escrita fil
 ```
 apps/web/src/app          telas e rotas HTTP
 apps/web/src/components   interface
-apps/worker/src           fila e manutenção
 packages/*/src            bibliotecas
 packages/database/prisma  schema, seed e migrations
 ```
@@ -37,7 +35,7 @@ Dinheiro fica em centavos. Crédito de anúncio, narração, render com fotos e 
 1. Cadastro, verificação de e-mail e criação da loja no plano gratuito.
 2. Produto com fotos. A publicação gera uma cópia pública sem metadados.
 3. Anúncio: foto, fatos confirmados, geração ou texto manual, revisão e versão.
-4. Vídeo: cenas, roteiro opcional, narração opcional, reserva de crédito e render no worker.
+4. Vídeo: cenas e roteiro ficam no produto; o render em background não faz parte deste deploy.
 5. Vitrine anônima, pedido registrado ou clique de WhatsApp. Os dois não se misturam.
 6. Assinatura. Sem Mercado Pago, o plano gratuito continua e o pago não é marcado como quitado.
 
@@ -53,14 +51,10 @@ Principais grupos: `/auth`, `/onboarding`, `/products`, `/uploads`, `/ai`, `/ads
 
 Geração e render exigem `Idempotency-Key`.
 
-## 7. Fila, armazenamento e vídeo
-
-`BackgroundJob` é a fonte. O worker varre jobs vencidos no banco e usa trava otimista. Estados do render: CREATED, VALIDATING, GENERATING_SCRIPT, GENERATING_AUDIO, PREPARING_SCENES, RENDERING, UPLOADING, COMPLETED, além de FAILED, CANCELLED e RETRYING.
+## 7. Armazenamento
 
 O crédito é debitado na criação e estornado em falha final ou cancelamento, com chave única. Upload nasce privado, confirma tipo real e tamanho, e a cópia pública só existe para mídia publicada. Temporários pendentes há mais de um dia são apagados.
 
-O render padrão é Ken Burns com FFmpeg, legendas e áudio opcional. Vídeo generativo não conclui um arquivo se o provedor não devolver o binário.
-
 ## 8. Fases
 
-A fundação, o catálogo, a vitrine, os anúncios, o estúdio, a fila, os pedidos, os planos e a administração já têm código de produto. Homologação e produção ainda dependem de PostgreSQL, Redis, R2, SMTP, chave de IA, FFmpeg e, se houver cobrança, Mercado Pago. Essas integrações não são declaradas prontas sem credencial e teste no ambiente de destino.
+A fundação, o catálogo, a vitrine, os anúncios, o estúdio, os pedidos, os planos e a administração já têm código de produto. Homologação e produção ainda dependem de PostgreSQL, R2, SMTP, chave de IA e, se houver cobrança, Mercado Pago. Essas integrações não são declaradas prontas sem credencial e teste no ambiente de destino.

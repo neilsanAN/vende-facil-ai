@@ -12,7 +12,7 @@ Plataforma para o vendedor cadastrar produtos, gerar anúncios e vídeos com IA 
 6. `corepack pnpm db:seed`
 7. `corepack pnpm dev`
 
-A web fica em http://localhost:3000 e o worker em http://localhost:3001/health.
+A web fica em http://localhost:3000.
 
 No ambiente local, se o SMTP não estiver configurado, o cadastro mostra o link de verificação. Em produção esse link não volta na API.
 
@@ -25,7 +25,7 @@ Para criar um administrador da plataforma, defina `ADMIN_EMAIL` e `ADMIN_PASSWOR
 - Anúncio por IA quando `OPENAI_API_KEY` existe; sem a chave, o texto é manual.
 - Narração quando OpenAI ou ElevenLabs estão configurados.
 - Arte composta no servidor com Sharp.
-- Fila de vídeo, créditos e estorno. A exportação usa FFmpeg no worker.
+- Créditos e estorno de anúncio. Render de vídeo fica desligado neste deploy.
 - WhatsApp por link real. Instagram permanece manual. Facebook publica pela API se o aplicativo Meta estiver configurado e a Página conectada.
 - Planos, créditos e Mercado Pago quando o token e o segredo do webhook existem.
 

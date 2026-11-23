@@ -189,28 +189,6 @@ importers:
         specifier: ^5.8.2
         version: 5.9.3
 
-  apps/worker:
-    dependencies:
-      '@vendefacil/business':
-        specifier: workspace:*
-        version: link:../../packages/business
-      '@vendefacil/config':
-        specifier: workspace:*
-        version: link:../../packages/config
-      '@vendefacil/database':
-        specifier: workspace:*
-        version: link:../../packages/database
-      dotenv:
-        specifier: ^16.4.7
-        version: 16.6.1
-      tsx:
-        specifier: ^4.19.3
-        version: 4.23.15
-    devDependencies:
-      typescript:
-        specifier: ^5.8.2
-        version: 5.9.3
-
   packages/ai:
     devDependencies:
       typescript:

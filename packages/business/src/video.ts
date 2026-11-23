@@ -495,7 +495,7 @@ async function failRender(db: PrismaClient, renderId: string, status: "FAILED" |
 }
 
 export async function wakeJob(_renderId: string, _type: string) {
-  // O worker varre BackgroundJob no banco; não usamos fila externa.
+  // Sem processo worker neste deploy.
 }
 
 export async function claimDueJobs(db: PrismaClient, take = 2) {
