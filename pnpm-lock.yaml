@@ -111,10 +111,10 @@ importers:
     dependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
-        version: 3.10.0(react-hook-form@7.92.0(@types/react@19.0.14)(react@19.0.0))
+        version: 3.10.0(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))
       '@tanstack/react-query':
         specifier: ^5.69.0
-        version: 5.108.4(@types/react@19.0.14)(react@19.0.0)
+        version: 5.108.4(@types/react@19.3.0)(react@19.3.1)
       '@vendefacil/business':
         specifier: workspace:*
         version: link:../../packages/business
@@ -135,19 +135,19 @@ importers:
         version: 2.1.1
       lucide-react:
         specifier: ^0.483.0
-        version: 0.483.0(react@19.0.0)
+        version: 0.483.0(react@19.3.1)
       next:
         specifier: ^15.2.4
-        version: 15.5.29(@types/node@22.20.5)(react-dom@19.3.1(react@19.0.0))(react@19.0.0)
+        version: 15.5.29(@types/node@22.20.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react:
-        specifier: ^19.0.0
-        version: 19.0.0
+        specifier: ^19.3.1
+        version: 19.3.1
       react-dom:
-        specifier: ^19.0.0
-        version: 19.3.1(react@19.0.0)
+        specifier: ^19.3.1
+        version: 19.3.1(react@19.3.1)
       react-hook-form:
         specifier: ^7.54.2
-        version: 7.92.0(@types/react@19.0.14)(react@19.0.0)
+        version: 7.92.0(@types/react@19.3.0)(react@19.3.1)
       tailwind-merge:
         specifier: ^3.0.2
         version: 3.7.1
@@ -159,11 +159,11 @@ importers:
         specifier: ^22.13.10
         version: 22.20.5
       '@types/react':
-        specifier: ^19.0.12
-        version: 19.0.14
+        specifier: ^19.3.0
+        version: 19.3.0
       '@types/react-dom':
-        specifier: ^19.0.4
-        version: 19.3.0(@types/react@19.0.14)
+        specifier: ^19.3.0
+        version: 19.3.0(@types/react@19.3.0)
       autoprefixer:
         specifier: ^10.4.21
         version: 10.7.0(postcss@8.5.33)
@@ -2108,6 +2108,9 @@ packages:
 
   '@types/react@19.0.14':
     resolution: {integrity: sha512-ixLZ7zG7j1fM0DijL9hDArwhwcCb4vqmePgwtV0GfnkHRSCUEv4LvzarcTdhoqgyMznUx/EhoTUv31CKZzkQlw==}
+
+  '@types/react@19.3.0':
+    resolution: {integrity: sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==}
 
   '@types/stack-utils@2.0.3':
     resolution: {integrity: sha512-9aEbYZ3TbYMznPdcdr3SmIrLXwC/AKZXQeCf9Pgao5CKb8CyHuEX5jzWPTkvregvhRJHcpRO6BFoGW9ycaOkYw==}
@@ -4197,6 +4200,10 @@ packages:
     resolution: {integrity: sha512-V8AVnmPIICiWpGfm6GLzCR/W5FXLchHop40W4nXBmdlEceh16rCN8O8LNWm5bh5XUX91fh7KpA+W0TgMKmgTpQ==}
     engines: {node: '>=0.10.0'}
 
+  react@19.3.1:
+    resolution: {integrity: sha512-QNhWdt7nrgVWWQG58QuGsAR3jv3Hbe4mb4vz7w2csnHavciZJgda1CPNaldF6eVxv90ud3jUXpKlHL69gO38yw==}
+    engines: {node: '>=0.10.0'}
+
   read-cache@1.0.2:
     resolution: {integrity: sha512-/peqiBB/n07gQGLsWaHho3WfvUyRscw0gYTsEFMhrIe/nWLkYaf5SbKYjGYqtRV3aPwykJgF2VEMo1ac4bnsGA==}
 
@@ -6172,9 +6179,9 @@ snapshots:
       chalk: 4.1.2
       js-yaml: 4.3.2
 
-  '@hookform/resolvers@3.10.0(react-hook-form@7.92.0(@types/react@19.0.14)(react@19.0.0))':
+  '@hookform/resolvers@3.10.0(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))':
     dependencies:
-      react-hook-form: 7.92.0(@types/react@19.0.14)(react@19.0.0)
+      react-hook-form: 7.92.0(@types/react@19.3.0)(react@19.3.1)
 
   '@humanfs/core@0.19.2':
     dependencies:
@@ -6934,6 +6941,13 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.0.14
 
+  '@tanstack/react-query@5.108.4(@types/react@19.3.0)(react@19.3.1)':
+    dependencies:
+      '@tanstack/query-core': 5.108.4
+      react: 19.3.1
+    optionalDependencies:
+      '@types/react': 19.3.0
+
   '@turbo/darwin-64@2.11.13':
     optional: true
 
@@ -7006,11 +7020,15 @@ snapshots:
     dependencies:
       '@types/node': 22.20.5
 
-  '@types/react-dom@19.3.0(@types/react@19.0.14)':
+  '@types/react-dom@19.3.0(@types/react@19.3.0)':
     dependencies:
-      '@types/react': 19.0.14
+      '@types/react': 19.3.0
 
   '@types/react@19.0.14':
+    dependencies:
+      csstype: 3.2.4
+
+  '@types/react@19.3.0':
     dependencies:
       csstype: 3.2.4
 
@@ -8589,9 +8607,9 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@0.483.0(react@19.0.0):
+  lucide-react@0.483.0(react@19.3.1):
     dependencies:
-      react: 19.0.0
+      react: 19.3.1
 
   luxon@3.7.2: {}
 
@@ -8862,15 +8880,15 @@ snapshots:
 
   nested-error-stacks@2.0.1: {}
 
-  next@15.5.29(@types/node@22.20.5)(react-dom@19.3.1(react@19.0.0))(react@19.0.0):
+  next@15.5.29(@types/node@22.20.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:
       '@next/env': 15.5.29
       '@swc/helpers': 0.5.15
       caniuse-lite: 1.0.30001827
       postcss: 8.4.31
-      react: 19.0.0
-      react-dom: 19.3.1(react@19.0.0)
-      styled-jsx: 5.1.6(react@19.0.0)
+      react: 19.3.1
+      react-dom: 19.3.1(react@19.3.1)
+      styled-jsx: 5.1.6(react@19.3.1)
     optionalDependencies:
       '@next/swc-darwin-arm64': 15.5.29
       '@next/swc-darwin-x64': 15.5.29
@@ -9217,9 +9235,9 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  react-dom@19.3.1(react@19.0.0):
+  react-dom@19.3.1(react@19.3.1):
     dependencies:
-      react: 19.0.0
+      react: 19.3.1
       scheduler: 0.28.0
 
   react-fast-compare@3.2.4: {}
@@ -9228,11 +9246,11 @@ snapshots:
     dependencies:
       react: 19.0.0
 
-  react-hook-form@7.92.0(@types/react@19.0.14)(react@19.0.0):
+  react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1):
     dependencies:
-      react: 19.0.0
+      react: 19.3.1
     optionalDependencies:
-      '@types/react': 19.0.14
+      '@types/react': 19.3.0
 
   react-is@18.3.1: {}
 
@@ -9311,6 +9329,8 @@ snapshots:
   react-refresh@0.14.2: {}
 
   react@19.0.0: {}
+
+  react@19.3.1: {}
 
   read-cache@1.0.2: {}
 
@@ -9652,10 +9672,10 @@ snapshots:
 
   structured-headers@0.4.1: {}
 
-  styled-jsx@5.1.6(react@19.0.0):
+  styled-jsx@5.1.6(react@19.3.1):
     dependencies:
       client-only: 0.0.1
-      react: 19.0.0
+      react: 19.3.1
 
   sucrase@3.35.0:
     dependencies:
