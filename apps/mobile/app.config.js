@@ -3,17 +3,16 @@
  * Telas e correções de JS saem por OTA no mesmo canal.
  * Novo binário só quando mudar versão nativa, permissão ou biblioteca nativa.
  *
- * Depois de `eas init`, grave o id em EXPO_PUBLIC_EAS_PROJECT_ID
- * (segredo do EAS ou ambiente). Sem esse id o binário não recebe OTA.
+ * O id do projeto EAS fica no binário para o OTA encontrar o canal certo.
  */
-const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID || "";
+const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID || "c1e70ad7-c5fe-4c1e-8a4b-3b8269553f5e";
 
 module.exports = {
   expo: {
     name: "VendeFácil AI",
     slug: "vendefacil",
     scheme: "vendefacil",
-    owner: process.env.EXPO_OWNER || undefined,
+    owner: process.env.EXPO_OWNER || "neilsan",
     version: "0.1.0",
     orientation: "portrait",
     userInterfaceStyle: "dark",
