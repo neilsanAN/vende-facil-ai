@@ -46,7 +46,7 @@ services:
   - type: worker
     name: vende-facil-worker
     runtime: docker
-    plan: free
+    plan: starter
     region: oregon
     dockerfilePath: ./apps/worker/Dockerfile
     dockerContext: .

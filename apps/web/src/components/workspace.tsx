@@ -158,7 +158,6 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
   const [assetId, setAssetId] = useState("");
   const [preview, setPreview] = useState("");
   const [analysis, setAnalysis] = useState("");
-  const [copy, setCopy] = useState({ title: "", description: "", hashtags: "" });
   const [tone, setTone] = useState("PROFESSIONAL");
   const [productId, setProductId] = useState(products[0]?.id || "");
   const [facts, setFacts] = useState({ name: products[0]?.name || "", brand: "", facts: "", audience: "" });
@@ -175,7 +174,6 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
         headers: { "idempotency-key": crypto.randomUUID() },
         body: JSON.stringify({ productId: productId || null, assetIds: [assetId], tone, facts: { ...facts, priceCents: price ?? null } }),
       });
-      setCopy({ title: ad.title, description: ad.description, hashtags: ad.hashtags.join(" ") });
       router.push(`/anuncios/${ad.id}`);
     } catch (cause) {
       setBusy("");
