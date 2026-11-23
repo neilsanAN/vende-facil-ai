@@ -10,7 +10,7 @@ const nextConfig = {
     "@vendefacil/ui-tokens",
     "@vendefacil/validation",
   ],
-  serverExternalPackages: ["@prisma/client", "prisma", "sharp", "bullmq", "ioredis", "nodemailer"],
+  serverExternalPackages: ["@prisma/client", "prisma", "sharp", "nodemailer"],
   poweredByHeader: false,
   async headers() {
     return [

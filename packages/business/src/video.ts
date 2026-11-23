@@ -494,15 +494,8 @@ async function failRender(db: PrismaClient, renderId: string, status: "FAILED" |
   await db.notification.create({ data: { organizationId: render.organizationId, title: status === "CANCELLED" ? "Vídeo cancelado" : "Vídeo não foi concluído", body: message.slice(0, 180), href: `/estudio/video/${render.projectId}` } });
 }
 
-export async function wakeJob(renderId: string, type: string) {
-  if (!process.env.REDIS_URL) return;
-  const { Queue } = await import("bullmq");
-  const Redis = (await import("ioredis")).default;
-  const connection = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
-  const queue = new Queue("vendefacil", { connection });
-  await queue.add(type, { renderId }, { jobId: renderId, removeOnComplete: 200, removeOnFail: 200 });
-  await queue.close();
-  await connection.quit();
+export async function wakeJob(_renderId: string, _type: string) {
+  // O worker varre BackgroundJob no banco; não usamos fila externa.
 }
 
 export async function claimDueJobs(db: PrismaClient, take = 2) {

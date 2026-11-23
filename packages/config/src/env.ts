@@ -10,7 +10,6 @@ const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_URL: z.string().url().default("http://localhost:3000"),
   DATABASE_URL: z.string().min(1),
-  REDIS_URL: z.string().optional().default(""),
   ENCRYPTION_KEY: z
     .string()
     .min(16)
@@ -67,9 +66,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (config.NODE_ENV === "production") {
     if (INSECURE_KEYS.has(config.ENCRYPTION_KEY.toLowerCase())) {
       throw new Error("ENCRYPTION_KEY de exemplo não pode ser usada em produção.");
-    }
-    if (!config.REDIS_URL) {
-      throw new Error("REDIS_URL é obrigatório em produção.");
     }
     if (!config.APP_URL.startsWith("https://")) {
       throw new Error("APP_URL precisa de HTTPS em produção.");

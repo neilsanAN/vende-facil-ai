@@ -55,7 +55,7 @@ Geração e render exigem `Idempotency-Key`.
 
 ## 7. Fila, armazenamento e vídeo
 
-`BackgroundJob` é a fonte. Com Redis, o BullMQ acorda o worker; o worker também varre jobs vencidos e usa trava otimista. Estados do render: CREATED, VALIDATING, GENERATING_SCRIPT, GENERATING_AUDIO, PREPARING_SCENES, RENDERING, UPLOADING, COMPLETED, além de FAILED, CANCELLED e RETRYING.
+`BackgroundJob` é a fonte. O worker varre jobs vencidos no banco e usa trava otimista. Estados do render: CREATED, VALIDATING, GENERATING_SCRIPT, GENERATING_AUDIO, PREPARING_SCENES, RENDERING, UPLOADING, COMPLETED, além de FAILED, CANCELLED e RETRYING.
 
 O crédito é debitado na criação e estornado em falha final ou cancelamento, com chave única. Upload nasce privado, confirma tipo real e tamanho, e a cópia pública só existe para mídia publicada. Temporários pendentes há mais de um dia são apagados.
 

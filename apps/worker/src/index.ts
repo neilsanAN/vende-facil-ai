@@ -29,22 +29,6 @@ async function maintenance() {
   }
 }
 
-async function listenQueue() {
-  if (!process.env.REDIS_URL) return;
-  const { Worker } = await import("bullmq");
-  const Redis = (await import("ioredis")).default;
-  const connection = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
-  const worker = new Worker(
-    "vendefacil",
-    async (job) => {
-      if (typeof job.data.renderId === "string") await advanceVideoRender(db, container.storage, job.data.renderId);
-    },
-    { connection, concurrency: 1 },
-  );
-  worker.on("failed", (job, error) => log("error", "worker.queue_failed", { jobId: job?.id, message: error.message }));
-  return worker;
-}
-
 const port = Number(process.env.WORKER_PORT || 3001);
 const server = http.createServer((req, res) => {
   if (req.url === "/health") {
@@ -56,8 +40,7 @@ const server = http.createServer((req, res) => {
   res.end();
 });
 
-server.listen(port, () => log("info", "worker.started", { port, redis: Boolean(process.env.REDIS_URL) }));
-const queue = await listenQueue();
+server.listen(port, () => log("info", "worker.started", { port }));
 const poll = setInterval(() => { if (!stopping) void tick(); }, 4000);
 const cron = setInterval(() => { if (!stopping) void maintenance(); }, 60_000);
 void tick();
@@ -66,7 +49,6 @@ async function shutdown() {
   stopping = true;
   clearInterval(poll);
   clearInterval(cron);
-  await queue?.close();
   server.close();
   await db.$disconnect();
 }

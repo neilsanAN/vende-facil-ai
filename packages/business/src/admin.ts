@@ -31,7 +31,6 @@ export class AdminService {
         r2: process.env.STORAGE_DRIVER === "r2",
         smtp: Boolean(process.env.SMTP_HOST),
         mercadopago: Boolean(process.env.MERCADOPAGO_ACCESS_TOKEN),
-        redis: Boolean(process.env.REDIS_URL),
         generativeVideo: Boolean(process.env.VIDEO_GEN_API_URL && process.env.VIDEO_GEN_API_KEY),
       },
     };

@@ -1,5 +1,5 @@
 # VendeFácil AI — banco, app web e worker.
-# Um blueprint cria os três. A URL pública fica https://vende-facil-ai.onrender.com
+# URL pública: https://vende-facil-ai.onrender.com
 
 databases:
   - name: vende-facil-db
@@ -8,12 +8,6 @@ databases:
     user: vendefacil
 
 services:
-  - type: keyvalue
-    name: vende-facil-redis
-    plan: free
-    maxmemoryPolicy: allkeys-lru
-    ipAllowList: []
-
   - type: web
     name: vende-facil-ai
     runtime: docker
@@ -30,11 +24,6 @@ services:
       - key: DATABASE_URL
         fromDatabase:
           name: vende-facil-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          name: vende-facil-redis
-          type: keyvalue
           property: connectionString
       - key: ENCRYPTION_KEY
         generateValue: true
@@ -58,11 +47,6 @@ services:
       - key: DATABASE_URL
         fromDatabase:
           name: vende-facil-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          name: vende-facil-redis
-          type: keyvalue
           property: connectionString
       - key: ENCRYPTION_KEY
         fromService:
