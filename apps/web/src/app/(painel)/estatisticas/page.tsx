@@ -100,7 +100,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
         )}
         {hasSeries && stats.series.length <= 7 ? (
           <div className="mt-2 flex justify-between text-[9px] font-medium text-muted">
-            {stats.series.map((item, i) => {
+            {stats.series.map((item) => {
               const d = new Date(item.day);
               return <span key={item.day}>{DOW[d.getDay() === 0 ? 6 : d.getDay() - 1] || item.day.slice(5)}</span>;
             })}

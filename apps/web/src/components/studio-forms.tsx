@@ -105,7 +105,7 @@ export function ArtForm({ products }: { products: Array<{ id: string; name: stri
   );
 }
 
-export function PublishDesk({ channels, products }: { channels: Array<{ provider: string; status: string; detail: string }>; products: Array<{ id: string; name: string }> }) {
+export function PublishDesk({ channels: _channels, products }: { channels: Array<{ provider: string; status: string; detail: string }>; products: Array<{ id: string; name: string }> }) {
   const toast = useToast();
   const [share, setShare] = useState<{ whatsappUrl?: string; link?: string; caption?: string } | null>(null);
   const [enabled, setEnabled] = useState({ WHATSAPP: true, INSTAGRAM: false, FACEBOOK: false });
