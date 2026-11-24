@@ -1,7 +1,9 @@
 import type { MemberRole, PlatformRole, PrismaClient } from "@prisma/client";
-import { log } from "@vendefacil/config";
 import { AppError } from "./errors";
 import { hashPassword, hashToken, newToken, verifyPassword } from "./ledger";
+import { generateOtpCode, sendAuthCode } from "./mail";
+
+export { deliverEmail, sendAuthCode } from "./mail";
 
 export type SessionContext = {
   userId: string;
@@ -47,28 +49,37 @@ export class AuthService {
 
   async register(input: { name: string; email: string; password: string }) {
     const existing = await this.db.user.findUnique({ where: { email: input.email } });
-    if (existing) throw new AppError("EMAIL_IN_USE", "Já existe uma conta com este e-mail.", 409);
-    const user = await this.db.user.create({
-      data: {
-        name: input.name,
-        email: input.email,
-        passwordHash: await hashPassword(input.password),
-        termsAcceptedAt: new Date(),
-        privacyAcceptedAt: new Date(),
-      },
-    });
-    const raw = newToken();
-    await this.db.emailToken.create({
-      data: {
-        userId: user.id,
-        email: user.email,
-        purpose: "VERIFY_EMAIL",
-        tokenHash: hashToken(raw),
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      },
-    });
-    const session = await this.issue(user.id);
-    return { userId: user.id, email: user.email, verificationToken: raw, ...session };
+    if (existing && existing.emailVerifiedAt && !existing.deletedAt) {
+      throw new AppError("EMAIL_IN_USE", "Já existe uma conta com este e-mail.", 409);
+    }
+
+    let user = existing && !existing.deletedAt ? existing : null;
+    if (user && !user.emailVerifiedAt) {
+      user = await this.db.user.update({
+        where: { id: user.id },
+        data: {
+          name: input.name,
+          passwordHash: await hashPassword(input.password),
+          termsAcceptedAt: new Date(),
+          privacyAcceptedAt: new Date(),
+        },
+      });
+    } else if (!user) {
+      user = await this.db.user.create({
+        data: {
+          name: input.name,
+          email: input.email,
+          passwordHash: await hashPassword(input.password),
+          termsAcceptedAt: new Date(),
+          privacyAcceptedAt: new Date(),
+        },
+      });
+    } else {
+      throw new AppError("EMAIL_IN_USE", "Já existe uma conta com este e-mail.", 409);
+    }
+
+    const mail = await this.issueVerifyCode(user.id, user.email);
+    return { userId: user.id, email: user.email, message: "Enviamos um código de 6 dígitos para o seu e-mail.", ...mail };
   }
 
   async login(input: { email: string; password: string; userAgent?: string; ip?: string }) {
@@ -78,9 +89,62 @@ export class AuthService {
       throw new AppError("INVALID_CREDENTIALS", "E-mail ou senha incorretos.", 401);
     }
     if (!user.emailVerifiedAt) {
-      throw new AppError("EMAIL_UNVERIFIED", "Confirme seu e-mail antes de entrar.", 403);
+      const mail = await this.issueVerifyCode(user.id, user.email);
+      throw new AppError("EMAIL_UNVERIFIED", "Confirme seu e-mail para entrar. Enviamos um novo código.", 403, {
+        email: user.email,
+        ...mail,
+      });
     }
     return this.issue(user.id, input);
+  }
+
+  private async issueVerifyCode(userId: string, email: string) {
+    await this.db.emailToken.deleteMany({ where: { userId, purpose: "VERIFY_EMAIL", usedAt: null } });
+    await this.db.rateLimitBucket.deleteMany({ where: { key: `otp:${userId}:VERIFY_EMAIL` } }).catch(() => undefined);
+    const code = generateOtpCode();
+    await this.db.emailToken.create({
+      data: {
+        userId,
+        email,
+        purpose: "VERIFY_EMAIL",
+        tokenHash: hashToken(code),
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+      },
+    });
+    const sent = await sendAuthCode({ to: email, code, purpose: "verify_email" });
+    return { delivered: sent.delivered, devCode: sent.delivered ? null : sent.code };
+  }
+
+  private async assertOtpAttempts(userId: string) {
+    const key = `otp:${userId}:VERIFY_EMAIL`;
+    const now = new Date();
+    const bucket = await this.db.rateLimitBucket.findUnique({ where: { key } });
+    if (!bucket || bucket.resetAt < now) {
+      await this.db.rateLimitBucket.upsert({
+        where: { key },
+        create: { key, hits: 0, resetAt: new Date(now.getTime() + 15 * 60 * 1000) },
+        update: { hits: 0, resetAt: new Date(now.getTime() + 15 * 60 * 1000) },
+      });
+      return;
+    }
+    if (bucket.hits >= 5) {
+      throw new AppError("TOO_MANY", "Não foi possível validar o código. Solicite um novo.", 429);
+    }
+  }
+
+  private async bumpOtpAttempts(userId: string) {
+    const key = `otp:${userId}:VERIFY_EMAIL`;
+    const now = new Date();
+    const bucket = await this.db.rateLimitBucket.findUnique({ where: { key } });
+    if (!bucket || bucket.resetAt < now) {
+      await this.db.rateLimitBucket.upsert({
+        where: { key },
+        create: { key, hits: 1, resetAt: new Date(now.getTime() + 15 * 60 * 1000) },
+        update: { hits: 1, resetAt: new Date(now.getTime() + 15 * 60 * 1000) },
+      });
+      return;
+    }
+    await this.db.rateLimitBucket.update({ where: { key }, data: { hits: { increment: 1 } } });
   }
 
   private async issue(userId: string, meta?: { userAgent?: string; ip?: string }) {
@@ -132,39 +196,46 @@ export class AuthService {
     });
   }
 
-  async verifyEmail(token: string) {
-    const row = await this.db.emailToken.findUnique({ where: { tokenHash: hashToken(token) } });
-    if (!row || row.purpose !== "VERIFY_EMAIL" || !row.userId) {
-      throw new AppError("TOKEN_INVALID", "Link de verificação inválido.", 400);
+  async verifyEmail(email: string, codeRaw: string) {
+    const code = codeRaw.replace(/\D/g, "");
+    const user = await this.db.user.findUnique({ where: { email } });
+    if (!user || user.deletedAt) throw new AppError("INVALID_CODE", "Código inválido.", 400);
+    if (user.emailVerifiedAt) {
+      const session = await this.issue(user.id);
+      return { already: true, userId: user.id, ...session };
     }
-    const user = await this.db.user.findUnique({ where: { id: row.userId } });
-    if (!user) throw new AppError("TOKEN_INVALID", "Link de verificação inválido.", 400);
-    if (row.usedAt) {
-      if (user.emailVerifiedAt) return { already: true, userId: user.id };
-      throw new AppError("TOKEN_INVALID", "Este link já foi usado.", 400);
+
+    const row = await this.db.emailToken.findFirst({
+      where: { userId: user.id, purpose: "VERIFY_EMAIL", usedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!row) throw new AppError("NO_CODE", "Solicite um novo código.", 400);
+    if (row.expiresAt < new Date()) {
+      await this.db.emailToken.delete({ where: { id: row.id } });
+      throw new AppError("TOKEN_EXPIRED", "Código expirado. Solicite um novo.", 400);
     }
-    if (row.expiresAt < new Date()) throw new AppError("TOKEN_EXPIRED", "O link expirou. Solicite outro.", 400);
+    await this.assertOtpAttempts(user.id);
+    if (row.tokenHash !== hashToken(code)) {
+      await this.bumpOtpAttempts(user.id);
+      throw new AppError("INVALID_CODE", "Código inválido.", 400);
+    }
+
     await this.db.$transaction([
       this.db.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } }),
       this.db.emailToken.update({ where: { id: row.id }, data: { usedAt: new Date() } }),
+      this.db.emailToken.deleteMany({ where: { userId: user.id, purpose: "VERIFY_EMAIL", usedAt: null } }),
+      this.db.rateLimitBucket.deleteMany({ where: { key: `otp:${user.id}:VERIFY_EMAIL` } }),
     ]);
-    return { already: false, userId: user.id };
+    const session = await this.issue(user.id);
+    return { already: false, userId: user.id, ...session };
   }
 
-  async resendVerification(userId: string) {
-    const user = await this.db.user.findUnique({ where: { id: userId } });
-    if (!user || user.emailVerifiedAt) return null;
-    const raw = newToken();
-    await this.db.emailToken.create({
-      data: {
-        userId: user.id,
-        email: user.email,
-        purpose: "VERIFY_EMAIL",
-        tokenHash: hashToken(raw),
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      },
-    });
-    return { email: user.email, verificationToken: raw };
+  async resendVerification(email: string) {
+    const message = "Se a conta existir e ainda não estiver confirmada, enviamos um novo código.";
+    const user = await this.db.user.findUnique({ where: { email } });
+    if (!user || user.deletedAt || user.emailVerifiedAt) return { message, email, delivered: false as const, devCode: null };
+    const mail = await this.issueVerifyCode(user.id, user.email);
+    return { message, email: user.email, ...mail };
   }
 
   async forgotPassword(email: string) {
@@ -241,18 +312,3 @@ export class AuthService {
   }
 }
 
-export async function deliverEmail(input: { to: string; subject: string; text: string }) {
-  if (!process.env.SMTP_HOST) {
-    log("info", "email.skipped", { to: input.to, subject: input.subject });
-    return { delivered: false as const };
-  }
-  const nodemailer = await import("nodemailer");
-  const transport = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: Number(process.env.SMTP_PORT || 587) === 465,
-    auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
-  });
-  await transport.sendMail({ from: process.env.SMTP_FROM, to: input.to, subject: input.subject, text: input.text });
-  return { delivered: true as const };
-}

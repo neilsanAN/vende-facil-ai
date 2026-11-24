@@ -29,7 +29,7 @@ export class AdminService {
         openai: Boolean(process.env.OPENAI_API_KEY),
         elevenlabs: Boolean(process.env.ELEVENLABS_API_KEY),
         r2: process.env.STORAGE_DRIVER === "r2",
-        smtp: Boolean(process.env.SMTP_HOST),
+        smtp: Boolean(process.env.RESEND_API_KEY || process.env.SMTP_HOST || process.env.SMTP_URL),
         mercadopago: Boolean(process.env.MERCADOPAGO_ACCESS_TOKEN),
         generativeVideo: Boolean(process.env.VIDEO_GEN_API_URL && process.env.VIDEO_GEN_API_KEY),
       },

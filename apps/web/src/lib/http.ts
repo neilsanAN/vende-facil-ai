@@ -10,7 +10,12 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export class ApiClientError extends Error {
-  constructor(message: string, public code = "ERROR", public status = 500) {
+  constructor(
+    message: string,
+    public code = "ERROR",
+    public status = 500,
+    public details?: unknown,
+  ) {
     super(message);
   }
 }
@@ -28,10 +33,13 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     const refreshed = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" });
     if (refreshed.ok) return api<T>(path, init);
   }
-  const payload = (await response.json().catch(() => null)) as { error?: { message?: string; code?: string } } | T | null;
+  const payload = (await response.json().catch(() => null)) as
+    | { error?: { message?: string; code?: string; details?: unknown } }
+    | T
+    | null;
   if (!response.ok) {
     const error = payload && typeof payload === "object" && "error" in payload ? payload.error : undefined;
-    throw new ApiClientError(error?.message || "Não foi possível concluir a ação.", error?.code, response.status);
+    throw new ApiClientError(error?.message || "Não foi possível concluir a ação.", error?.code, response.status, error?.details);
   }
   return payload as T;
 }

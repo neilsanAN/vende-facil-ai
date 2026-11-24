@@ -20,6 +20,7 @@ import {
   publicOrderSchema,
   publicationSchema,
   registerSchema,
+  resendVerificationSchema,
   resetSchema,
   statsRangeSchema,
   storeSchema,
@@ -63,7 +64,7 @@ const routes: Route[] = [
   { method: "POST", pattern: "/auth/forgot", auth: "public", handle: forgot },
   { method: "POST", pattern: "/auth/reset", auth: "public", handle: reset },
   { method: "POST", pattern: "/auth/verify", auth: "public", handle: verify },
-  { method: "POST", pattern: "/auth/resend", auth: "user", handle: resend },
+  { method: "POST", pattern: "/auth/resend", auth: "public", handle: resend },
   { method: "GET", pattern: "/auth/me", auth: "user", handle: async ({ session }) => json({ user: session }) },
   { method: "POST", pattern: "/onboarding", auth: "user", handle: onboard },
   { method: "GET", pattern: "/shell", auth: "tenant", handle: async (ctx) => json(await ctx.container.tenants.shell(requireTenantSession(ctx))) },
@@ -195,9 +196,15 @@ async function register(ctx: RouteContext) {
   const enabled = await ctx.container.db.platformSetting.findUnique({ where: { key: "registrationEnabled" } });
   if (enabled && enabled.value === false) throw new AppError("REGISTRATION_CLOSED", "O cadastro está temporariamente fechado.", 403);
   const result = await ctx.container.auth.register(body.data);
-  const link = `${ctx.container.config.APP_URL}/verificar-email?token=${result.verificationToken}`;
-  const devVerificationUrl = await devMail({ to: result.email, subject: "Confirme seu e-mail — VendeFacil AI", text: `Confirme sua conta: ${link}`, devUrl: link });
-  return json({ userId: result.userId, devVerificationUrl }, 201, authCookies(result.accessToken, result.refreshToken));
+  return json(
+    {
+      email: result.email,
+      message: result.message,
+      delivered: result.delivered,
+      devCode: process.env.NODE_ENV === "production" ? null : result.devCode,
+    },
+    201,
+  );
 }
 
 async function login(ctx: RouteContext) {
@@ -240,16 +247,25 @@ async function reset(ctx: RouteContext) {
 async function verify(ctx: RouteContext) {
   const body = await readJson(ctx.req, verifySchema);
   if (!body.ok) return body.response;
-  await ctx.container.auth.verifyEmail(body.data.token);
-  return json({ ok: true });
+  const result = await ctx.container.auth.verifyEmail(body.data.email, body.data.code);
+  const mobile = ctx.req.headers.get("x-vendefacil-client") === "mobile";
+  return json(
+    mobile ? { accessToken: result.accessToken, refreshToken: result.refreshToken, already: result.already } : { ok: true, already: result.already },
+    200,
+    authCookies(result.accessToken, result.refreshToken),
+  );
 }
 
 async function resend(ctx: RouteContext) {
-  const result = await ctx.container.auth.resendVerification(ctx.session!.userId);
-  if (!result) return json({ ok: true });
-  const link = `${ctx.container.config.APP_URL}/verificar-email?token=${result.verificationToken}`;
-  const devVerificationUrl = await devMail({ to: result.email, subject: "Confirme seu e-mail — VendeFacil AI", text: link, devUrl: link });
-  return json({ ok: true, devVerificationUrl });
+  const body = await readJson(ctx.req, resendVerificationSchema);
+  if (!body.ok) return body.response;
+  const result = await ctx.container.auth.resendVerification(body.data.email);
+  return json({
+    ok: true,
+    message: result.message,
+    delivered: result.delivered,
+    devCode: process.env.NODE_ENV === "production" ? null : result.devCode,
+  });
 }
 
 async function onboard(ctx: RouteContext) {

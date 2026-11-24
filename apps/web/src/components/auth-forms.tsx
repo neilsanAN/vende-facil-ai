@@ -171,6 +171,14 @@ export function LoginForm() {
             router.push("/inicio");
             router.refresh();
           } catch (cause) {
+            if (cause instanceof ApiClientError && cause.code === "EMAIL_UNVERIFIED") {
+              const details = cause.details as { email?: string; devCode?: string | null } | undefined;
+              const email = details?.email || values.email;
+              sessionStorage.setItem("vf_otp_email", email);
+              if (details?.devCode) sessionStorage.setItem("vf_otp_dev", details.devCode);
+              router.push(`/verificar-email?email=${encodeURIComponent(email)}`);
+              return;
+            }
             setError(cause instanceof ApiClientError ? cause.message : "Falha no acesso.");
           }
         })}
@@ -221,9 +229,11 @@ export function RegisterForm() {
         onSubmit={form.handleSubmit(async (values) => {
           setError("");
           try {
-            const result = await api<{ devVerificationUrl?: string | null }>("/api/auth/register", { method: "POST", body: JSON.stringify(values) });
-            if (result.devVerificationUrl) sessionStorage.setItem("vf_verify", result.devVerificationUrl);
-            router.push("/verificar-email");
+            const result = await api<{ email: string; message: string; devCode?: string | null }>("/api/auth/register", { method: "POST", body: JSON.stringify(values) });
+            sessionStorage.setItem("vf_otp_email", result.email);
+            if (result.devCode) sessionStorage.setItem("vf_otp_dev", result.devCode);
+            else sessionStorage.removeItem("vf_otp_dev");
+            router.push(`/verificar-email?email=${encodeURIComponent(result.email)}`);
           } catch (cause) {
             setError(cause instanceof ApiClientError ? cause.message : "Não foi possível cadastrar.");
           }
@@ -324,48 +334,99 @@ export function ResetForm() {
 export function VerifyPanel() {
   const params = useSearchParams();
   const router = useRouter();
-  const [message, setMessage] = useState("Confirme o e-mail para abrir a loja.");
-  const [link, setLink] = useState("");
+  const initialEmail = params.get("email") || (typeof window !== "undefined" ? sessionStorage.getItem("vf_otp_email") || "" : "");
+  const [email, setEmail] = useState(initialEmail);
+  const [code, setCode] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [devCode, setDevCode] = useState(() => (typeof window !== "undefined" ? sessionStorage.getItem("vf_otp_dev") || "" : ""));
+
+  useEffect(() => {
+    if (!email && typeof window !== "undefined") {
+      const stored = sessionStorage.getItem("vf_otp_email");
+      if (stored) setEmail(stored);
+    }
+  }, [email]);
+
   return (
     <Screen title="Verificar e-mail">
-      <p className="mt-2 text-sm text-muted">{message}</p>
-      <Button
-        className="mt-5 w-full"
-        onClick={async () => {
-          const stored = typeof window !== "undefined" ? sessionStorage.getItem("vf_verify") : null;
-          const token = params.get("token") || (stored ? new URL(stored).searchParams.get("token") : "");
-          if (!token) {
-            setMessage("Abra o link enviado ou solicite outro.");
-            return;
-          }
+      <div className="rounded-2xl border border-line bg-surface px-3 py-3 text-[12px] leading-4 text-muted shadow-card">
+        Enviamos um código de 6 dígitos para <strong className="text-ink">{email || "seu e-mail"}</strong>. Confira a caixa de entrada e o spam.
+      </div>
+      <form
+        className="mt-5 space-y-3"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          setError("");
+          setBusy(true);
           try {
-            await api("/api/auth/verify", { method: "POST", body: JSON.stringify({ token }) });
+            await api("/api/auth/verify", { method: "POST", body: JSON.stringify({ email, code }) });
+            sessionStorage.removeItem("vf_otp_dev");
             router.push("/onboarding");
+            router.refresh();
           } catch (cause) {
-            setMessage(cause instanceof ApiClientError ? cause.message : "Não foi possível confirmar.");
+            setError(cause instanceof ApiClientError ? cause.message : "Não foi possível confirmar.");
+          } finally {
+            setBusy(false);
           }
         }}
       >
-        Confirmar e-mail
-      </Button>
+        {!initialEmail ? (
+          <Field label="E-mail">
+            <input className={inputClass} type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+          </Field>
+        ) : null}
+        <Field label="Código de 6 dígitos">
+          <input
+            className={cn(inputClass, "tracking-[0.35em]")}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            placeholder="000000"
+            value={code}
+            onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+            required
+          />
+        </Field>
+        {error ? <p className="text-sm text-danger">{error}</p> : null}
+        {message ? <p className="text-sm text-primary">{message}</p> : null}
+        {devCode ? <p className="text-[10px] font-medium leading-[13px] text-muted">Ambiente local: use o código {devCode}</p> : null}
+        <Button className="w-full" type="submit" disabled={busy || code.length !== 6 || !email}>
+          Confirmar e-mail
+        </Button>
+      </form>
       <button
-        className="mt-3 text-sm text-primary"
+        type="button"
+        className="mt-3 w-full text-center text-[12px] font-semibold text-primary"
+        disabled={busy || !email}
         onClick={async () => {
-          const result = await api<{ devVerificationUrl?: string | null }>("/api/auth/resend", { method: "POST" });
-          if (result.devVerificationUrl) {
-            sessionStorage.setItem("vf_verify", result.devVerificationUrl);
-            setLink(result.devVerificationUrl);
+          setError("");
+          setBusy(true);
+          try {
+            const result = await api<{ message: string; devCode?: string | null }>("/api/auth/resend", {
+              method: "POST",
+              body: JSON.stringify({ email }),
+            });
+            setMessage(result.message || "Novo código enviado.");
+            if (result.devCode) {
+              sessionStorage.setItem("vf_otp_dev", result.devCode);
+              setDevCode(result.devCode);
+            }
+          } catch (cause) {
+            setError(cause instanceof ApiClientError ? cause.message : "Não foi possível reenviar o código.");
+          } finally {
+            setBusy(false);
           }
-          setMessage("Se o envio estiver configurado, a mensagem foi disparada.");
         }}
       >
-        Enviar novamente
+        Reenviar código por e-mail
       </button>
-      {link ? (
-        <a className="mt-3 block text-sm text-primary" href={link}>
-          Link local de verificação
-        </a>
-      ) : null}
+      <p className="mt-4 text-center text-sm text-muted">
+        <Link href="/entrar" className="font-semibold text-primary">
+          Voltar para entrar
+        </Link>
+      </p>
     </Screen>
   );
 }

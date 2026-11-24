@@ -41,7 +41,19 @@ export const resetSchema = z.object({
   password: passwordSchema,
 });
 
-export const verifySchema = z.object({ token: z.string().min(20) });
+export const otpCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, "Informe o código de 6 dígitos.");
+
+export const verifySchema = z.object({
+  email: emailSchema,
+  code: otpCodeSchema,
+});
+
+export const resendVerificationSchema = z.object({
+  email: emailSchema,
+});
 
 export const onboardingSchema = z.object({
   storeName: z.string().trim().min(2).max(80),

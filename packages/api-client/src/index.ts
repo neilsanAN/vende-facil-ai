@@ -1,4 +1,15 @@
-export type ApiError = { error?: { code?: string; message?: string } };
+export type ApiError = { error?: { code?: string; message?: string; details?: unknown } };
+
+export class ApiClientError extends Error {
+  constructor(
+    message: string,
+    public code = "ERROR",
+    public status = 500,
+    public details?: unknown,
+  ) {
+    super(message);
+  }
+}
 
 export function createApiClient(options: {
   baseUrl: string;
@@ -21,11 +32,29 @@ export function createApiClient(options: {
       if (next) return request<T>(path, init, false);
     }
     const payload = (await response.json().catch(() => null)) as T & ApiError;
-    if (!response.ok) throw new Error(payload?.error?.message || "Falha na API.");
+    if (!response.ok) {
+      throw new ApiClientError(payload?.error?.message || "Falha na API.", payload?.error?.code, response.status, payload?.error?.details);
+    }
     return payload;
   }
   return {
-    login: (body: { email: string; password: string }) => request<{ accessToken: string; refreshToken: string }>("/api/auth/login", { method: "POST", body: JSON.stringify(body) }),
+    login: (body: { email: string; password: string }) =>
+      request<{ accessToken: string; refreshToken: string }>("/api/auth/login", { method: "POST", body: JSON.stringify(body) }),
+    register: (body: { name: string; email: string; password: string; acceptTerms: true }) =>
+      request<{ email: string; message: string; delivered: boolean; devCode?: string | null }>("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    verifyEmail: (body: { email: string; code: string }) =>
+      request<{ accessToken: string; refreshToken: string; already: boolean }>("/api/auth/verify", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    resendVerification: (email: string) =>
+      request<{ ok: boolean; message: string; delivered: boolean; devCode?: string | null }>("/api/auth/resend", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      }),
     me: () => request("/api/auth/me"),
     products: () => request("/api/products"),
     dashboard: () => request("/api/dashboard"),
