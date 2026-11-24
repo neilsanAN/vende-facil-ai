@@ -5,33 +5,36 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, registerSchema, forgotSchema, resetSchema, onboardingSchema } from "@vendefacil/validation";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { LogoMark } from "@/components/shell";
 import { Button, Field, areaClass, inputClass, useToast } from "@/components/ui";
 import { api, ApiClientError, cn } from "@/lib/http";
 import { useEffect, useMemo, useState } from "react";
 
-function Screen({ children, title, dark = false, banner = false }: { children: React.ReactNode; title?: string; dark?: boolean; banner?: boolean }) {
-  if (banner) {
-    return (
-      <main className="min-h-screen bg-background text-ink">
-        <div className="bg-gradient-to-br from-[#7C5CFF] to-[#5B3DF0] px-6 pb-10 pt-12 text-white">
-          <div className="mx-auto flex max-w-[390px] flex-col items-center text-center">
-            <LogoMark className="h-14 w-14 rounded-2xl bg-white/15 shadow-none" />
-            <p className="mt-4 text-[22px] font-bold leading-7 tracking-tight">VendeFácil AI</p>
-            {title ? <p className="mt-1 text-[13px] text-white/80">{title}</p> : null}
-          </div>
-        </div>
-        <div className="mx-auto -mt-5 w-full max-w-[390px] rounded-t-[24px] bg-background px-6 pb-10 pt-6 shadow-[0_-8px_24px_rgba(23,24,39,0.06)]">{children}</div>
-      </main>
-    );
-  }
+function AuthLogo({ className }: { className?: string }) {
+  return (
+    <span className={cn("relative grid h-11 w-11 place-items-center", className)}>
+      <span className="absolute inset-0 rounded-[12px] bg-[#A78BFA]/50 blur-md" />
+      <span className="relative grid h-11 w-11 place-items-center rounded-[12px] bg-gradient-to-br from-[#9B7BFF] to-[#5B3DF0] shadow-[0_0_0_2px_rgba(196,181,253,0.55)]">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6.5 8.5h11l-.8 10.2a1.6 1.6 0 0 1-1.6 1.5H9a1.6 1.6 0 0 1-1.6-1.5L6.5 8.5Z" stroke="white" strokeWidth="1.7" />
+          <path d="M9 8.5V7a3 3 0 0 1 6 0v1.5" stroke="white" strokeWidth="1.7" strokeLinecap="round" />
+          <path d="M10.4 13.2v3.1l3.2-1.55-3.2-1.55Z" fill="white" />
+        </svg>
+      </span>
+    </span>
+  );
+}
+
+function Screen({ children, title, dark = false }: { children: React.ReactNode; title?: string; dark?: boolean }) {
   return (
     <main className={cn("min-h-screen", dark ? "bg-[radial-gradient(circle_at_top,_#1A1240_0%,_#070B18_46%)] text-white" : "bg-background text-ink")}>
       <div className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col px-6 py-10">
         <div className="mb-8 flex flex-col items-center text-center">
           <LogoMark />
-          <p className={cn("mt-4 text-2xl font-bold tracking-tight", dark ? "text-white" : "text-ink")}>VendeFácil AI</p>
+          <p className={cn("mt-4 text-2xl font-bold tracking-tight", dark ? "text-white" : "text-ink")}>
+            VendeFácil <span className="text-primary">AI</span>
+          </p>
           {title ? <p className={cn("mt-1 text-sm", dark ? "text-white/60" : "text-muted")}>{title}</p> : null}
         </div>
         {children}
@@ -67,18 +70,22 @@ function useIphone() {
   return iphone;
 }
 
-function SocialButtons() {
+function SocialButtons({ alwaysApple = false }: { alwaysApple?: boolean }) {
   const toast = useToast();
   const iphone = useIphone();
-  const socialClass = "flex h-10 w-full items-center justify-center gap-2 rounded-full border border-line bg-surface px-4 text-[12px] font-semibold leading-[15px] text-ink";
+  const socialClass = "flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#D7D5E5] bg-white px-4 text-[13px] font-semibold leading-[16px] text-[#2A2740] shadow-sm";
   return (
-    <div className="mt-4 space-y-2">
-      <p className="text-center text-[10px] font-medium leading-[13px] text-muted">ou</p>
+    <div className="mt-5 space-y-3">
+      <div className="flex items-center gap-3">
+        <span className="h-px flex-1 bg-[#D9D6E5]" />
+        <span className="text-[12px] font-medium text-[#8B879C]">ou</span>
+        <span className="h-px flex-1 bg-[#D9D6E5]" />
+      </div>
       <button type="button" className={socialClass} onClick={() => toast("O acesso com Google entra quando o aplicativo estiver configurado.", "err")}>
         <GoogleMark />
         Continuar com Google
       </button>
-      {iphone ? (
+      {alwaysApple || iphone ? (
         <button type="button" className={socialClass} onClick={() => toast("O acesso com Apple entra quando o aplicativo estiver configurado.", "err")}>
           <AppleMark />
           Continuar com Apple
@@ -175,57 +182,91 @@ export function LoginForm() {
   const [error, setError] = useState("");
   const [visible, setVisible] = useState(false);
   return (
-    <Screen title="Acesse sua conta" banner>
-      <form
-        className="space-y-3"
-        onSubmit={form.handleSubmit(async (values) => {
-          setError("");
-          try {
-            await api("/api/auth/login", { method: "POST", body: JSON.stringify(values) });
-            router.push("/inicio");
-            router.refresh();
-          } catch (cause) {
-            if (cause instanceof ApiClientError && cause.code === "EMAIL_UNVERIFIED") {
-              const details = cause.details as { email?: string; devCode?: string | null } | undefined;
-              const email = details?.email || values.email;
-              sessionStorage.setItem("vf_otp_email", email);
-              if (details?.devCode) sessionStorage.setItem("vf_otp_dev", details.devCode);
-              router.push(`/verificar-email?email=${encodeURIComponent(email)}`);
-              return;
+    <main className="min-h-screen bg-[linear-gradient(180deg,#2A1760_0%,#6B4AD6_42%,#E9E4F8_78%,#F7F5FC_100%)]">
+      <div className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col px-6 pb-8 pt-12">
+        <div className="flex items-center justify-center gap-2.5">
+          <AuthLogo />
+          <p className="text-[22px] font-bold leading-7 tracking-tight text-white">
+            VendeFácil <span className="text-[#D4C8FF]">AI</span>
+          </p>
+        </div>
+        <h1 className="mt-8 text-center text-[24px] font-bold leading-8 tracking-tight text-white">Acesse sua conta</h1>
+
+        <form
+          className="mt-7"
+          onSubmit={form.handleSubmit(async (values) => {
+            setError("");
+            try {
+              await api("/api/auth/login", { method: "POST", body: JSON.stringify(values) });
+              router.push("/inicio");
+              router.refresh();
+            } catch (cause) {
+              if (cause instanceof ApiClientError && cause.code === "EMAIL_UNVERIFIED") {
+                const details = cause.details as { email?: string; devCode?: string | null } | undefined;
+                const email = details?.email || values.email;
+                sessionStorage.setItem("vf_otp_email", email);
+                if (details?.devCode) sessionStorage.setItem("vf_otp_dev", details.devCode);
+                router.push(`/verificar-email?email=${encodeURIComponent(email)}`);
+                return;
+              }
+              setError(cause instanceof ApiClientError ? cause.message : "Falha no acesso.");
             }
-            setError(cause instanceof ApiClientError ? cause.message : "Falha no acesso.");
-          }
-        })}
-      >
-        <Field label="E-mail">
-          <input className={inputClass} type="email" autoComplete="email" {...form.register("email")} />
-        </Field>
-        <Field label="Senha">
-          <div className="relative">
-            <input className={cn(inputClass, "pr-10")} type={visible ? "text" : "password"} autoComplete="current-password" {...form.register("password")} />
-            <button type="button" className="absolute inset-y-0 right-0 grid w-10 place-items-center text-muted" onClick={() => setVisible((v) => !v)} aria-label={visible ? "Ocultar senha" : "Mostrar senha"}>
-              {visible ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
+          })}
+        >
+          <div className="overflow-hidden rounded-2xl bg-white shadow-[0_12px_32px_rgba(42,23,96,0.18)]">
+            <label className="flex items-center gap-3 px-4 py-3.5">
+              <Mail size={18} className="shrink-0 text-[#9A96AB]" />
+              <input
+                className="h-6 w-full border-0 bg-transparent text-[13px] font-medium text-[#171827] outline-none placeholder:text-[#9A96AB]"
+                type="email"
+                autoComplete="email"
+                placeholder="seu@email.com"
+                {...form.register("email")}
+              />
+            </label>
+            <div className="mx-4 h-px bg-[#ECEAF3]" />
+            <label className="flex items-center gap-3 px-4 py-3.5">
+              <Lock size={18} className="shrink-0 text-[#9A96AB]" />
+              <input
+                className="h-6 w-full border-0 bg-transparent text-[13px] font-medium tracking-wide text-[#171827] outline-none placeholder:text-[#9A96AB]"
+                type={visible ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder="••••••••"
+                {...form.register("password")}
+              />
+              <button type="button" className="grid h-8 w-8 place-items-center text-[#9A96AB]" onClick={() => setVisible((v) => !v)} aria-label={visible ? "Ocultar senha" : "Mostrar senha"}>
+                {visible ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </label>
           </div>
-        </Field>
-        {error ? <p className="text-sm text-danger">{error}</p> : null}
-        <Button className="w-full" type="submit" disabled={form.formState.isSubmitting}>
-          Entrar
-        </Button>
-      </form>
-      <div className="mt-3 text-center">
-        <Link href="/recuperar-senha" className="text-[10px] font-medium leading-[13px] text-muted underline">
-          Esqueci minha senha
-        </Link>
+
+          <div className="mt-3 flex justify-end">
+            <Link href="/recuperar-senha" className="text-[12px] font-semibold text-[#6D4AFF]">
+              Esqueci minha senha
+            </Link>
+          </div>
+
+          {error ? <p className="mt-3 text-center text-[12px] text-danger">{error}</p> : null}
+
+          <button
+            type="submit"
+            disabled={form.formState.isSubmitting}
+            className="mt-5 flex h-12 w-full items-center justify-center rounded-2xl bg-[#6D4AFF] text-[14px] font-semibold text-white shadow-[0_10px_24px_rgba(109,74,255,0.35)] disabled:opacity-50"
+          >
+            Entrar
+          </button>
+        </form>
+
+        <SocialButtons alwaysApple />
+
+        <p className="mt-auto pt-8 text-center text-[13px] text-[#5C5870]">
+          Não tem uma conta?{" "}
+          <Link href="/cadastro" className="font-bold text-[#6D4AFF]">
+            Cadastre-se
+          </Link>
+        </p>
       </div>
-      <SocialButtons />
-      <p className="mt-4 text-center text-sm text-muted">
-        Não tem uma conta?{" "}
-        <Link href="/cadastro" className="font-semibold text-primary">
-          Cadastre-se
-        </Link>
-      </p>
-    </Screen>
+    </main>
   );
 }
 
