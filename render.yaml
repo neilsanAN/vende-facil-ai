@@ -1,15 +1,11 @@
 # VendeFácil AI — Blueprint no estilo Invento (API + App Expo Web + Postgres)
 # Dashboard: https://dashboard.render.com → New → Blueprint → este repositório
 #
-# URLs esperadas:
-#   API:  https://vende-facil-api.onrender.com
-#   App:  https://vende-facil-app.onrender.com
+# Serviços no Render (já criados):
+#   API (nome vende-facil-api): https://vende-facil-ai.onrender.com  (slug histórico)
+#   App (vende-facil-app):      https://vende-facil-app.onrender.com
 #
-# Migração do serviço antigo `vende-facil-ai`:
-# 1) No painel, Settings → renomeie para `vende-facil-api` (mantém ENCRYPTION_KEY e DB).
-# 2) Aplique este Blueprint para criar `vende-facil-app`.
-# 3) Em vende-facil-api, ajuste APP_URL e CORS_ORIGINS se ainda estiverem no valor antigo.
-# NÃO apague o serviço sem copiar ENCRYPTION_KEY — senão sessões/dados cifrados quebram.
+# Secrets (GEMINI_API_KEY etc.) só no serviço API.
 #
 # Depois do primeiro deploy: defina GEMINI_API_KEY (e demais secrets) em
 # vende-facil-api → Environment.
@@ -33,7 +29,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: APP_URL
-        value: https://vende-facil-api.onrender.com
+        value: https://vende-facil-ai.onrender.com
       - key: CORS_ORIGINS
         value: "https://vende-facil-app.onrender.com"
       - key: DATABASE_URL
@@ -67,7 +63,7 @@ services:
     name: vende-facil-app
     runtime: static
     rootDir: .
-    buildCommand: corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile && pnpm --filter @vendefacil/mobile web:export
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @vendefacil/mobile web:export
     staticPublishPath: apps/mobile/dist
     routes:
       - type: rewrite
@@ -75,6 +71,6 @@ services:
         destination: /index.html
     envVars:
       - key: EXPO_PUBLIC_API_URL
-        value: https://vende-facil-api.onrender.com
+        value: https://vende-facil-ai.onrender.com
       - key: EXPO_PUBLIC_EAS_PROJECT_ID
         value: c1e70ad7-c5fe-4c1e-8a4b-3b8269553f5e

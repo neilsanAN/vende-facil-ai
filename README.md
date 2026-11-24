@@ -18,7 +18,7 @@ A web/API fica em http://localhost:3000.
 
 | Serviço | URL | Função |
 |---|---|---|
-| `vende-facil-api` | https://vende-facil-api.onrender.com | API + painel Next |
+| `vende-facil-api` | https://vende-facil-ai.onrender.com | API + painel Next |
 | `vende-facil-app` | https://vende-facil-app.onrender.com | App Expo (web) |
 | `vende-facil-db` | — | PostgreSQL |
 
