@@ -29,7 +29,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     },
     credentials: "include",
   });
-  if (response.status === 401 && !path.startsWith("/api/auth/refresh") && !path.startsWith("/api/auth/login")) {
+  if (response.status === 401 && !path.startsWith("/api/auth/refresh") && !path.startsWith("/api/auth/login") && !path.startsWith("/api/auth/verify")) {
     const refreshed = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" });
     if (refreshed.ok) return api<T>(path, init);
   }

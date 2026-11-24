@@ -1,12 +1,13 @@
 /** Destino do botão Voltar nas telas internas do painel. Abas principais não voltam. */
 export function panelBackHref(pathname: string): string | null {
-  const path = pathname.split("?")[0] || pathname;
+  const path = (pathname.split("?")[0] || pathname).replace(/\/$/, "") || "/";
   const roots = new Set(["/inicio", "/produtos", "/estudio", "/mais"]);
   if (roots.has(path)) return null;
   if (path.startsWith("/produtos/")) return "/produtos";
   if (path.startsWith("/estudio/")) return "/estudio";
-  if (path.startsWith("/anuncios/")) return "/inicio";
+  if (path.startsWith("/anuncios")) return "/inicio";
   if (path.startsWith("/pedidos/")) return "/pedidos";
+  if (path === "/onboarding") return null;
   if (
     path === "/publicar" ||
     path === "/loja" ||

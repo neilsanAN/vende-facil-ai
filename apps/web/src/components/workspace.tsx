@@ -147,7 +147,13 @@ export async function uploadFile(file: File) {
     method: "POST",
     body: JSON.stringify({ mimeType: file.type || "image/jpeg", sizeBytes: file.size, kind, originalName: file.name }),
   });
-  const response = await fetch(created.url, { method: created.method, headers: created.headers, body: file });
+  const absolute = created.url.startsWith("http") ? created.url : new URL(created.url, window.location.origin).toString();
+  const response = await fetch(absolute, {
+    method: created.method,
+    headers: created.headers,
+    body: file,
+    credentials: absolute.startsWith(window.location.origin) ? "include" : "omit",
+  });
   if (!response.ok) throw new ApiClientError("O envio do arquivo falhou.", "UPLOAD", response.status);
   return api<{ id: string; url: string }>(`/api/uploads/${created.assetId}/confirm`, { method: "POST" });
 }

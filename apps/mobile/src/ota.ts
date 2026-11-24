@@ -1,10 +1,17 @@
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 let inflight = false;
+let lastBackgroundAt = 0;
+
+AppState.addEventListener("change", (state) => {
+  if (state === "background" || state === "inactive") lastBackgroundAt = Date.now();
+});
 
 /** Baixa o pacote JS do canal do APK e recarrega. Não gera outro APK. */
-export async function checkOtaUpdate() {
+export async function checkOtaUpdate(opts?: { force?: boolean }) {
   if (__DEV__ || inflight || Platform.OS === "web") return;
+  // Evita reload ao voltar da câmera/galeria (fundo curto).
+  if (!opts?.force && lastBackgroundAt && Date.now() - lastBackgroundAt < 120_000) return;
   inflight = true;
   try {
     const Updates = await import("expo-updates");

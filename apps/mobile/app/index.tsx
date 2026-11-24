@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Platform, Pressable, Text, TextInput, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Platform, Pressable, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
@@ -8,6 +8,7 @@ import { ApiClientError, createApiClient } from "@vendefacil/api-client";
 const api = createApiClient({ baseUrl: process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000" });
 
 export default function LoginScreen() {
+  const [booting, setBooting] = useState(true);
   const [mode, setMode] = useState<"login" | "register" | "otp">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -18,6 +19,41 @@ export default function LoginScreen() {
   const [message, setMessage] = useState("");
   const [devCode, setDevCode] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const access = await SecureStore.getItemAsync("vf_access");
+        const refresh = await SecureStore.getItemAsync("vf_refresh");
+        if (!access && !refresh) return;
+        if (access) {
+          router.replace("/inicio");
+          return;
+        }
+        if (refresh) {
+          const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000"}/api/auth/refresh`, {
+            method: "POST",
+            headers: { "content-type": "application/json", "x-vendefacil-client": "mobile" },
+            body: JSON.stringify({ refreshToken: refresh }),
+          });
+          if (response.ok) {
+            const payload = (await response.json()) as { accessToken?: string; refreshToken?: string };
+            if (payload.accessToken && payload.refreshToken) {
+              await SecureStore.setItemAsync("vf_access", payload.accessToken);
+              await SecureStore.setItemAsync("vf_refresh", payload.refreshToken);
+              if (alive) router.replace("/inicio");
+            }
+          }
+        }
+      } finally {
+        if (alive) setBooting(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const field = useMemo(
     () => ({
@@ -38,6 +74,14 @@ export default function LoginScreen() {
     await SecureStore.setItemAsync("vf_access", accessToken);
     await SecureStore.setItemAsync("vf_refresh", refreshToken);
     router.replace("/inicio");
+  }
+
+  if (booting) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
   }
 
   return (

@@ -49,14 +49,18 @@ export function readCookie(req: Request, name: string) {
 export function authCookies(access: string, refresh: string) {
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
   const headers = new Headers();
+  // Path=/ nos dois: ao voltar da câmera o browser remonta a página e precisa do refresh fora de /api.
   headers.append("set-cookie", `vf_access=${access}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}${secure}`);
-  headers.append("set-cookie", `vf_refresh=${refresh}; HttpOnly; Path=/api; SameSite=Lax; Max-Age=${30 * 24 * 60 * 60}${secure}`);
+  headers.append("set-cookie", `vf_refresh=${refresh}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${30 * 24 * 60 * 60}${secure}`);
+  // Limpa cookie antigo com Path=/api (migração).
+  headers.append("set-cookie", `vf_refresh=; HttpOnly; Path=/api; Max-Age=0${secure}`);
   return headers;
 }
 
 export function clearCookies() {
   const headers = new Headers();
   headers.append("set-cookie", "vf_access=; HttpOnly; Path=/; Max-Age=0");
+  headers.append("set-cookie", "vf_refresh=; HttpOnly; Path=/; Max-Age=0");
   headers.append("set-cookie", "vf_refresh=; HttpOnly; Path=/api; Max-Age=0");
   return headers;
 }
