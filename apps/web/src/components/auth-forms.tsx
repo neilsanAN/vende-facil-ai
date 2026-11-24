@@ -9,7 +9,7 @@ import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 import { buttonClass } from "@/components/controls";
 import { Field, areaClass, inputClass, useToast } from "@/components/ui";
 import { api, ApiClientError, cn } from "@/lib/http";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 function AuthLogo({ className }: { className?: string }) {
   return (
