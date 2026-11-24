@@ -7,8 +7,8 @@
     "start": "expo start",
     "typecheck": "tsc --noEmit",
     "build:apk": "eas build --profile preview --platform android --non-interactive",
-    "update:preview": "eas update --channel preview --non-interactive",
-    "update:production": "eas update --channel production --non-interactive"
+    "update:preview": "eas update --channel preview --non-interactive --auto",
+    "update:production": "eas update --channel production --non-interactive --auto"
   },
   "dependencies": {
     "@expo/vector-icons": "14.0.0",
