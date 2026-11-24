@@ -103,7 +103,17 @@ export class StudioService {
 
   async listAds(tenant: Tenant) {
     const rows = await this.db.advertisement.findMany({ where: { organizationId: tenant.organizationId }, orderBy: { updatedAt: "desc" }, take: 50, include: { product: { select: { name: true } } } });
-    return rows.map((row) => ({ id: row.id, title: row.title, description: row.description, hashtags: row.hashtags, tone: row.tone, status: row.status, product: row.product?.name ?? null, updatedAt: row.updatedAt }));
+    return rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      hashtags: row.hashtags,
+      tone: row.tone,
+      status: row.status,
+      productId: row.productId,
+      product: row.product?.name ?? null,
+      updatedAt: row.updatedAt,
+    }));
   }
 
   async artwork(tenant: Tenant, input: { productId: string; template: "story" | "feed" | "portrait"; title: string; priceLabel?: string }) {

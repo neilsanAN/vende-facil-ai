@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Camera, ImageIcon } from "lucide-react";
+import { Camera, ImageIcon, Pencil, RefreshCw, Sparkles } from "lucide-react";
 import { formatBrl, TONE_LABEL, ASPECT_DIMENSIONS, PIPELINE_LABEL, type PipelineStatus } from "@vendefacil/types";
 import { parseBrlToCents } from "@vendefacil/validation";
 import { Button, Field, areaClass, buttonClass, chipClass, inputClass, useToast } from "@/components/ui";
@@ -227,11 +227,20 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between gap-2">
-        {steps.map((item) => (
-          <div key={item.n} className={`flex flex-1 flex-col items-center gap-1 ${step >= item.n ? "text-primary" : "text-muted"}`}>
-            <span className={`grid h-7 w-7 place-items-center rounded-full text-[10px] font-semibold ${step >= item.n ? "bg-primary text-white" : "bg-line text-muted"}`}>{item.n}</span>
-            <span className="text-[10px] font-medium leading-[13px]">{item.label}</span>
+      <div className="mb-5 flex items-start justify-between px-2">
+        {steps.map((item, index) => (
+          <div key={item.n} className="relative flex flex-1 flex-col items-center">
+            {index < steps.length - 1 ? (
+              <span className={`absolute left-[calc(50%+18px)] right-[calc(-50%+18px)] top-3.5 h-[2px] ${step > item.n ? "bg-primary" : "bg-line"}`} />
+            ) : null}
+            <span
+              className={`relative z-10 grid h-7 w-7 place-items-center rounded-full text-[11px] font-bold ${
+                step === item.n ? "bg-primary text-white" : step > item.n ? "bg-primary text-white" : "bg-[#EEF0F5] text-muted"
+              }`}
+            >
+              {item.n}
+            </span>
+            <span className={`mt-1.5 text-[10px] font-semibold ${step === item.n ? "text-primary" : "text-muted"}`}>{item.label}</span>
           </div>
         ))}
       </div>
@@ -253,15 +262,13 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
       ) : null}
 
       {!busy && step === 1 ? (
-        <section className="space-y-3 rounded-2xl border border-line bg-surface p-4 shadow-card">
-          <p className="text-[14px] font-bold leading-[18px]">Foto do produto</p>
-          <p className="text-[12px] leading-4 text-muted">Tire uma foto do produto ou escolha da galeria.</p>
+        <section className="space-y-3">
           {preview ? (
-            <img src={preview} alt="Foto do produto" className="aspect-[4/5] w-full rounded-[10px] object-cover" />
+            <img src={preview} alt="Foto do produto" className="aspect-[4/5] w-full rounded-[22px] object-cover" />
           ) : (
-            <div className="grid aspect-[4/5] place-items-center gap-2 rounded-[10px] border border-dashed border-line bg-background text-center text-[12px] leading-4 text-muted">
-              <Camera size={28} />
-              <span>Toque em Câmera ou Galeria</span>
+            <div className="grid aspect-[4/5] place-items-center gap-3 rounded-[22px] border-2 border-dashed border-[#D9CFFF] bg-[#F7F4FF] px-6 text-center">
+              <Camera size={36} className="text-primary" />
+              <p className="max-w-[220px] text-[13px] font-medium leading-5 text-ink">Tire uma foto do produto ou escolha da galeria</p>
             </div>
           )}
           {uploading ? <p className="text-[10px] font-medium leading-[13px] text-muted">Enviando a foto...</p> : null}
@@ -277,8 +284,11 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
               <input className="hidden" type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void sendPhoto(file); }} />
             </label>
           </div>
-          <p className="text-[10px] font-medium leading-[13px] text-muted">A IA vai analisar a imagem no próximo passo.</p>
-          <Button className="w-full" disabled={!assetId || uploading} onClick={() => setStep(2)}>
+          <div className="flex items-start gap-2 rounded-[14px] bg-[#F3EEFF] px-3 py-3 text-[11px] font-medium leading-4 text-ink">
+            <Sparkles size={16} className="mt-0.5 shrink-0 text-primary" />
+            <span>A IA vai analisar a imagem e sugerir título, descrição, categoria e hashtags.</span>
+          </div>
+          <Button className={`w-full ${!assetId || uploading ? "!bg-[#E8EAF0] !text-muted !opacity-100" : ""}`} disabled={!assetId || uploading} onClick={() => setStep(2)}>
             Avançar
           </Button>
         </section>
@@ -350,19 +360,43 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
       ) : null}
 
       {!busy && step === 3 && draft ? (
-        <section className="space-y-3 rounded-2xl border border-line bg-surface p-4 shadow-card">
-          {preview ? <img src={preview} alt="" className="aspect-square w-full rounded-2xl object-cover" /> : null}
+        <section className="space-y-3">
+          <div className="relative">
+            {preview ? <img src={preview} alt="" className="aspect-[4/3] w-full rounded-[20px] object-cover" /> : <div className="aspect-[4/3] rounded-[20px] bg-background" />}
+            <button type="button" className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white text-ink shadow-card" onClick={() => setStep(1)} aria-label="Trocar foto">
+              <Pencil size={14} />
+            </button>
+            <div className="mt-2 flex justify-center gap-1.5">
+              {[0, 1, 2, 3].map((dot) => (
+                <span key={dot} className={`h-1.5 w-1.5 rounded-full ${dot === 0 ? "bg-primary" : "bg-line"}`} />
+              ))}
+            </div>
+          </div>
           <Field label="Título">
-            <input className={inputClass} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
+            <input className={`${inputClass} rounded-[12px] bg-[#F3F4F8]`} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
           </Field>
           <Field label="Descrição">
-            <textarea className={areaClass} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
+            <textarea className={`${areaClass} rounded-[12px] bg-[#F3F4F8]`} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
           </Field>
-          <Field label="Hashtags">
-            <input className={inputClass} value={draft.hashtags.join(" ")} onChange={(event) => setDraft({ ...draft, hashtags: event.target.value.split(/[\s,]+/).filter(Boolean) })} />
-          </Field>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="secondary" onClick={() => void generate()}>
+          <div>
+            <p className="mb-2 text-[12px] font-semibold text-ink">Hashtags (sugeridas)</p>
+            <div className="flex flex-wrap gap-2">
+              {draft.hashtags.map((tag) => (
+                <span key={tag} className="rounded-full bg-[#F3EEFF] px-3 py-1.5 text-[11px] font-semibold text-primary">
+                  {tag.startsWith("#") ? tag : `#${tag}`}
+                </span>
+              ))}
+            </div>
+            <input
+              className={`${inputClass} mt-2 rounded-[12px] bg-[#F3F4F8]`}
+              value={draft.hashtags.join(" ")}
+              onChange={(event) => setDraft({ ...draft, hashtags: event.target.value.split(/[\s,]+/).filter(Boolean) })}
+              placeholder="Editar hashtags"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <Button variant="secondary" className="border border-line" onClick={() => void generate()}>
+              <RefreshCw size={14} className="text-primary" />
               Regenerar
             </Button>
             <Button
@@ -383,45 +417,71 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
   );
 }
 
-export function AdEditor({ ad }: { ad: { id: string; title: string; description: string; hashtags: string[]; tone: string; status: string } }) {
+export function AdEditor({
+  ad,
+}: {
+  ad: { id: string; title: string; description: string; hashtags: string[]; tone: string; status: string; imageUrl?: string | null };
+}) {
   const router = useRouter();
   const toast = useToast();
   const [title, setTitle] = useState(ad.title);
   const [description, setDescription] = useState(ad.description);
-  const [hashtags, setHashtags] = useState(ad.hashtags.join(" "));
+  const [tags, setTags] = useState(ad.hashtags);
   return (
     <form
-      className="max-w-2xl space-y-3 rounded-2xl border border-line bg-surface p-4 shadow-card"
+      className="max-w-2xl space-y-3"
       onSubmit={async (event) => {
         event.preventDefault();
-        await api(`/api/ads/${ad.id}`, { method: "PATCH", body: JSON.stringify({ title, description, hashtags: hashtags.split(/[\s,]+/).filter(Boolean), tone: ad.tone, status: "DRAFT" }) });
+        await api(`/api/ads/${ad.id}`, { method: "PATCH", body: JSON.stringify({ title, description, hashtags: tags, tone: ad.tone, status: "DRAFT" }) });
         toast("Rascunho salvo.");
         router.refresh();
       }}
     >
+      <div className="relative">
+        {ad.imageUrl ? (
+          <img src={ad.imageUrl} alt="" className="aspect-[4/3] w-full rounded-[20px] object-cover" />
+        ) : (
+          <div className="grid aspect-[4/3] place-items-center rounded-[20px] bg-[#F7F4FF] text-primary">
+            <Sparkles size={28} />
+          </div>
+        )}
+        <button type="button" className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white text-ink shadow-card" onClick={() => router.push("/anuncios/novo")} aria-label="Editar imagem">
+          <Pencil size={14} />
+        </button>
+        <div className="mt-2 flex justify-center gap-1.5">
+          {[0, 1, 2, 3].map((dot) => (
+            <span key={dot} className={`h-1.5 w-1.5 rounded-full ${dot === 0 ? "bg-primary" : "bg-line"}`} />
+          ))}
+        </div>
+      </div>
       <Field label="Título">
-        <input className={inputClass} value={title} onChange={(event) => setTitle(event.target.value)} />
+        <input className={`${inputClass} rounded-[12px] bg-[#F3F4F8]`} value={title} onChange={(event) => setTitle(event.target.value)} />
       </Field>
       <Field label="Descrição">
-        <textarea className={areaClass} value={description} onChange={(event) => setDescription(event.target.value)} />
+        <textarea className={`${areaClass} rounded-[12px] bg-[#F3F4F8]`} value={description} onChange={(event) => setDescription(event.target.value)} />
       </Field>
-      <Field label="Hashtags">
-        <input className={inputClass} value={hashtags} onChange={(event) => setHashtags(event.target.value)} />
-      </Field>
-      <div className="grid grid-cols-2 gap-2">
-        <Button type="submit" variant="secondary">
-          Salvar
+      <div>
+        <p className="mb-2 text-[12px] font-semibold text-ink">Hashtags (sugeridas)</p>
+        <div className="flex flex-wrap gap-2">
+          {tags.map((tag) => (
+            <span key={tag} className="rounded-full bg-[#F3EEFF] px-3 py-1.5 text-[11px] font-semibold text-primary">
+              {tag.startsWith("#") ? tag : `#${tag}`}
+            </span>
+          ))}
+        </div>
+        <input
+          className={`${inputClass} mt-2 rounded-[12px] bg-[#F3F4F8]`}
+          value={tags.join(" ")}
+          onChange={(event) => setTags(event.target.value.split(/[\s,]+/).filter(Boolean))}
+          placeholder="Editar hashtags"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-2 pt-1">
+        <Button type="button" variant="secondary" className="border border-line" onClick={() => router.push("/anuncios/novo")}>
+          <RefreshCw size={14} className="text-primary" />
+          Regenerar
         </Button>
-        <Button
-          type="button"
-          onClick={async () => {
-            await api(`/api/ads/${ad.id}`, { method: "PATCH", body: JSON.stringify({ title, description, hashtags: hashtags.split(/[\s,]+/).filter(Boolean), tone: ad.tone, status: "PUBLISHED" }) });
-            toast("Anúncio publicado no cadastro.");
-            router.refresh();
-          }}
-        >
-          Publicar
-        </Button>
+        <Button type="submit">Salvar</Button>
       </div>
     </form>
   );
