@@ -58,15 +58,11 @@ export default function HomeScreen() {
         </View>
       </Pressable>
 
-      <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+      <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
         {actions.map((action) => (
-          <Pressable
-            key={action.label}
-            onPress={() => router.push(action.href)}
-            style={{ flex: 1, alignItems: "center", gap: 8, backgroundColor: colors.surface, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 4 }}
-          >
-            <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: action.color }} />
-            <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, fontWeight: "500", textAlign: "center" }}>{action.label}</Text>
+          <Pressable key={action.label} onPress={() => router.push(action.href)} style={{ flex: 1, alignItems: "center", gap: 8, paddingHorizontal: 2 }}>
+            <View style={{ width: 48, height: 48, borderRadius: 999, backgroundColor: action.color, shadowColor: "#6D4AFF", shadowOpacity: 0.35, shadowRadius: 8, elevation: 3 }} />
+            <Text style={{ color: colors.text, fontSize: fonts.caption, fontWeight: "600", textAlign: "center" }}>{action.label}</Text>
           </Pressable>
         ))}
       </View>
