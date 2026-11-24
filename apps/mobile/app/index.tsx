@@ -7,6 +7,7 @@ import { brand, colors, control, fonts } from "@vendefacil/ui-tokens";
 import { WelcomeCarousel } from "../src/welcome-carousel";
 import { ApiClientError, createApiClient } from "@vendefacil/api-client";
 import { getItem, setItem } from "../src/storage";
+import { routeAfterAuth } from "../src/session";
 
 const apiBase =
   Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
@@ -37,7 +38,7 @@ export default function AuthGate() {
         const access = await getItem("vf_access");
         const refresh = await getItem("vf_refresh");
         if (access) {
-          router.replace("/inicio");
+          if (alive) await routeAfterAuth();
           return;
         }
         if (refresh) {
@@ -51,7 +52,7 @@ export default function AuthGate() {
             if (payload.accessToken && payload.refreshToken) {
               await setItem("vf_access", payload.accessToken);
               await setItem("vf_refresh", payload.refreshToken);
-              if (alive) router.replace("/inicio");
+              if (alive) await routeAfterAuth();
             }
           }
         }
@@ -79,7 +80,7 @@ export default function AuthGate() {
   async function persistSession(accessToken: string, refreshToken: string) {
     await setItem("vf_access", accessToken);
     await setItem("vf_refresh", refreshToken);
-    router.replace("/inicio");
+    await routeAfterAuth();
   }
 
   if (booting) {

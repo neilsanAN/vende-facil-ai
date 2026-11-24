@@ -1,8 +1,23 @@
+import { useEffect } from "react";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, fonts } from "@vendefacil/ui-tokens";
+import { api } from "../../src/api";
+import { handleTenantError } from "../../src/session";
+import { router } from "expo-router";
 
 export default function TabsLayout() {
+  useEffect(() => {
+    api
+      .me()
+      .then(({ user }) => {
+        if (!user.organizationId || !user.role) router.replace("/onboarding");
+      })
+      .catch((cause) => {
+        handleTenantError(cause);
+      });
+  }, []);
+
   return (
     <Tabs
       screenOptions={{

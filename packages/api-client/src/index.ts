@@ -55,7 +55,19 @@ export function createApiClient(options: {
         method: "POST",
         body: JSON.stringify({ email }),
       }),
-    me: () => request("/api/auth/me"),
+    me: () =>
+      request<{
+        user: {
+          userId: string;
+          name: string;
+          email: string;
+          emailVerified: boolean;
+          organizationId: string | null;
+          role: string | null;
+        };
+      }>("/api/auth/me"),
+    onboard: (body: { storeName: string; description?: string; whatsapp?: string }) =>
+      request<{ organizationId: string }>("/api/onboarding", { method: "POST", body: JSON.stringify(body) }),
     products: () => request("/api/products"),
     dashboard: () => request("/api/dashboard"),
     orders: () => request("/api/orders"),

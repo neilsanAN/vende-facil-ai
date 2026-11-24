@@ -529,9 +529,13 @@ export function OnboardingForm() {
         onSubmit={form.handleSubmit(async (values) => {
           try {
             await api("/api/onboarding", { method: "POST", body: JSON.stringify(values) });
-            router.push("/inicio");
-            router.refresh();
+            // Hard navigation garante que a sessão lê a loja recém-criada.
+            window.location.assign("/inicio");
           } catch (cause) {
+            if (cause instanceof ApiClientError && cause.code === "CONFLICT") {
+              window.location.assign("/inicio");
+              return;
+            }
             setError(cause instanceof ApiClientError ? cause.message : "Não foi possível criar a loja.");
           }
         })}
