@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Briefcase, Home, Menu, Package, Plus, ShoppingBag } from "lucide-react";
+import { Home, Menu, Package, Play, Plus, ShoppingBag } from "lucide-react";
 import { cn } from "@/lib/http";
 import { SessionKeepAlive } from "@/components/session-keepalive";
 
@@ -10,7 +10,7 @@ const items = [
   { href: "/inicio", label: "Início", icon: Home },
   { href: "/produtos", label: "Produtos", icon: Package },
   { href: "/anuncios/novo", label: "Criar", icon: Plus, fab: true },
-  { href: "/estudio", label: "Estúdio", icon: Briefcase },
+  { href: "/estudio", label: "Estúdio", icon: Play },
   { href: "/mais", label: "Mais", icon: Menu },
 ];
 

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Camera, Clapperboard, Gauge, ImageIcon, Layers, Mic2, Pencil, RefreshCw, Sparkles, Type } from "lucide-react";
-import { formatBrl, TONE_LABEL, ASPECT_DIMENSIONS, PIPELINE_LABEL, type PipelineStatus } from "@vendefacil/types";
+import { formatBrl, ASPECT_DIMENSIONS, PIPELINE_LABEL, type PipelineStatus } from "@vendefacil/types";
 import { parseBrlToCents } from "@vendefacil/validation";
 import { Button, Field, areaClass, areaSoftClass, buttonClass, chipClass, inputClass, inputSoftClass, sectionLabelClass, useToast } from "@/components/ui";
 import { api, ApiClientError } from "@/lib/http";
@@ -164,31 +164,33 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [assetId, setAssetId] = useState("");
   const [preview, setPreview] = useState("");
-  const [tone, setTone] = useState("PROFESSIONAL");
+  const tone = "PROFESSIONAL";
   const [productId, setProductId] = useState(products[0]?.id || "");
   const [facts, setFacts] = useState({ name: products[0]?.name || "", brand: "", facts: "", audience: "" });
   const [busy, setBusy] = useState("");
   const [uploading, setUploading] = useState(false);
   const [draft, setDraft] = useState<{ id: string; title: string; description: string; hashtags: string[] } | null>(null);
 
-  async function generate() {
+  async function generate(nextFacts = facts) {
     if (!assetId) {
       toast("Envie uma foto do produto.", "err");
       return;
     }
     const price = products.find((item) => item.id === productId)?.priceCents;
+    setStep(2);
     setBusy("Gerando seu anúncio com a foto e os fatos confirmados.");
     try {
       const ad = await api<{ id: string; title: string; description: string; hashtags: string[] }>("/api/ai/ads", {
         method: "POST",
         headers: { "idempotency-key": crypto.randomUUID() },
-        body: JSON.stringify({ productId: productId || null, assetIds: [assetId], tone, facts: { ...facts, priceCents: price ?? null } }),
+        body: JSON.stringify({ productId: productId || null, assetIds: [assetId], tone, facts: { ...nextFacts, priceCents: price ?? null } }),
       });
       setDraft(ad);
       setBusy("");
       setStep(3);
     } catch (cause) {
       setBusy("");
+      setStep(1);
       toast(cause instanceof ApiClientError ? cause.message : "A IA não gerou o anúncio.", "err");
     }
   }
@@ -245,19 +247,20 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
         ))}
       </div>
 
-      {busy ? (
-        <div className="rounded-3xl border border-line bg-surface px-5 py-8 text-center shadow-card">
-          <p className="text-sm font-semibold">Anúncio com IA</p>
-          <ul className="mx-auto mt-5 max-w-xs space-y-2 text-left text-sm text-muted">
+      {(busy || step === 2) && !draft ? (
+        <div className="rounded-[22px] border border-line bg-surface px-5 py-10 text-center shadow-card">
+          {preview ? <img src={preview} alt="" className="mx-auto mb-5 h-28 w-28 rounded-2xl object-cover" /> : null}
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-[#7C5CFF] to-[#4C2ED6] text-white shadow-lift">
+            <Sparkles size={26} className="animate-pulse" />
+          </div>
+          <p className="mt-5 text-[15px] font-bold text-ink">Gerando seu anúncio...</p>
+          <ul className="mx-auto mt-4 max-w-xs space-y-2 text-left text-[12px] text-muted">
             {["Analisando a imagem", "Identificando o produto", "Criando título e descrição", "Gerando hashtags"].map((item) => (
               <li key={item} className="rounded-xl bg-background px-3 py-2">
                 {item}
               </li>
             ))}
           </ul>
-          <div className="mx-auto mt-6 grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-[#7C5CFF] to-[#4C2ED6] text-lg font-semibold text-white">IA</div>
-          <p className="mt-4 text-sm">Gerando seu anúncio...</p>
-          <p className="text-xs text-muted">{busy}</p>
         </div>
       ) : null}
 
@@ -284,85 +287,36 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
               <input className="hidden" type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void sendPhoto(file); }} />
             </label>
           </div>
-          <div className="flex items-start gap-2 rounded-[14px] bg-[#F3EEFF] px-3 py-3 text-[11px] font-medium leading-4 text-ink">
-            <Sparkles size={16} className="mt-0.5 shrink-0 text-primary" />
-            <span>A IA vai analisar a imagem e sugerir título, descrição, categoria e hashtags.</span>
-          </div>
-          <Button className={`w-full ${!assetId || uploading ? "!bg-[#E8EAF0] !text-muted !opacity-100" : ""}`} disabled={!assetId || uploading} onClick={() => setStep(2)}>
-            Avançar
+          {products.length > 0 ? (
+            <Field label="Produto (opcional)" section>
+              <select
+                className={inputSoftClass}
+                value={productId}
+                onChange={(event) => {
+                  setProductId(event.target.value);
+                  const found = products.find((item) => item.id === event.target.value);
+                  if (found) setFacts({ ...facts, name: found.name });
+                }}
+              >
+                <option value="">Sem vínculo</option>
+                {products.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name} · {formatBrl(item.priceCents)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : null}
+          <Button className={`w-full ${!assetId || uploading ? "!bg-[#E8EAF0] !text-muted !opacity-100" : ""}`} disabled={!assetId || uploading} onClick={() => void generate()}>
+            Gerar com IA
           </Button>
-        </section>
-      ) : null}
-
-      {!busy && step === 2 ? (
-        <section className="space-y-3 rounded-2xl border border-line bg-surface p-4 shadow-card">
-          <p className="text-[14px] font-bold leading-[18px]">Fatos confirmados</p>
-          <p className="text-[12px] leading-4 text-muted">A IA só usa o que você confirmar. Marca e preço não são inventados.</p>
-          {preview ? <img src={preview} alt="" className="h-28 w-28 rounded-xl object-cover" /> : null}
-          <Field label="Produto">
-            <select
-              className={inputClass}
-              value={productId}
-              onChange={(event) => {
-                setProductId(event.target.value);
-                const found = products.find((item) => item.id === event.target.value);
-                if (found) setFacts({ ...facts, name: found.name });
-              }}
-            >
-              <option value="">Sem vínculo</option>
-              {products.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name} · {formatBrl(item.priceCents)}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Nome confirmado">
-            <input className={inputClass} value={facts.name} onChange={(event) => setFacts({ ...facts, name: event.target.value })} />
-          </Field>
-          <Field label="Marca, se quiser citar">
-            <input className={inputClass} value={facts.brand} onChange={(event) => setFacts({ ...facts, brand: event.target.value })} />
-          </Field>
-          <Field label="Características confirmadas">
-            <textarea className={areaClass} value={facts.facts} onChange={(event) => setFacts({ ...facts, facts: event.target.value })} />
-          </Field>
-          <Field label="Tom">
-            <select className={inputClass} value={tone} onChange={(event) => setTone(event.target.value)}>
-              {Object.entries(TONE_LABEL).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <div className="grid gap-2">
-            <Button className="w-full" onClick={generate}>
-              Gerar com IA
-            </Button>
-            <Button
-              variant="secondary"
-              className="w-full"
-              onClick={async () => {
-                const saved = await api<{ id: string }>("/api/ads", {
-                  method: "POST",
-                  body: JSON.stringify({ title: facts.name || "Anúncio", description: facts.facts || "Descrição pendente.", hashtags: [], tone, productId: productId || null, status: "DRAFT" }),
-                });
-                router.push(`/anuncios/${saved.id}`);
-              }}
-            >
-              Escrever manualmente
-            </Button>
-            <button type="button" className="text-[10px] font-medium text-muted" onClick={() => setStep(1)}>
-              Voltar para a foto
-            </button>
-          </div>
         </section>
       ) : null}
 
       {!busy && step === 3 && draft ? (
         <section className="space-y-3">
           <div className="relative">
-            {preview ? <img src={preview} alt="" className="aspect-[4/3] w-full rounded-[20px] object-cover" /> : <div className="aspect-[4/3] rounded-[20px] bg-background" />}
+            {preview ? <img src={preview} alt="" className="aspect-[4/5] w-full rounded-[20px] object-cover" /> : <div className="aspect-[4/5] rounded-[20px] bg-background" />}
             <button type="button" className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white text-ink shadow-card" onClick={() => setStep(1)} aria-label="Trocar foto">
               <Pencil size={14} />
             </button>
@@ -380,19 +334,13 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
           </Field>
           <div>
             <p className={sectionLabelClass}>Hashtags (sugeridas)</p>
-            <div className="flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-2">
               {draft.hashtags.map((tag) => (
                 <span key={tag} className="rounded-full bg-[#F3EEFF] px-3 py-1.5 text-[11px] font-semibold text-primary">
                   {tag.startsWith("#") ? tag : `#${tag}`}
                 </span>
               ))}
             </div>
-            <input
-              className={`${inputSoftClass} mt-2`}
-              value={draft.hashtags.join(" ")}
-              onChange={(event) => setDraft({ ...draft, hashtags: event.target.value.split(/[\s,]+/).filter(Boolean) })}
-              placeholder="Editar hashtags"
-            />
           </div>
           <div className="grid grid-cols-2 gap-2 pt-1">
             <Button variant="secondary" className="border border-line" onClick={() => void generate()}>
@@ -426,7 +374,7 @@ export function AdEditor({
   const toast = useToast();
   const [title, setTitle] = useState(ad.title);
   const [description, setDescription] = useState(ad.description);
-  const [tags, setTags] = useState(ad.hashtags);
+  const tags = ad.hashtags;
   return (
     <form
       className="max-w-2xl space-y-3"
@@ -439,9 +387,9 @@ export function AdEditor({
     >
       <div className="relative">
         {ad.imageUrl ? (
-          <img src={ad.imageUrl} alt="" className="aspect-[4/3] w-full rounded-[20px] object-cover" />
+          <img src={ad.imageUrl} alt="" className="aspect-[4/5] w-full rounded-[20px] object-cover" />
         ) : (
-          <div className="grid aspect-[4/3] place-items-center rounded-[20px] bg-[#F7F4FF] text-primary">
+          <div className="grid aspect-[4/5] place-items-center rounded-[20px] bg-[#F7F4FF] text-primary">
             <Sparkles size={28} />
           </div>
         )}
@@ -462,19 +410,13 @@ export function AdEditor({
       </Field>
       <div>
         <p className={sectionLabelClass}>Hashtags (sugeridas)</p>
-        <div className="flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap gap-2">
           {tags.map((tag) => (
             <span key={tag} className="rounded-full bg-[#F3EEFF] px-3 py-1.5 text-[11px] font-semibold text-primary">
               {tag.startsWith("#") ? tag : `#${tag}`}
             </span>
           ))}
         </div>
-        <input
-          className={`${inputSoftClass} mt-2`}
-          value={tags.join(" ")}
-          onChange={(event) => setTags(event.target.value.split(/[\s,]+/).filter(Boolean))}
-          placeholder="Editar hashtags"
-        />
       </div>
       <div className="grid grid-cols-2 gap-2 pt-1">
         <Button type="button" variant="secondary" className="border border-line" onClick={() => router.push("/anuncios/novo")}>
@@ -498,8 +440,6 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
     ["ELEGANT", "Comercial"],
     ["OFFER", "Oferta"],
     ["SOCIAL", "Apresentação"],
-    ["SHOWCASE", "Vitrine"],
-    ["MINIMAL", "Minimalista"],
     ["PREMIUM", "Redes sociais"],
   ] as const;
   const ratios = [
@@ -520,16 +460,31 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
         }
       }}
     >
-      {/* Product card */}
-      {selected ? (
-        <div className="flex items-center gap-3 rounded-[16px] border border-line bg-surface p-3 shadow-card">
-          {selected.imageUrl ? (
-            <img src={selected.imageUrl} alt="" className="h-14 w-14 rounded-xl object-cover" />
-          ) : (
-            <span className="grid h-14 w-14 place-items-center rounded-xl bg-background text-[10px] text-muted">Foto</span>
-          )}
-          <span className="text-[13px] font-bold leading-4 text-ink">{selected.name}</span>
-        </div>
+      <div className="flex items-center gap-3 rounded-[16px] border border-line bg-surface p-3 shadow-card">
+        {selected?.imageUrl ? (
+          <img src={selected.imageUrl} alt="" className="h-14 w-14 rounded-xl object-cover" />
+        ) : (
+          <span className="grid h-14 w-14 place-items-center rounded-xl bg-background text-[10px] text-muted">Foto</span>
+        )}
+        <select className="min-w-0 flex-1 border-0 bg-transparent text-[13px] font-bold text-ink outline-none" value={form.productId} onChange={(event) => setForm({ ...form, productId: event.target.value })}>
+          {products.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {voices.length > 0 ? (
+        <Field label="Voz da narração" section>
+          <select className={inputClass} value={form.voiceProfileId} onChange={(event) => setForm({ ...form, voiceProfileId: event.target.value })}>
+            {voices.map((voice) => (
+              <option key={voice.id} value={voice.id}>
+                {voice.name}
+              </option>
+            ))}
+          </select>
+        </Field>
       ) : null}
 
       <Field label="Objetivo do vídeo" section>
@@ -579,16 +534,6 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
         </div>
       </div>
 
-      <Field label="Trocar produto" section>
-        <select className={inputClass} value={form.productId} onChange={(event) => setForm({ ...form, productId: event.target.value })}>
-          {products.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
-        </select>
-      </Field>
-
       <Button type="submit" className="w-full">
         Gerar vídeo com IA
       </Button>
@@ -632,7 +577,6 @@ export function VideoEditor({ project }: { project: Project }) {
 
   return (
     <div className="space-y-3">
-      {/* Video preview – dark card */}
       <div className="relative mx-auto overflow-hidden rounded-[20px] bg-gradient-to-br from-[#2A1B5C] to-[#0F0A24]" style={{ aspectRatio: `${ratio.width} / ${ratio.height}`, maxHeight: 420 }}>
         <div className="flex h-full flex-col justify-between p-5 text-white" style={{ transform: `scale(${scene.zoom}) translate(${scene.panX * 12}px, ${scene.panY * 12}px)` }}>
           <div>
@@ -640,12 +584,13 @@ export function VideoEditor({ project }: { project: Project }) {
             <p className="mt-1 text-[12px] leading-4 text-white/80">{scene.caption}</p>
           </div>
         </div>
-        {/* Play overlay */}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-4 pb-4 pt-8">
-          <div className="flex items-center gap-2 text-[11px] font-medium text-white/80">
-            <span>▶</span>
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-4 pb-4 pt-10">
+          <div className="mb-2 h-1 overflow-hidden rounded-full bg-white/25">
+            <div className="h-full w-1/3 rounded-full bg-white" />
+          </div>
+          <div className="flex items-center gap-2 text-[11px] font-medium text-white/90">
+            <span className="grid h-7 w-7 place-items-center rounded-full bg-white/20">▶</span>
             <span>0:00 / 0:{String(draft.durationSec).padStart(2, "0")}</span>
-            <span className="ml-auto">🔊</span>
           </div>
         </div>
         {status?.outputAssetId ? <video className="absolute inset-0 h-full w-full rounded-[20px] object-cover" controls src={`/api/media/${status.outputAssetId}`} /> : null}

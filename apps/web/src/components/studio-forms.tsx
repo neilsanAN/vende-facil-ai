@@ -126,9 +126,9 @@ export function PublishDesk({
   const catalogLink = share?.link || storeLink;
 
   const socials = [
-    { key: "WHATSAPP" as const, label: "Compartilhar no WhatsApp", Icon: MessageCircle, iconClass: "text-emerald-600 bg-emerald-50", detail: "" },
-    { key: "INSTAGRAM" as const, label: "Publicar no Instagram", Icon: Instagram, iconClass: "text-pink-600 bg-pink-50", detail: "(Feed ou Stories)" },
-    { key: "FACEBOOK" as const, label: "Publicar no Facebook", Icon: Facebook, iconClass: "text-blue-600 bg-blue-50", detail: "(Página)" },
+    { key: "WHATSAPP" as const, label: "WhatsApp", Icon: MessageCircle, iconClass: "text-emerald-600 bg-emerald-50", detail: "Compartilhar no chat" },
+    { key: "INSTAGRAM" as const, label: "Instagram", Icon: Instagram, iconClass: "text-pink-600 bg-pink-50", detail: "Feed ou Stories" },
+    { key: "FACEBOOK" as const, label: "Facebook", Icon: Facebook, iconClass: "text-blue-600 bg-blue-50", detail: "Página" },
   ];
 
   return (
@@ -209,7 +209,6 @@ export function PublishDesk({
         </div>
       ) : null}
 
-      {/* Publish form */}
       <form
         className="space-y-3"
         onSubmit={async (event) => {
@@ -226,9 +225,9 @@ export function PublishDesk({
               body: JSON.stringify({
                 channel,
                 targetType: "PRODUCT",
-                targetId: data.get("targetId"),
-                caption: data.get("caption"),
-                confirmManual: data.get("confirm") === "on",
+                targetId: data.get("targetId") || products[0]?.id,
+                caption: data.get("caption") || "",
+                confirmManual: true,
                 scheduledAt: schedule && data.get("when") ? new Date(String(data.get("when"))).toISOString() : null,
               }),
             });
@@ -240,18 +239,23 @@ export function PublishDesk({
         }}
       >
         <input type="hidden" name="channel" value={Object.entries(enabled).find(([, v]) => v)?.[0] || "WHATSAPP"} />
-        <Field label="Produto" section>
-          <select name="targetId" className={inputClass}>
-            {products.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Legenda" section>
-          <textarea name="caption" className={areaClass} placeholder="Escreva algo para compartilhar..." />
-        </Field>
+        <details className="rounded-[18px] border border-line bg-surface px-4 py-3 shadow-card">
+          <summary className="cursor-pointer text-[12px] font-semibold text-ink">Produto e legenda</summary>
+          <div className="mt-3 space-y-3">
+            <Field label="Produto" section>
+              <select name="targetId" className={inputClass} defaultValue={products[0]?.id}>
+                {products.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Legenda" section>
+              <textarea name="caption" className={areaClass} placeholder="Escreva algo para compartilhar..." />
+            </Field>
+          </div>
+        </details>
         <Button type="submit" className="w-full">
           Publicar agora
         </Button>

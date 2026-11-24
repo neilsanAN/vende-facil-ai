@@ -34,7 +34,7 @@ export async function PublishPage() {
   const { PublishDesk } = await import("@/components/studio-forms");
   return (
     <div>
-      <PageHeader backHref="/mais" title="Publicar nas redes" />
+      <h1 className="mb-4 text-[22px] font-bold leading-7 tracking-tight text-ink">Publicar nas redes</h1>
       <PublishDesk channels={channels} products={products.data.map((item) => ({ id: item.id, name: item.name }))} storeLink={storeLink} />
     </div>
   );

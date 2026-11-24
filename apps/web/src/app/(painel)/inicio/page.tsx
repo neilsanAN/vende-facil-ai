@@ -19,20 +19,20 @@ export default async function InicioPage() {
   const { stats, recent } = data;
   const first = data.greeting.name;
   const metrics = [
-    { label: "Visualizações", value: String(stats.productViews || stats.views), icon: Eye, tone: "text-primary bg-primary-soft" },
-    { label: "Cliques", value: String(stats.whatsappClicks), icon: MousePointer2, tone: "text-primary bg-primary-soft" },
-    { label: "Pedidos", value: String(stats.orders), icon: ShoppingCart, tone: "text-primary bg-primary-soft" },
-    { label: "Vendas", value: formatBrl(stats.salesCents), icon: DollarSign, tone: "text-success bg-emerald-50" },
+    { label: "Visualizações", value: String(stats.productViews || stats.views), icon: Eye },
+    { label: "Cliques", value: String(stats.whatsappClicks), icon: MousePointer2 },
+    { label: "Pedidos", value: String(stats.orders), icon: ShoppingCart },
+    { label: "Vendas", value: formatBrl(stats.salesCents), icon: DollarSign },
   ] as const;
 
   return (
     <div>
       <div className="flex items-center gap-3">
-        <span className="grid h-12 w-12 place-items-center overflow-hidden rounded-full bg-primary-soft text-sm font-bold text-primary ring-2 ring-white shadow-card">
+        <span className="grid h-11 w-11 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-[#8B6CFF] to-[#5B3DF0] text-sm font-bold text-white shadow-card">
           {first.slice(0, 1).toUpperCase()}
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="text-[20px] font-bold leading-6 tracking-tight text-ink">Olá, {first}! 👋</h1>
+          <h1 className="text-[20px] font-bold leading-6 tracking-tight text-ink">Olá, {first}!</h1>
           <p className="text-[12px] font-medium text-muted">Pronto para vender hoje?</p>
         </div>
         <button type="button" aria-label="Notificações" className="grid h-10 w-10 place-items-center rounded-full border border-line bg-surface text-muted">
@@ -50,15 +50,11 @@ export default async function InicioPage() {
         </span>
       </Link>
 
-      <div className="mt-4 grid grid-cols-4 gap-2">
+      <div className="mt-5 grid grid-cols-4 gap-2">
         {actions.map((action) => (
-          <Link
-            key={action.href}
-            href={action.href}
-            className="flex flex-col items-center gap-2 rounded-[16px] border border-[#EFEAFF] bg-[#F7F4FF] px-1 py-3 text-center text-[10px] font-semibold leading-[12px] text-primary"
-          >
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-white text-primary shadow-card">
-              <action.icon size={16} />
+          <Link key={action.href} href={action.href} className="flex flex-col items-center gap-2 px-0.5 text-center text-[10px] font-semibold leading-[12px] text-ink">
+            <span className="grid h-12 w-12 place-items-center rounded-full bg-gradient-to-br from-[#8B6CFF] to-[#6D4AFF] text-white shadow-[0_8px_18px_rgba(109,74,255,0.35)]">
+              <action.icon size={18} strokeWidth={1.9} />
             </span>
             {action.label}
           </Link>
@@ -74,7 +70,7 @@ export default async function InicioPage() {
       <div className="mt-2 grid grid-cols-4 gap-2">
         {metrics.map((item) => (
           <div key={item.label} className="rounded-[16px] border border-line bg-surface px-2 py-3 shadow-card">
-            <span className={`grid h-7 w-7 place-items-center rounded-lg ${item.tone}`}>
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary-soft text-primary">
               <item.icon size={14} />
             </span>
             <p className="mt-2 truncate text-[13px] font-bold leading-4 text-ink sm:text-[15px]">{item.value}</p>

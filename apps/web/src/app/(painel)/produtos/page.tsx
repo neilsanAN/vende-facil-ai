@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Eye, MoreVertical, Plus, Search, ShoppingCart, SlidersHorizontal } from "lucide-react";
+import { Eye, Plus, Search, ShoppingCart, SlidersHorizontal } from "lucide-react";
 import { formatBrl } from "@vendefacil/types";
 import { productListSchema } from "@vendefacil/validation";
 import { getContainer } from "@vendefacil/business";
@@ -84,15 +84,10 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                     {product.images[0] ? <img src={product.images[0].url} alt="" className="h-full w-full object-cover" /> : null}
                   </Link>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <Link href={`/produtos/${product.id}`} className="min-w-0">
-                        <p className="truncate text-[13px] font-bold leading-4 text-ink">{product.name}</p>
-                        <p className="mt-1 text-[13px] font-bold text-ink">{formatBrl(product.promoPriceCents ?? product.priceCents)}</p>
-                      </Link>
-                      <Link href={`/produtos/${product.id}`} className="grid h-8 w-8 place-items-center text-muted" aria-label="Opções">
-                        <MoreVertical size={16} />
-                      </Link>
-                    </div>
+                    <Link href={`/produtos/${product.id}`} className="block min-w-0">
+                      <p className="truncate text-[13px] font-bold leading-4 text-ink">{product.name}</p>
+                      <p className="mt-1 text-[13px] font-bold text-ink">{formatBrl(product.promoPriceCents ?? product.priceCents)}</p>
+                    </Link>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
