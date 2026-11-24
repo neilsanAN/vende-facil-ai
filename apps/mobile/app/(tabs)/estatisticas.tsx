@@ -1,15 +1,25 @@
 import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
 import { api } from "../../src/api";
+import { BackButton } from "../../src/back-button";
+import { handleTenantError } from "../../src/session";
 
 type Stats = { views?: number; whatsappClicks?: number; orders?: number; salesCents?: number; note?: string };
 
 export default function StatsScreen() {
+  const insets = useSafeAreaInsets();
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
-    api.stats("7d").then((result) => setStats(result as Stats)).catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Falha ao carregar."));
+    api
+      .stats("7d")
+      .then((result) => setStats(result as Stats))
+      .catch((cause: unknown) => {
+        if (handleTenantError(cause)) return;
+        setError(cause instanceof Error ? cause.message : "Falha ao carregar.");
+      });
   }, []);
   const cards = [
     [String(stats?.views ?? 0), "Visualizações"],
@@ -18,7 +28,8 @@ export default function StatsScreen() {
     [((stats?.salesCents ?? 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }), "Vendas"],
   ];
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background, padding: 16 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16, paddingBottom: 16 }}>
+      <BackButton fallback="/inicio" />
       <Text style={{ color: colors.text, fontSize: fonts.heading, fontWeight: "700" }}>Resultados</Text>
       <Text style={{ color: colors.textSecondary, fontSize: fonts.body, marginTop: 4, marginBottom: 12 }}>Últimos 7 dias</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>

@@ -9,6 +9,7 @@ import { ApiClientError } from "@vendefacil/api-client";
 import { api } from "../src/api";
 import { uploadLocalImage } from "../src/upload";
 import { handleTenantError } from "../src/session";
+import { BackButton } from "../src/back-button";
 
 type Draft = { id: string; title: string; description: string; hashtags: string[] };
 
@@ -19,6 +20,7 @@ export default function AdScreen() {
   const [mimeType, setMimeType] = useState("image/jpeg");
   const [productName, setProductName] = useState("Produto");
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [phase, setPhase] = useState<"pick" | "generating" | "done">("pick");
   const [draft, setDraft] = useState<Draft | null>(null);
 
@@ -73,7 +75,7 @@ export default function AdScreen() {
       });
       setDraft(ad);
       setPhase("done");
-      setMessage("Anúncio gerado. Revise o texto abaixo.");
+      setMessage("Anúncio gerado. Edite o texto se quiser e salve.");
     } catch (cause) {
       if (handleTenantError(cause)) return;
       setPhase("pick");
@@ -83,29 +85,38 @@ export default function AdScreen() {
     }
   }
 
+  async function saveDraft() {
+    if (!draft) return;
+    if (draft.title.trim().length < 2 || draft.description.trim().length < 2) {
+      setMessage("Título e descrição precisam ter pelo menos 2 caracteres.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.updateAd(draft.id, {
+        title: draft.title.trim(),
+        description: draft.description.trim(),
+        hashtags: draft.hashtags,
+        tone: "PROFESSIONAL",
+        status: "DRAFT",
+      });
+      setMessage("Rascunho salvo.");
+      router.replace("/inicio");
+    } catch (cause) {
+      if (handleTenantError(cause)) return;
+      setMessage(cause instanceof ApiClientError ? cause.message : "Não foi possível salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom, 24) }}
+      contentContainerStyle={{ paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom, 28) }}
       keyboardShouldPersistTaps="handled"
     >
-      <Pressable
-        onPress={() => router.back()}
-        hitSlop={12}
-        style={{
-          height: 44,
-          width: 44,
-          borderRadius: 999,
-          borderWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: colors.surface,
-          alignItems: "center",
-          justifyContent: "center",
-          marginBottom: 12,
-        }}
-      >
-        <Ionicons name="chevron-back" size={22} color={colors.text} />
-      </Pressable>
+      <BackButton fallback="/inicio" />
 
       <Text style={{ color: colors.text, fontSize: fonts.heading, fontWeight: "700" }}>Criar anúncio com IA</Text>
       <Text style={{ color: colors.textSecondary, fontSize: fonts.body, marginTop: 6, marginBottom: 16 }}>{message}</Text>
@@ -119,36 +130,36 @@ export default function AdScreen() {
             Analisando a foto e escrevendo título, descrição e hashtags.
           </Text>
         </View>
-      ) : (
-        <View
-          style={{
-            aspectRatio: 4 / 5,
-            borderRadius: 22,
-            borderWidth: 2,
-            borderStyle: uri ? "solid" : "dashed",
-            borderColor: uri ? colors.border : "#D9CFFF",
-            backgroundColor: uri ? colors.surface : "#F7F4FF",
-            overflow: "hidden",
-            alignItems: "center",
-            justifyContent: "center",
-            marginBottom: 14,
-          }}
-        >
-          {uri ? (
-            <Image source={{ uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
-          ) : (
-            <>
-              <Ionicons name="camera-outline" size={36} color={colors.primary} />
-              <Text style={{ marginTop: 10, color: colors.text, fontSize: fonts.subtitle, fontWeight: "500", textAlign: "center", maxWidth: 220 }}>
-                Tire uma foto do produto ou escolha da galeria
-              </Text>
-            </>
-          )}
-        </View>
-      )}
+      ) : null}
 
-      {phase !== "generating" ? (
+      {phase === "pick" ? (
         <>
+          <View
+            style={{
+              aspectRatio: 4 / 5,
+              borderRadius: 22,
+              borderWidth: 2,
+              borderStyle: uri ? "solid" : "dashed",
+              borderColor: uri ? colors.border : "#D9CFFF",
+              backgroundColor: uri ? colors.surface : "#F7F4FF",
+              overflow: "hidden",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 14,
+            }}
+          >
+            {uri ? (
+              <Image source={{ uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+            ) : (
+              <>
+                <Ionicons name="camera-outline" size={36} color={colors.primary} />
+                <Text style={{ marginTop: 10, color: colors.text, fontSize: fonts.subtitle, fontWeight: "500", textAlign: "center", maxWidth: 220 }}>
+                  Tire uma foto do produto ou escolha da galeria
+                </Text>
+              </>
+            )}
+          </View>
+
           <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
             <Pressable
               disabled={busy}
@@ -195,7 +206,7 @@ export default function AdScreen() {
               onChangeText={setProductName}
               placeholder="Ex.: Fone Bluetooth"
               placeholderTextColor="#9A96AB"
-              style={{ color: colors.text, fontSize: 14, paddingVertical: 2 }}
+              style={{ color: colors.text, fontSize: 14, paddingVertical: 4, minHeight: 28 }}
             />
           </View>
 
@@ -210,36 +221,120 @@ export default function AdScreen() {
               justifyContent: "center",
             }}
           >
-            {busy ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={{ color: uri ? "#fff" : colors.textSecondary, fontSize: fonts.body, fontWeight: "600" }}>
-                {draft ? "Gerar de novo" : "Gerar com IA"}
-              </Text>
-            )}
+            <Text style={{ color: uri ? "#fff" : colors.textSecondary, fontSize: fonts.body, fontWeight: "600" }}>Gerar com IA</Text>
           </Pressable>
         </>
       ) : null}
 
-      {draft && phase === "done" ? (
-        <View style={{ marginTop: 18, gap: 10 }}>
-          <Text style={{ color: colors.text, fontWeight: "700", fontSize: 13 }}>Título</Text>
-          <Text style={{ color: colors.text, fontSize: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12 }}>
-            {draft.title}
-          </Text>
-          <Text style={{ color: colors.text, fontWeight: "700", fontSize: 13 }}>Descrição</Text>
-          <Text style={{ color: colors.text, fontSize: 13, lineHeight: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12 }}>
-            {draft.description}
-          </Text>
+      {phase === "done" && draft ? (
+        <View style={{ gap: 12 }}>
+          {uri ? (
+            <View style={{ position: "relative" }}>
+              <Image source={{ uri }} style={{ width: "100%", aspectRatio: 4 / 5, borderRadius: 18 }} resizeMode="cover" />
+              <Pressable
+                onPress={() => {
+                  setPhase("pick");
+                  setMessage("Troque a foto ou gere de novo.");
+                }}
+                style={{
+                  position: "absolute",
+                  right: 12,
+                  top: 12,
+                  height: 36,
+                  width: 36,
+                  borderRadius: 999,
+                  backgroundColor: "#fff",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="pencil" size={14} color={colors.text} />
+              </Pressable>
+            </View>
+          ) : null}
+
+          <View style={{ borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 14, paddingVertical: 10 }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 }}>Título</Text>
+            <TextInput
+              value={draft.title}
+              onChangeText={(title) => setDraft({ ...draft, title })}
+              placeholder="Título do anúncio"
+              placeholderTextColor="#9A96AB"
+              style={{ color: colors.text, fontSize: 15, fontWeight: "600", paddingVertical: 4, minHeight: 32 }}
+            />
+          </View>
+
+          <View style={{ borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 14, paddingVertical: 10 }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 }}>Descrição</Text>
+            <TextInput
+              value={draft.description}
+              onChangeText={(description) => setDraft({ ...draft, description })}
+              placeholder="Descrição do anúncio"
+              placeholderTextColor="#9A96AB"
+              multiline
+              textAlignVertical="top"
+              style={{ color: colors.text, fontSize: 14, lineHeight: 20, paddingVertical: 4, minHeight: 120 }}
+            />
+          </View>
+
           {draft.hashtags.length ? (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
               {draft.hashtags.map((tag) => (
-                <Text key={tag} style={{ color: colors.primary, backgroundColor: "#F3EEFF", overflow: "hidden", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, fontSize: 11, fontWeight: "600" }}>
+                <Text
+                  key={tag}
+                  style={{
+                    color: colors.primary,
+                    backgroundColor: "#F3EEFF",
+                    overflow: "hidden",
+                    borderRadius: 999,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    fontSize: 11,
+                    fontWeight: "600",
+                  }}
+                >
                   {tag.startsWith("#") ? tag : `#${tag}`}
                 </Text>
               ))}
             </View>
           ) : null}
+
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
+            <Pressable
+              disabled={busy || saving}
+              onPress={() => void generate()}
+              style={{
+                flex: 1,
+                height: control.height,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                alignItems: "center",
+                justifyContent: "center",
+                flexDirection: "row",
+                gap: 6,
+              }}
+            >
+              <Ionicons name="refresh" size={16} color={colors.primary} />
+              <Text style={{ color: colors.text, fontWeight: "600", fontSize: 13 }}>Regenerar</Text>
+            </Pressable>
+            <Pressable
+              disabled={saving}
+              onPress={() => void saveDraft()}
+              style={{
+                flex: 1,
+                height: control.height,
+                borderRadius: 999,
+                backgroundColor: colors.primary,
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: saving ? 0.7 : 1,
+              }}
+            >
+              {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}>Salvar</Text>}
+            </Pressable>
+          </View>
         </View>
       ) : null}
     </ScrollView>

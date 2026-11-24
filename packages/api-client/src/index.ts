@@ -89,5 +89,19 @@ export function createApiClient(options: {
         headers: { "idempotency-key": `${Date.now()}-${Math.random().toString(36).slice(2, 10)}` },
         body: JSON.stringify(body),
       }),
+    updateAd: (
+      id: string,
+      body: {
+        title: string;
+        description: string;
+        hashtags: string[];
+        tone: "PROFESSIONAL" | "FRIENDLY" | "URGENT" | "ELEGANT";
+        status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+      },
+    ) =>
+      request<{ id: string; title: string; description: string; hashtags: string[] }>(`/api/ads/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
   };
 }
