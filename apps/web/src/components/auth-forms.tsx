@@ -11,10 +11,24 @@ import { Button, Field, areaClass, inputClass, useToast } from "@/components/ui"
 import { api, ApiClientError, cn } from "@/lib/http";
 import { useEffect, useMemo, useState } from "react";
 
-function Screen({ children, title, dark = false }: { children: React.ReactNode; title?: string; dark?: boolean }) {
+function Screen({ children, title, dark = false, banner = false }: { children: React.ReactNode; title?: string; dark?: boolean; banner?: boolean }) {
+  if (banner) {
+    return (
+      <main className="min-h-screen bg-background text-ink">
+        <div className="bg-gradient-to-br from-[#7C5CFF] to-[#5B3DF0] px-6 pb-10 pt-12 text-white">
+          <div className="mx-auto flex max-w-[390px] flex-col items-center text-center">
+            <LogoMark className="h-14 w-14 rounded-2xl bg-white/15 shadow-none" />
+            <p className="mt-4 text-[22px] font-bold leading-7 tracking-tight">VendeFácil AI</p>
+            {title ? <p className="mt-1 text-[13px] text-white/80">{title}</p> : null}
+          </div>
+        </div>
+        <div className="mx-auto -mt-5 w-full max-w-[390px] rounded-t-[24px] bg-background px-6 pb-10 pt-6 shadow-[0_-8px_24px_rgba(23,24,39,0.06)]">{children}</div>
+      </main>
+    );
+  }
   return (
     <main className={cn("min-h-screen", dark ? "bg-[radial-gradient(circle_at_top,_#1A1240_0%,_#070B18_46%)] text-white" : "bg-background text-ink")}>
-      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-6 py-10">
+      <div className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col px-6 py-10">
         <div className="mb-8 flex flex-col items-center text-center">
           <LogoMark />
           <p className={cn("mt-4 text-2xl font-bold tracking-tight", dark ? "text-white" : "text-ink")}>VendeFácil AI</p>
@@ -161,7 +175,7 @@ export function LoginForm() {
   const [error, setError] = useState("");
   const [visible, setVisible] = useState(false);
   return (
-    <Screen title="Acesse sua conta">
+    <Screen title="Acesse sua conta" banner>
       <form
         className="space-y-3"
         onSubmit={form.handleSubmit(async (values) => {

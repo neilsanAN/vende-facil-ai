@@ -9,5 +9,5 @@ export default async function Page() {
     getContainer().catalog.list(session, { q: "", sort: "recent", page: 1, pageSize: 50 }),
     getContainer().videos.voices(),
   ]);
-  return <div><PageHeader title="Criar vídeo com IA" text="O modo padrão anima as fotos. A voz só gera áudio se o provedor estiver configurado." /><VideoCreator products={products.data.map((item) => ({ id: item.id, name: item.name, imageUrl: item.images[0]?.url || null }))} voices={voices.map((voice) => ({ id: voice.id, name: voice.name, gender: voice.gender }))} /></div>;
+  return <div><PageHeader backHref="/estudio" title="Gerar vídeo com IA" /><VideoCreator products={products.data.map((item) => ({ id: item.id, name: item.name, imageUrl: item.images[0]?.url || null }))} voices={voices.map((voice) => ({ id: voice.id, name: voice.name, gender: voice.gender }))} /></div>;
 }

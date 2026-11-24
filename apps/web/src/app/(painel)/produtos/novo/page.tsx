@@ -7,5 +7,5 @@ export const dynamic = "force-dynamic";
 export default async function NewProductPage() {
   const session = await tenant();
   const categories = await getContainer().catalog.categories(session);
-  return <div><PageHeader title="Novo produto" /><ProductForm categories={categories} /></div>;
+  return <div><PageHeader backHref="/produtos" title="Novo produto" /><ProductForm categories={categories} /></div>;
 }

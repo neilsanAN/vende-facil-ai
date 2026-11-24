@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { createContext, useContext, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { ChevronLeft } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/http";
 import { buttonClass } from "@/components/controls";
@@ -59,14 +61,39 @@ export function Skeleton({ className }: { className?: string }) {
   return <div className={cn("animate-pulse rounded-lg bg-line/80", className)} />;
 }
 
-export function PageHeader({ title, text, action }: { title: string; text?: string; action?: ReactNode }) {
+export function PageHeader({
+  title,
+  text,
+  action,
+  backHref,
+}: {
+  title: string;
+  text?: string;
+  action?: ReactNode;
+  backHref?: string;
+}) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight">{title}</h1>
-        {text ? <p className="mt-1 text-sm text-muted">{text}</p> : null}
+    <div className="mb-5">
+      <div className="flex items-start gap-1.5">
+        {backHref ? (
+          <Link
+            href={backHref}
+            aria-label="Voltar"
+            className="-ml-1 mt-0.5 hidden h-9 w-9 shrink-0 place-items-center rounded-full text-ink hover:bg-surface md:grid"
+          >
+            <ChevronLeft size={22} />
+          </Link>
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-[18px] font-bold leading-[22px] tracking-tight">{title}</h1>
+              {text ? <p className="mt-1 text-[12px] leading-4 text-muted">{text}</p> : null}
+            </div>
+            {action}
+          </div>
+        </div>
       </div>
-      {action}
     </div>
   );
 }

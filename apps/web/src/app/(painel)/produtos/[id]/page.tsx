@@ -12,7 +12,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const container = getContainer();
   try {
     const [product, categories] = await Promise.all([container.catalog.get(session, id), container.catalog.categories(session)]);
-    return <div><PageHeader title={product.name} action={<ProductActions id={product.id} />} /><ProductForm product={product} categories={categories} /></div>;
+    return <div><PageHeader backHref="/produtos" title={product.name} action={<ProductActions id={product.id} />} /><ProductForm product={product} categories={categories} /></div>;
   } catch {
     notFound();
   }

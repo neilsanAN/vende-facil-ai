@@ -6,5 +6,5 @@ export const dynamic = "force-dynamic";
 export default async function Page() {
   const session = await tenant();
   const data = await getContainer().billing.overview(session);
-  return <div><PageHeader title="Assinatura e créditos" /><BillingPanel data={JSON.parse(JSON.stringify(data))} /></div>;
+  return <div><PageHeader backHref="/mais" title="Assinatura e créditos" /><BillingPanel data={JSON.parse(JSON.stringify(data))} /></div>;
 }

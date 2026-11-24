@@ -12,7 +12,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
   const order = await getContainer().commerce.getOrder(session, id);
   return (
     <div>
-      <PageHeader title={order.customer.name} text={`${order.origin} · pagamento ${order.paymentStatus}`} />
+      <PageHeader backHref="/pedidos" title={order.customer.name} text={`${order.origin} · pagamento ${order.paymentStatus}`} />
       <ul className="mb-4 space-y-1 text-sm">{order.items.map((item) => <li key={item.id}>{item.quantity}× {item.name} · {formatBrl(item.unitPriceCents)}</li>)}</ul>
       <p className="mb-4 text-sm font-semibold">Total {formatBrl(order.totalCents)}</p>
       <OrderStatusForm id={order.id} status={order.status} />

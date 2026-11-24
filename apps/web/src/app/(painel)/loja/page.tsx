@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Heart } from "lucide-react";
 import { formatBrl } from "@vendefacil/types";
 import { getContainer } from "@vendefacil/business";
 import { StoreForm } from "@/components/ops-forms";
@@ -7,31 +8,23 @@ import { tenant } from "@/server/session";
 
 export const dynamic = "force-dynamic";
 
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const session = await tenant();
+  const params = await searchParams;
+  const tab = params.tab === "destaques" || params.tab === "sobre" ? params.tab : "produtos";
   const container = getContainer();
   const store = await container.db.store.findUnique({ where: { organizationId: session.organizationId }, include: { settings: true } });
   if (!store) return null;
-  const [products, categories] = await Promise.all([
-    container.catalog.list(session, { q: "", sort: "recent", page: 1, pageSize: 12, published: "true" }),
-    container.db.category.findMany({ where: { organizationId: session.organizationId }, orderBy: { name: "asc" } }),
-  ]);
+  const products = await container.catalog.list(session, { q: "", sort: "recent", page: 1, pageSize: 12, published: "true" });
+
   return (
     <div>
       <div className="mb-4 flex items-center gap-3">
-        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary-soft text-sm font-bold text-primary">{store.name.slice(0, 1)}</span>
+        <span className="grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft text-base font-bold text-primary">{store.name.slice(0, 1)}</span>
         <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-bold leading-[18px]">{store.name}</p>
-          <p className="text-[10px] font-medium leading-[13px] text-muted">{store.published ? "Vitrine no ar" : "Vitrine oculta"}</p>
+          <p className="text-[16px] font-bold leading-5">{store.name}</p>
+          <p className="text-[11px] font-medium text-muted">{store.published ? "Vitrine no ar" : "Vitrine oculta"}</p>
         </div>
-      </div>
-
-      <div className="mb-3 flex flex-wrap gap-2">
-        {categories.slice(0, 6).map((item) => (
-          <span key={item.id} className="rounded-full border border-line bg-surface px-3 py-2 text-[10px] font-medium leading-[13px] text-muted">
-            {item.name}
-          </span>
-        ))}
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-2">
@@ -47,29 +40,48 @@ export default async function Page() {
         )}
       </div>
 
-      <div className="mb-3 flex gap-4 border-b border-line text-[12px] font-semibold">
-        <span className="border-b-2 border-primary pb-2 text-primary">Produtos ({products.meta.total})</span>
-        <span className="pb-2 text-muted">Destaques</span>
-        <span className="pb-2 text-muted">Sobre</span>
+      <div className="mb-4 flex gap-5 border-b border-line text-[13px] font-semibold">
+        <Link href="/loja?tab=produtos" className={tab === "produtos" ? "border-b-2 border-primary pb-2 text-primary" : "pb-2 text-muted"}>
+          Produtos ({products.meta.total})
+        </Link>
+        <Link href="/loja?tab=destaques" className={tab === "destaques" ? "border-b-2 border-primary pb-2 text-primary" : "pb-2 text-muted"}>
+          Destaques
+        </Link>
+        <Link href="/loja?tab=sobre" className={tab === "sobre" ? "border-b-2 border-primary pb-2 text-primary" : "pb-2 text-muted"}>
+          Sobre
+        </Link>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        {products.data.map((product) => (
-          <Link key={product.id} href={`/produtos/${product.id}`} className="overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
-            {product.images[0] ? (
-              <img src={product.images[0].url} alt="" className="aspect-square w-full object-cover" />
-            ) : (
-              <div className="grid aspect-square place-items-center bg-background text-xs text-muted">Sem foto</div>
-            )}
-            <div className="p-3">
-              <p className="truncate text-[12px] font-semibold leading-4">{product.name}</p>
-              <p className="text-[12px] font-medium text-primary">{formatBrl(product.promoPriceCents ?? product.priceCents)}</p>
-            </div>
-          </Link>
-        ))}
-      </div>
+      {tab === "sobre" ? (
+        <div className="rounded-2xl border border-line bg-surface p-4 text-[12px] leading-4 text-muted shadow-card">
+          <p className="text-[13px] font-semibold text-ink">{store.name}</p>
+          <p className="mt-2">{store.description || "Sem descrição ainda."}</p>
+          {store.whatsapp ? <p className="mt-3">WhatsApp: {store.whatsapp}</p> : null}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {(tab === "destaques" ? products.data.slice(0, 4) : products.data).map((product) => (
+            <Link key={product.id} href={`/produtos/${product.id}`} className="relative overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
+              <span className="absolute right-2 top-2 z-10 grid h-8 w-8 place-items-center rounded-full bg-white/90 text-danger shadow-card">
+                <Heart size={14} />
+              </span>
+              {product.images[0] ? (
+                <img src={product.images[0].url} alt="" className="aspect-square w-full object-cover" />
+              ) : (
+                <div className="grid aspect-square place-items-center bg-background text-xs text-muted">Sem foto</div>
+              )}
+              <div className="p-3">
+                <p className="truncate text-[12px] font-semibold leading-4">{product.name}</p>
+                <p className="text-[12px] font-semibold text-primary">{formatBrl(product.promoPriceCents ?? product.priceCents)}</p>
+              </div>
+            </Link>
+          ))}
+          {products.data.length === 0 ? <p className="col-span-2 text-sm text-muted">Publique produtos para aparecerem na loja.</p> : null}
+        </div>
+      )}
 
       <div id="editar-loja" className="mt-8">
+        <h2 className="mb-3 text-[13px] font-semibold">Editar loja</h2>
         <StoreForm
           store={{
             name: store.name,

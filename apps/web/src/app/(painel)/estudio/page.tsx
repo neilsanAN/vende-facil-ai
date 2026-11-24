@@ -19,11 +19,11 @@ export default async function StudioPage() {
     <div>
       <div className="rounded-2xl bg-gradient-to-br from-[#7C5CFF] to-[#5B3DF0] px-4 py-5 text-white shadow-lift">
         <div className="flex items-start gap-3">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/15">
+          <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/15">
             <Sparkles size={18} />
           </span>
           <div>
-            <h1 className="text-[14px] font-bold leading-[18px]">Estúdio IA</h1>
+            <h1 className="text-[16px] font-bold leading-5">Estúdio IA</h1>
             <p className="mt-1 text-[12px] font-medium leading-4 text-white/85">Crie vídeos profissionais com IA.</p>
           </div>
         </div>
@@ -32,13 +32,13 @@ export default async function StudioPage() {
       <ul className="mt-4 space-y-2">
         {items.map((item) => (
           <li key={item.href}>
-            <Link href={item.href} className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 shadow-card">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary-soft text-primary">
-                <item.icon size={16} />
+            <Link href={item.href} className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3.5 shadow-card">
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary-soft text-primary">
+                <item.icon size={18} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[12px] font-semibold leading-4">{item.label}</span>
-                <span className="text-[10px] font-medium leading-[13px] text-muted">{item.text}</span>
+                <span className="block text-[13px] font-semibold leading-4">{item.label}</span>
+                <span className="text-[11px] font-medium leading-[14px] text-muted">{item.text}</span>
               </span>
             </Link>
           </li>
@@ -47,7 +47,7 @@ export default async function StudioPage() {
 
       {videos.length > 0 ? (
         <>
-          <h2 className="mb-2 mt-6 text-[12px] font-semibold leading-4">Recentes</h2>
+          <h2 className="mb-2 mt-6 text-[13px] font-semibold leading-4">Recentes</h2>
           <ul className="space-y-2">
             {videos.slice(0, 5).map((video) => (
               <li key={video.id}>

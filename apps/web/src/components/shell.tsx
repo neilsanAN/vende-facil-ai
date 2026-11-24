@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Clapperboard, Home, Menu, Package, Plus, ShoppingBag } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { ChevronLeft, Clapperboard, Home, Menu, Package, Plus, ShoppingBag } from "lucide-react";
 import { cn } from "@/lib/http";
+import { panelBackHref } from "@/lib/nav";
 
 const items = [
   { href: "/inicio", label: "Início", icon: Home },
@@ -50,6 +51,8 @@ export function Brand({ light = false }: { light?: boolean }) {
 
 export function AppShell({ children, store, plan, user }: { children: React.ReactNode; store?: string; plan: string; user: string }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const backHref = panelBackHref(pathname);
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto grid min-h-screen max-w-6xl md:grid-cols-[232px_1fr]">
@@ -71,9 +74,29 @@ export function AppShell({ children, store, plan, user }: { children: React.Reac
             <p className="mt-1 text-[10px] font-medium capitalize leading-[13px] text-muted">Plano {plan}</p>
           </div>
         </aside>
-        <main className="mx-auto w-full max-w-lg px-4 py-5 pb-28 md:max-w-3xl md:px-8 md:pb-10">{children}</main>
+        <main className="mx-auto w-full max-w-lg px-4 py-4 pb-28 md:max-w-3xl md:px-8 md:pb-10">
+          {backHref ? (
+            <div className="mb-3 flex items-center gap-1 md:hidden">
+              <button
+                type="button"
+                aria-label="Voltar"
+                className="-ml-1 grid h-9 w-9 place-items-center rounded-full text-ink hover:bg-surface"
+                onClick={() => {
+                  if (typeof window !== "undefined" && window.history.length > 1) router.back();
+                  else router.push(backHref);
+                }}
+              >
+                <ChevronLeft size={22} />
+              </button>
+              <Link href={backHref} className="text-[12px] font-semibold text-muted">
+                Voltar
+              </Link>
+            </div>
+          ) : null}
+          {children}
+        </main>
       </div>
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-2 backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         <ul className="mx-auto grid max-w-lg grid-cols-5">
           {items.map((item) => {
             const active = item.href === "/inicio" ? pathname === "/inicio" : pathname.startsWith(item.href);
@@ -81,15 +104,15 @@ export function AppShell({ children, store, plan, user }: { children: React.Reac
             if (item.fab) {
               return (
                 <li key={item.href} className="relative flex justify-center">
-                  <Link href={item.href} aria-label={item.label} className="-mt-4 grid h-12 w-12 place-items-center rounded-full bg-primary text-white shadow-lift">
-                    <Icon size={22} strokeWidth={2.5} />
+                  <Link href={item.href} aria-label={item.label} className="-mt-4 grid h-14 w-14 place-items-center rounded-full bg-primary text-white shadow-lift">
+                    <Icon size={24} strokeWidth={2.5} />
                   </Link>
                 </li>
               );
             }
             return (
               <li key={item.href}>
-                <Link href={item.href} className={cn("flex min-h-10 flex-col items-center justify-center gap-0.5 pt-1.5 text-tiny font-semibold leading-[11px]", active ? "text-primary" : "text-muted")}>
+                <Link href={item.href} className={cn("flex min-h-12 flex-col items-center justify-center gap-0.5 pt-1.5 text-tiny font-semibold leading-[11px]", active ? "text-primary" : "text-muted")}>
                   <Icon size={20} />
                   {item.label}
                 </Link>

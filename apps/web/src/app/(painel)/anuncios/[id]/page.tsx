@@ -10,5 +10,5 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const ads = await getContainer().studio.listAds(session);
   const ad = ads.find((item) => item.id === id);
   if (!ad) notFound();
-  return <div><PageHeader title="Editar anúncio" text="Revise título, descrição e preço. Nada é publicado sozinho." /><AdEditor ad={ad} /></div>;
+  return <div><PageHeader backHref="/inicio" title="Anúncio gerado" text="Revise título, descrição e hashtags. Nada é publicado sozinho." /><AdEditor ad={ad} /></div>;
 }

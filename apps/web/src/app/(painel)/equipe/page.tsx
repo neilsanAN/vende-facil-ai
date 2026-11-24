@@ -6,5 +6,5 @@ export const dynamic = "force-dynamic";
 export default async function Page() {
   const session = await tenant();
   const team = await getContainer().tenants.team(session);
-  return <div><PageHeader title="Equipe" text="Papéis: proprietário, admin, editor e leitura." /><TeamPanel members={team.members} /></div>;
+  return <div><PageHeader backHref="/mais" title="Equipe" text="Papéis: proprietário, admin, editor e leitura." /><TeamPanel members={team.members} /></div>;
 }

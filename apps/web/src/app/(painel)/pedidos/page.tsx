@@ -24,7 +24,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
   });
   return (
     <div>
-      <PageHeader title="Pedidos" text="Pedidos registrados na vitrine ou lançados por você. Um clique no WhatsApp não entra aqui." />
+      <PageHeader backHref="/mais" title="Pedidos" text="Pedidos registrados na vitrine ou lançados por você. Um clique no WhatsApp não entra aqui." />
       <div className="mb-4 flex gap-2">
         {tabs.map((item) => <Link key={item.id} href={item.id === "todos" ? "/pedidos" : `/pedidos?tab=${item.id}`} className={`${chipClass} ${tab === item.id ? "bg-primary text-white" : "border border-line bg-surface text-muted"}`}>{item.label}</Link>)}
       </div>

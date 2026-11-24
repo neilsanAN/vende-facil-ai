@@ -6,5 +6,5 @@ export const dynamic = "force-dynamic";
 export default async function Page() {
   const session = await tenant();
   const products = await getContainer().catalog.list(session, { q: "", sort: "recent", page: 1, pageSize: 50 });
-  return <div><PageHeader title="Criar anúncio com IA" text="A geração usa somente foto e fatos confirmados. Sem provedor configurado, o texto pode ser escrito à mão." /><AdStudio products={products.data.map((item) => ({ id: item.id, name: item.name, priceCents: item.priceCents }))} /></div>;
+  return <div><PageHeader backHref="/inicio" title="Criar anúncio" /><AdStudio products={products.data.map((item) => ({ id: item.id, name: item.name, priceCents: item.priceCents }))} /></div>;
 }

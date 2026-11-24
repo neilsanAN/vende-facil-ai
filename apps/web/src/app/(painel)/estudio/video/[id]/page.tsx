@@ -10,6 +10,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   try {
     const project = await getContainer().videos.get(session, id);
     const plain = JSON.parse(JSON.stringify(project));
-    return <div><PageHeader title={project.title} text="Edite cenas, texto e volumes. A exportação roda no worker." /><VideoEditor project={plain} /></div>;
+    return <div><PageHeader backHref="/estudio" title="Editor de vídeo" text={project.title} /><VideoEditor project={plain} /></div>;
   } catch { notFound(); }
 }

@@ -16,7 +16,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
   const max = Math.max(1, ...stats.series.map((item) => item.views));
   return (
     <div>
-      <PageHeader title="Estatísticas" text={`Últimos ${range} dias · números reais`} action={<div className="flex gap-2">{(["7d", "30d", "90d"] as const).map((item) => <Link key={item} href={`?range=${item}`} className={`${chipClass} ${range === Number(item.replace("d", "")) ? "bg-primary text-white" : "border border-line text-muted"}`}>{item === "7d" ? "7 dias" : item === "30d" ? "30 dias" : "90 dias"}</Link>)}</div>} />
+      <PageHeader backHref="/mais" title="Estatísticas" text={`Últimos ${range} dias · números reais`} action={<div className="flex gap-2">{(["7d", "30d", "90d"] as const).map((item) => <Link key={item} href={`?range=${item}`} className={`${chipClass} ${range === Number(item.replace("d", "")) ? "bg-primary text-white" : "border border-line text-muted"}`}>{item === "7d" ? "7 dias" : item === "30d" ? "30 dias" : "90 dias"}</Link>)}</div>} />
       <div className="grid grid-cols-2 gap-2">
         <Stat label="Visualizações" value={String(stats.views)} />
         <Stat label="Cliques" value={String(stats.whatsappClicks)} hint="WhatsApp" />

@@ -206,9 +206,9 @@ export function PublishDesk({ channels, products }: { channels: Array<{ provider
           <input type="checkbox" name="confirm" /> Já compartilhei manualmente
         </label>
         <Button type="submit" className="w-full">
-          Registrar divulgação
+          Publicar agora
         </Button>
-        <p className="text-[10px] font-medium leading-[13px] text-muted">Não posta sozinho no Instagram/Facebook. WhatsApp abre o link real; IG/FB só se o canal estiver configurado.</p>
+        <p className="text-[10px] font-medium leading-[13px] text-muted">Registra a divulgação. WhatsApp abre o link real; Instagram/Facebook só concluem se o canal estiver configurado.</p>
       </form>
       {share?.whatsappUrl ? (
         <a className="block text-center text-[12px] font-semibold text-primary" href={share.whatsappUrl} target="_blank" rel="noreferrer">

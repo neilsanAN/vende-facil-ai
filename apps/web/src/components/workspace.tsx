@@ -583,6 +583,13 @@ export function VideoEditor({ project }: { project: Project }) {
             ))}
           </div>
         </div>
+        <div className="grid grid-cols-5 gap-1 rounded-2xl border border-line bg-surface p-2 shadow-card">
+          {["Cenas", "Texto", "Áudio", "Transição", "Velocidade"].map((label) => (
+            <button key={label} type="button" className="rounded-xl px-1 py-2 text-[9px] font-semibold text-muted hover:bg-background hover:text-primary">
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={save}>Salvar rascunho</Button>
           <Button variant="secondary" onClick={async () => {
