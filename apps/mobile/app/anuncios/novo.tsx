@@ -6,10 +6,10 @@ import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
-import { api } from "../src/api";
-import { uploadLocalImage } from "../src/upload";
-import { handleTenantError } from "../src/session";
-import { BackButton } from "../src/back-button";
+import { api } from "../../src/api";
+import { uploadLocalImage } from "../../src/upload";
+import { handleTenantError } from "../../src/session";
+import { BackButton } from "../../src/back-button";
 
 type Draft = { id: string; title: string; description: string; hashtags: string[] };
 
@@ -92,6 +92,7 @@ export default function AdScreen() {
       return;
     }
     setSaving(true);
+    setMessage("Salvando anúncio…");
     try {
       await api.updateAd(draft.id, {
         title: draft.title.trim(),
@@ -100,8 +101,8 @@ export default function AdScreen() {
         tone: "PROFESSIONAL",
         status: "DRAFT",
       });
-      setMessage("Rascunho salvo.");
-      router.replace("/inicio");
+      setMessage("Anúncio salvo.");
+      router.replace("/anuncios");
     } catch (cause) {
       if (handleTenantError(cause)) return;
       setMessage(cause instanceof ApiClientError ? cause.message : "Não foi possível salvar.");

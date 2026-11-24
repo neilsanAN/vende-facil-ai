@@ -1,7 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, Text, TextInput, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { FlatList, Image, Linking, Pressable, Text, TextInput, View } from "react-native";
+import { useFocusEffect } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
+import { ApiClientError } from "@vendefacil/api-client";
 import { api } from "../../src/api";
+import { handleTenantError } from "../../src/session";
+import { ActionMenu } from "../../src/action-menu";
+
+const apiBase = Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+
+function mediaUrl(path?: string) {
+  if (!path) return null;
+  return path.startsWith("http") ? path : `${apiBase}${path}`;
+}
 
 type Product = {
   id: string;
@@ -10,6 +23,7 @@ type Product = {
   promoPriceCents?: number | null;
   status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
   published?: boolean;
+  images?: Array<{ url: string }>;
 };
 
 type Filter = "ALL" | "ACTIVE" | "DRAFT";
@@ -19,16 +33,25 @@ export default function ProductsScreen() {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("ALL");
   const [error, setError] = useState("");
+  const [menuProduct, setMenuProduct] = useState<Product | null>(null);
 
-  useEffect(() => {
-    api
-      .products()
-      .then((result) => {
-        const payload = result as { data?: Product[] };
-        setProducts(payload.data || []);
-      })
-      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Falha ao carregar."));
+  const load = useCallback(async () => {
+    try {
+      const result = await api.products();
+      const payload = result as { data?: Product[] };
+      setProducts(payload.data || []);
+      setError("");
+    } catch (cause) {
+      if (handleTenantError(cause)) return;
+      setError(cause instanceof ApiClientError ? cause.message : "Falha ao carregar.");
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   const counts = useMemo(
     () => ({
@@ -55,26 +78,51 @@ export default function ProductsScreen() {
     { key: "DRAFT", label: "Rascunhos", count: counts.DRAFT },
   ];
 
+  async function archive(id: string) {
+    try {
+      await api.archiveProduct(id);
+      setProducts((current) => current.filter((item) => item.id !== id));
+    } catch (cause) {
+      if (handleTenantError(cause)) return;
+      setError(cause instanceof ApiClientError ? cause.message : "Não foi possível excluir.");
+    }
+  }
+
+  async function duplicate(id: string) {
+    try {
+      await api.duplicateProduct(id);
+      await load();
+    } catch (cause) {
+      if (handleTenantError(cause)) return;
+      setError(cause instanceof ApiClientError ? cause.message : "Não foi possível duplicar.");
+    }
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background, padding: 16 }}>
       <Text style={{ color: colors.text, fontSize: fonts.heading, fontWeight: "700", marginBottom: 12 }}>Produtos</Text>
-      <TextInput
-        value={q}
-        onChangeText={setQ}
-        placeholder="Buscar produto"
-        placeholderTextColor={colors.textSecondary}
-        style={{
-          height: control.height,
-          borderWidth: 1,
-          borderColor: colors.border,
-          borderRadius: control.radiusInput,
-          backgroundColor: colors.surface,
-          color: colors.text,
-          paddingHorizontal: 12,
-          fontSize: fonts.body,
-          marginBottom: 10,
-        }}
-      />
+      <View style={{ flexDirection: "row", gap: 8, marginBottom: 10 }}>
+        <TextInput
+          value={q}
+          onChangeText={setQ}
+          placeholder="Buscar produto..."
+          placeholderTextColor={colors.textSecondary}
+          style={{
+            flex: 1,
+            height: control.height,
+            borderWidth: 1,
+            borderColor: colors.border,
+            borderRadius: 999,
+            backgroundColor: "#F3F4F8",
+            color: colors.text,
+            paddingHorizontal: 14,
+            fontSize: fonts.body,
+          }}
+        />
+        <View style={{ width: 40, height: 40, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" }}>
+          <Ionicons name="options-outline" size={16} color={colors.text} />
+        </View>
+      </View>
       <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
         {tabs.map((tab) => {
           const active = filter === tab.key;
@@ -102,23 +150,115 @@ export default function ProductsScreen() {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: 88 }}
         ListEmptyComponent={error ? null : <Text style={{ color: colors.textSecondary, fontSize: fonts.body }}>Nenhum produto neste filtro.</Text>}
-        renderItem={({ item }) => (
-          <View style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 16, padding: 12, marginBottom: 8, flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.text, fontSize: fonts.body, fontWeight: "600" }}>{item.name}</Text>
-              <Text style={{ color: colors.primary, fontSize: fonts.body, marginTop: 2 }}>
-                {((item.promoPriceCents ?? item.priceCents) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-              </Text>
-              <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, marginTop: 4 }}>{item.published ? "Na vitrine" : "Só rascunho"}</Text>
+        renderItem={({ item }) => {
+          const imageUrl = mediaUrl(item.images?.[0]?.url);
+          const price = ((item.promoPriceCents ?? item.priceCents) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+          return (
+            <View
+              style={{
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                borderWidth: 1,
+                borderRadius: 16,
+                padding: 10,
+                marginBottom: 8,
+                flexDirection: "row",
+                gap: 10,
+                alignItems: "flex-start",
+              }}
+            >
+              <View style={{ width: 64, height: 64, borderRadius: 12, overflow: "hidden", backgroundColor: "#F3F4F8" }}>
+                {imageUrl ? (
+                  <Image source={{ uri: imageUrl }} style={{ width: "100%", height: "100%" }} />
+                ) : (
+                  <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                    <Ionicons name="cube-outline" size={22} color={colors.textSecondary} />
+                  </View>
+                )}
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700", marginTop: 2 }}>{price}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
+                  <View style={{ borderRadius: 999, backgroundColor: item.status === "ACTIVE" ? "#DCFCE7" : "#FFF4E5", paddingHorizontal: 8, paddingVertical: 3 }}>
+                    <Text style={{ color: item.status === "ACTIVE" ? "#166534" : "#B45309", fontSize: 10, fontWeight: "700" }}>
+                      {item.status === "ACTIVE" ? "Ativo" : item.status === "DRAFT" ? "Rascunho" : "Arquivo"}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                    <Ionicons name="eye-outline" size={12} color={colors.textSecondary} />
+                    <Text style={{ color: colors.textSecondary, fontSize: 10 }}>0</Text>
+                  </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                    <Ionicons name="cart-outline" size={12} color={colors.textSecondary} />
+                    <Text style={{ color: colors.textSecondary, fontSize: 10 }}>0</Text>
+                  </View>
+                </View>
+              </View>
+              <Pressable onPress={() => setMenuProduct(item)} hitSlop={10} style={{ width: 28, height: 28, alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="ellipsis-vertical" size={18} color={colors.textSecondary} />
+              </Pressable>
             </View>
-            <View style={{ alignSelf: "flex-start", borderRadius: 999, backgroundColor: item.status === "ACTIVE" ? "#DCFCE7" : colors.primarySoft, paddingHorizontal: 8, paddingVertical: 4 }}>
-              <Text style={{ color: item.status === "ACTIVE" ? "#166534" : colors.primary, fontSize: fonts.caption, fontWeight: "600" }}>
-                {item.status === "ACTIVE" ? "Ativo" : item.status === "DRAFT" ? "Rascunho" : "Arquivo"}
-              </Text>
-            </View>
-          </View>
-        )}
+          );
+        }}
+      />
+
+      <Pressable
+        onPress={() => void Linking.openURL(`${apiBase}/produtos/novo`)}
+        style={{
+          position: "absolute",
+          right: 16,
+          bottom: 16,
+          height: 44,
+          borderRadius: 999,
+          backgroundColor: colors.primary,
+          paddingHorizontal: 16,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 6,
+          shadowColor: "#5B3DF0",
+          shadowOpacity: 0.25,
+          shadowRadius: 10,
+          shadowOffset: { width: 0, height: 6 },
+          elevation: 5,
+        }}
+      >
+        <Ionicons name="add" size={18} color="#fff" />
+        <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>Novo produto</Text>
+      </Pressable>
+
+      <ActionMenu
+        open={Boolean(menuProduct)}
+        title={menuProduct?.name}
+        onClose={() => setMenuProduct(null)}
+        items={[
+          {
+            key: "edit",
+            label: "Editar",
+            onPress: () => {
+              if (menuProduct) void Linking.openURL(`${apiBase}/produtos/${menuProduct.id}`);
+            },
+          },
+          {
+            key: "duplicate",
+            label: "Duplicar",
+            onPress: () => {
+              if (menuProduct) void duplicate(menuProduct.id);
+            },
+          },
+          {
+            key: "delete",
+            label: "Excluir",
+            destructive: true,
+            onPress: () => {
+              if (menuProduct) void archive(menuProduct.id);
+            },
+          },
+        ]}
       />
     </View>
   );

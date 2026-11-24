@@ -4,6 +4,7 @@ import { formatBrl } from "@vendefacil/types";
 import { productListSchema } from "@vendefacil/validation";
 import { getContainer } from "@vendefacil/business";
 import { buttonClass, chipClass, inputClass } from "@/components/controls";
+import { ProductCardMenu } from "@/components/product-card-menu";
 import { EmptyState } from "@/components/ui";
 import { tenant } from "@/server/session";
 
@@ -80,7 +81,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
             return (
               <li key={product.id}>
                 <div className="flex items-start gap-3 rounded-[18px] border border-line bg-surface p-3 shadow-card">
-                  <Link href={`/produtos/${product.id}`} className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-[14px] bg-background">
+                  <Link href={`/produtos/${product.id}`} className="h-[64px] w-[64px] shrink-0 overflow-hidden rounded-[14px] bg-background">
                     {product.images[0] ? <img src={product.images[0].url} alt="" className="h-full w-full object-cover" /> : null}
                   </Link>
                   <div className="min-w-0 flex-1">
@@ -104,6 +105,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                       </span>
                     </div>
                   </div>
+                  <ProductCardMenu id={product.id} name={product.name} />
                 </div>
               </li>
             );

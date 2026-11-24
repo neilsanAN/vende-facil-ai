@@ -1,10 +1,10 @@
 import { useEffect } from "react";
-import { Tabs } from "expo-router";
+import { Pressable, View } from "react-native";
+import { Tabs, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, fonts } from "@vendefacil/ui-tokens";
 import { api } from "../../src/api";
 import { handleTenantError } from "../../src/session";
-import { router } from "expo-router";
 
 export default function TabsLayout() {
   useEffect(() => {
@@ -22,10 +22,16 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border, height: 58 },
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          height: 64,
+          paddingTop: 6,
+          paddingBottom: 8,
+        },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarLabelStyle: { fontSize: fonts.tiny, fontWeight: "600", marginBottom: 4 },
+        tabBarLabelStyle: { fontSize: fonts.tiny, fontWeight: "600" },
       }}
     >
       <Tabs.Screen name="inicio" options={{ title: "Início", tabBarIcon: ({ color }) => <Ionicons name="home-outline" size={20} color={color} /> }} />
@@ -34,8 +40,38 @@ export default function TabsLayout() {
         name="criar"
         options={{
           title: "",
-          tabBarIcon: () => (
-            <Ionicons name="add" size={26} color="#fff" style={{ backgroundColor: colors.primary, borderRadius: 999, overflow: "hidden", padding: 6 }} />
+          tabBarLabel: () => null,
+          tabBarIcon: () => null,
+          tabBarButton: (props) => (
+            <Pressable
+              onPress={props.onPress}
+              accessibilityRole={props.accessibilityRole}
+              accessibilityState={props.accessibilityState}
+              style={{
+                flex: 1,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <View
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: 26,
+                  backgroundColor: colors.primary,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 18,
+                  shadowColor: "#5B3DF0",
+                  shadowOpacity: 0.28,
+                  shadowRadius: 10,
+                  shadowOffset: { width: 0, height: 6 },
+                  elevation: 6,
+                }}
+              >
+                <Ionicons name="add" size={28} color="#fff" />
+              </View>
+            </Pressable>
           ),
         }}
       />

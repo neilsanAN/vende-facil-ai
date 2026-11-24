@@ -101,7 +101,26 @@ export function createApiClient(options: {
     ) =>
       request<{ id: string; title: string; description: string; hashtags: string[] }>(`/api/ads/${id}`, {
         method: "PATCH",
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          ...body,
+          hashtags: body.hashtags.map((tag) => tag.replace(/^#/, "").trim()).filter((tag) => tag.length >= 2).slice(0, 12),
+        }),
       }),
+    listAds: () =>
+      request<
+        Array<{
+          id: string;
+          title: string;
+          description: string;
+          hashtags: string[];
+          tone: string;
+          status: string;
+          product: string | null;
+          updatedAt: string;
+        }>
+      >("/api/ads"),
+    archiveAd: (id: string) => request<{ ok: boolean }>(`/api/ads/${id}/archive`, { method: "POST" }),
+    archiveProduct: (id: string) => request<{ ok: boolean }>(`/api/products/${id}/archive`, { method: "POST" }),
+    duplicateProduct: (id: string) => request(`/api/products/${id}/duplicate`, { method: "POST" }),
   };
 }

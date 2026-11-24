@@ -14,7 +14,7 @@ type Dash = {
 };
 
 const actions = [
-  { href: "/anuncios", label: "Anúncio com IA", icon: "sparkles-outline" as const },
+  { href: "/anuncios/novo", label: "Anúncio com IA", icon: "sparkles-outline" as const },
   { href: "/estudio", label: "Vídeo com voz", icon: "videocam-outline" as const },
   { href: "/estudio", label: "Arte para redes", icon: "image-outline" as const },
   { href: "/mais", label: "Publicar nas redes", icon: "share-social-outline" as const },
@@ -59,7 +59,7 @@ export default function HomeScreen() {
       </View>
 
       <Pressable
-        onPress={() => router.push("/anuncios")}
+        onPress={() => router.push("/anuncios/novo")}
         style={{
           marginTop: 12,
           borderRadius: 16,

@@ -5,9 +5,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, fonts } from "@vendefacil/ui-tokens";
 
 const items = [
-  { href: "/anuncios", label: "Criar vídeo com IA", text: "Transforme fotos em um vídeo com voz", icon: "film-outline" as const },
-  { href: "/anuncios", label: "Criar arte para redes", text: "Posts, Stories e ofertas", icon: "image-outline" as const },
-  { href: "/anuncios", label: "Gerar narração", text: "Voz profissional com IA", icon: "mic-outline" as const },
+  { href: "/anuncios/novo", label: "Criar vídeo com IA", text: "Transforme fotos em um vídeo com voz", icon: "film-outline" as const },
+  { href: "/anuncios/novo", label: "Criar arte para redes", text: "Posts, Stories e ofertas", icon: "image-outline" as const },
+  { href: "/anuncios/novo", label: "Gerar narração", text: "Voz profissional com IA", icon: "mic-outline" as const },
   { href: "/mais", label: "Meus projetos", text: "Vídeos, artes e rascunhos", icon: "folder-outline" as const },
 ] as const;
 
@@ -20,7 +20,7 @@ export default function EstudioScreen() {
     >
       <Text style={{ color: colors.text, fontSize: fonts.heading, fontWeight: "700", marginBottom: 14 }}>Estúdio IA</Text>
       <Pressable
-        onPress={() => router.push("/anuncios")}
+        onPress={() => router.push("/anuncios/novo")}
         style={{
           borderRadius: 22,
           padding: 18,

@@ -102,7 +102,12 @@ export class StudioService {
   }
 
   async listAds(tenant: Tenant) {
-    const rows = await this.db.advertisement.findMany({ where: { organizationId: tenant.organizationId }, orderBy: { updatedAt: "desc" }, take: 50, include: { product: { select: { name: true } } } });
+    const rows = await this.db.advertisement.findMany({
+      where: { organizationId: tenant.organizationId, status: { not: "ARCHIVED" } },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+      include: { product: { select: { name: true } } },
+    });
     return rows.map((row) => ({
       id: row.id,
       title: row.title,
@@ -114,6 +119,15 @@ export class StudioService {
       product: row.product?.name ?? null,
       updatedAt: row.updatedAt,
     }));
+  }
+
+  async archiveAd(tenant: Tenant, id: string) {
+    assertMinRole(tenant.role, "EDITOR");
+    const current = await this.db.advertisement.findFirst({ where: { id, organizationId: tenant.organizationId } });
+    if (!current) throw new AppError("NOT_FOUND", "Anúncio não encontrado.", 404);
+    await this.db.advertisement.update({ where: { id: current.id }, data: { status: "ARCHIVED" } });
+    await audit(this.db, { organizationId: tenant.organizationId, actorUserId: tenant.userId, action: "ad.archived", entityType: "Advertisement", entityId: id });
+    return { ok: true };
   }
 
   async artwork(tenant: Tenant, input: { productId: string; template: "story" | "feed" | "portrait"; title: string; priceLabel?: string }) {
