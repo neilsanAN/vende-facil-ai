@@ -521,8 +521,11 @@ export function OnboardingForm() {
   const [error, setError] = useState("");
   return (
     <AuthGradientFrame title="Configure sua loja">
+      <p className="mt-3 text-center text-[12px] leading-4 text-white/85">
+        Antes de criar anúncios com IA, informe o nome da loja. Isso libera o painel, a vitrine e os créditos.
+      </p>
       <form
-        className="mt-7 space-y-3"
+        className="mt-5 space-y-3"
         onSubmit={form.handleSubmit(async (values) => {
           try {
             await api("/api/onboarding", { method: "POST", body: JSON.stringify(values) });
@@ -535,18 +538,18 @@ export function OnboardingForm() {
       >
         <div className="space-y-3 rounded-2xl bg-white p-4 shadow-[0_12px_32px_rgba(42,23,96,0.18)]">
           <Field label="Nome da loja" section>
-            <input className={inputClass} {...form.register("storeName")} />
+            <input className={inputClass} placeholder="Ex.: José Variedades" {...form.register("storeName")} />
           </Field>
           <Field label="Descrição" section>
-            <textarea className={areaClass} {...form.register("description")} />
+            <textarea className={areaClass} placeholder="O que você vende" {...form.register("description")} />
           </Field>
           <Field label="WhatsApp" section hint="DDD e número. Usado no botão da vitrine.">
-            <input className={inputClass} {...form.register("whatsapp")} />
+            <input className={inputClass} placeholder="11999999999" {...form.register("whatsapp")} />
           </Field>
         </div>
         {error ? <p className="text-center text-[12px] text-danger">{error}</p> : null}
         <button type="submit" disabled={form.formState.isSubmitting} className={cn(authPrimaryClass, "disabled:opacity-50")}>
-          {form.formState.isSubmitting ? "Criando…" : "Criar loja"}
+          {form.formState.isSubmitting ? "Criando…" : "Criar loja e continuar"}
         </button>
       </form>
     </AuthGradientFrame>

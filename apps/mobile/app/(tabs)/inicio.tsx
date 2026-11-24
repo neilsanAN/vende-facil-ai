@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, fonts } from "@vendefacil/ui-tokens";
 import { api } from "../../src/api";
@@ -12,10 +13,10 @@ type Dash = {
 };
 
 const actions = [
-  { href: "/anuncios", label: "Anúncio com IA", color: "#7C5CFF" },
-  { href: "/estudio", label: "Vídeo com voz", color: "#6D4AFF" },
-  { href: "/estudio", label: "Arte para redes", color: "#7C5CFF" },
-  { href: "/mais", label: "Publicar nas redes", color: "#7C5CFF" },
+  { href: "/anuncios", label: "Anúncio com IA", icon: "sparkles-outline" as const },
+  { href: "/estudio", label: "Vídeo com voz", icon: "videocam-outline" as const },
+  { href: "/estudio", label: "Arte para redes", icon: "image-outline" as const },
+  { href: "/mais", label: "Publicar nas redes", icon: "share-social-outline" as const },
 ] as const;
 
 export default function HomeScreen() {
@@ -34,14 +35,22 @@ export default function HomeScreen() {
     "você";
   const stats = data?.stats;
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16, paddingBottom: 28 }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={{ paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16, paddingBottom: 28 }}
+    >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" }}>
-          <Text style={{ color: colors.primary, fontWeight: "700", fontSize: fonts.title }}>{first.slice(0, 1).toUpperCase()}</Text>
+        <View style={{ width: 48, height: 48, borderRadius: 999, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}>
+          <Text style={{ color: "#fff", fontWeight: "700", fontSize: fonts.title }}>{first.slice(0, 1).toUpperCase()}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: colors.text, fontSize: fonts.hero, fontWeight: "700" }}>Olá, {first}!</Text>
+          <Text style={{ color: colors.text, fontSize: fonts.hero, fontWeight: "700" }}>
+            Olá, {first}! 👋
+          </Text>
           <Text style={{ color: colors.textSecondary, fontSize: fonts.body, marginTop: 2 }}>Pronto para vender hoje?</Text>
+        </View>
+        <View style={{ width: 40, height: 40, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" }}>
+          <Ionicons name="notifications-outline" size={18} color={colors.textSecondary} />
         </View>
       </View>
 
@@ -49,8 +58,8 @@ export default function HomeScreen() {
         onPress={() => router.push("/anuncios")}
         style={{
           marginTop: 16,
-          borderRadius: 16,
-          padding: 16,
+          borderRadius: 22,
+          padding: 18,
           backgroundColor: colors.primary,
           flexDirection: "row",
           justifyContent: "space-between",
@@ -58,38 +67,75 @@ export default function HomeScreen() {
         }}
       >
         <View style={{ flex: 1, paddingRight: 12 }}>
-          <Text style={{ color: "white", fontSize: fonts.body, fontWeight: "600" }}>Crie seu próximo anúncio</Text>
-          <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: fonts.caption, marginTop: 4 }}>Tire uma foto, use a IA e divulgue nas redes.</Text>
+          <Text style={{ color: "white", fontSize: fonts.title, fontWeight: "700" }}>Crie seu próximo anúncio</Text>
+          <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: fonts.caption, marginTop: 6, lineHeight: 15 }}>
+            Tire uma foto, use a IA e divulgue em todas as suas redes.
+          </Text>
+        </View>
+        <View style={{ width: 52, height: 52, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" }}>
+          <Ionicons name="camera-outline" size={22} color="#fff" />
         </View>
       </Pressable>
 
-      <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
+      <View style={{ flexDirection: "row", gap: 8, marginTop: 14 }}>
         {actions.map((action) => (
-          <Pressable key={action.label} onPress={() => router.push(action.href)} style={{ flex: 1, alignItems: "center", gap: 8, paddingHorizontal: 2 }}>
-            <View style={{ width: 48, height: 48, borderRadius: 999, backgroundColor: action.color, shadowColor: "#6D4AFF", shadowOpacity: 0.35, shadowRadius: 8, elevation: 3 }} />
+          <Pressable
+            key={action.label}
+            onPress={() => router.push(action.href)}
+            style={{
+              flex: 1,
+              alignItems: "center",
+              gap: 8,
+              backgroundColor: "#F7F4FF",
+              borderWidth: 1,
+              borderColor: "#EFEAFF",
+              borderRadius: 16,
+              paddingVertical: 12,
+              paddingHorizontal: 4,
+            }}
+          >
+            <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" }}>
+              <Ionicons name={action.icon} size={18} color={colors.primary} />
+            </View>
             <Text style={{ color: colors.text, fontSize: fonts.caption, fontWeight: "600", textAlign: "center" }}>{action.label}</Text>
           </Pressable>
         ))}
       </View>
 
-      <Text style={{ color: colors.text, fontSize: fonts.body, fontWeight: "600", marginTop: 20 }}>Resultados · 7 dias</Text>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginTop: 20 }}>
+        <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700" }}>Resultados (7 dias)</Text>
+        <Pressable onPress={() => router.push("/estatisticas")}>
+          <Text style={{ color: colors.primary, fontSize: fonts.caption, fontWeight: "600" }}>Ver tudo</Text>
+        </Pressable>
+      </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
         {[
-          [String(stats?.views ?? 0), "Visualizações"],
-          [String(stats?.whatsappClicks ?? 0), "Cliques WhatsApp"],
-          [String(stats?.orders ?? 0), "Pedidos"],
-          [((stats?.salesCents ?? 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }), "Vendas"],
-        ].map(([value, label]) => (
-          <View key={label} style={{ width: "48%", backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 16, padding: 12 }}>
-            <Text style={{ color: colors.text, fontSize: fonts.display, fontWeight: "700" }}>{value}</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: fonts.caption }}>{label}</Text>
+          { value: String(stats?.views ?? 0), label: "Visualizações", icon: "eye-outline" as const },
+          { value: String(stats?.whatsappClicks ?? 0), label: "Cliques", icon: "hand-left-outline" as const },
+          { value: String(stats?.orders ?? 0), label: "Pedidos", icon: "cart-outline" as const },
+          {
+            value: ((stats?.salesCents ?? 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+            label: "Vendas",
+            icon: "cash-outline" as const,
+          },
+        ].map((item) => (
+          <View key={item.label} style={{ width: "48%", backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 16, padding: 12 }}>
+            <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
+              <Ionicons name={item.icon} size={14} color={colors.primary} />
+            </View>
+            <Text style={{ color: colors.text, fontSize: fonts.display, fontWeight: "700" }}>{item.value}</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: fonts.caption }}>{item.label}</Text>
           </View>
         ))}
       </View>
       {error ? <Text style={{ color: colors.error, fontSize: fonts.caption, marginTop: 8 }}>{error}</Text> : null}
-      <Text style={{ color: colors.textSecondary, fontSize: fonts.body2, marginTop: 8 }}>Números reais dos últimos 7 dias.</Text>
 
-      <Text style={{ color: colors.text, fontSize: fonts.body, fontWeight: "600", marginTop: 20, marginBottom: 8 }}>Produtos recentes</Text>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginTop: 20, marginBottom: 8 }}>
+        <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700" }}>Produtos recentes</Text>
+        <Pressable onPress={() => router.push("/produtos")}>
+          <Text style={{ color: colors.primary, fontSize: fonts.caption, fontWeight: "600" }}>Ver todos</Text>
+        </Pressable>
+      </View>
       {(data?.recent || []).length === 0 ? (
         <Text style={{ color: colors.textSecondary, fontSize: fonts.body }}>Cadastre o primeiro produto para aparecer aqui.</Text>
       ) : (
