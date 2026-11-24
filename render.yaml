@@ -18,7 +18,8 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: pnpm install --frozen-lockfile && pnpm build:render
+    # --prod=false: NODE_ENV=production no Render pula devDeps; precisamos do toolchain de build.
+    buildCommand: pnpm install --frozen-lockfile --prod=false && pnpm build:render
     startCommand: pnpm start:render
     healthCheckPath: /api/health
     envVars:

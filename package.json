@@ -13,16 +13,17 @@
     "test:integration": "vitest run packages/business/src/tenant.integration.test.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "db:generate": "prisma generate --schema packages/database/prisma/schema.prisma",
-    "db:migrate": "dotenv -e .env -- prisma migrate dev --schema packages/database/prisma/schema.prisma",
-    "db:deploy": "dotenv -e .env -- prisma migrate deploy --schema packages/database/prisma/schema.prisma",
+    "db:generate": "pnpm exec prisma generate --schema packages/database/prisma/schema.prisma",
+    "db:migrate": "dotenv -e .env -- pnpm exec prisma migrate dev --schema packages/database/prisma/schema.prisma",
+    "db:deploy": "dotenv -e .env -- pnpm exec prisma migrate deploy --schema packages/database/prisma/schema.prisma",
     "db:seed": "dotenv -e .env -- tsx packages/database/prisma/seed.ts",
-    "db:diff": "prisma migrate diff --from-empty --to-schema-datamodel packages/database/prisma/schema.prisma --script",
+    "db:diff": "pnpm exec prisma migrate diff --from-empty --to-schema-datamodel packages/database/prisma/schema.prisma --script",
     "build:render": "pnpm db:generate && pnpm --filter @vendefacil/web build",
     "start:render": "pnpm exec prisma migrate deploy --schema packages/database/prisma/schema.prisma && pnpm --filter @vendefacil/web exec next start -H 0.0.0.0 -p ${PORT:-3000}"
   },
   "dependencies": {
-    "@prisma/client": "^6.6.0"
+    "@prisma/client": "^6.6.0",
+    "prisma": "^6.6.0"
   },
   "pnpm": {
     "overrides": {
@@ -36,7 +37,6 @@
     "embedded-postgres": "19.0.0-beta.20",
     "eslint": "^9.22.0",
     "prettier": "^3.5.3",
-    "prisma": "^6.6.0",
     "tsx": "^4.19.3",
     "turbo": "^2.4.4",
     "typescript": "^5.8.2",
