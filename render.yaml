@@ -42,9 +42,9 @@ services:
       - key: TRUST_PROXY
         value: "true"
       - key: GEMINI_TEXT_MODEL
-        value: gemini-2.0-flash
+        value: gemini-3.6-flash
       - key: GEMINI_VISION_MODEL
-        value: gemini-2.0-flash
+        value: gemini-3.6-flash
       - key: GEMINI_API_KEY
         sync: false
       - key: OPENAI_API_KEY
