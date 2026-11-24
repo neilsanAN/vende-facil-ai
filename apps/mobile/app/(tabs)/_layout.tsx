@@ -24,7 +24,7 @@ export default function TabsLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="estudio" options={{ title: "Estúdio", tabBarIcon: ({ color }) => <Ionicons name="sparkles-outline" size={20} color={color} /> }} />
+      <Tabs.Screen name="estudio" options={{ title: "Estúdio", tabBarIcon: ({ color }) => <Ionicons name="play-circle-outline" size={20} color={color} /> }} />
       <Tabs.Screen name="mais" options={{ title: "Mais", tabBarIcon: ({ color }) => <Ionicons name="menu-outline" size={20} color={color} /> }} />
       <Tabs.Screen name="pedidos" options={{ href: null }} />
       <Tabs.Screen name="estatisticas" options={{ href: null }} />

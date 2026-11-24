@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
-import { colors, control, fonts } from "@vendefacil/ui-tokens";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { colors, fonts } from "@vendefacil/ui-tokens";
 import { api } from "../../src/api";
 
 type Dash = {
@@ -18,6 +19,7 @@ const actions = [
 ] as const;
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const [data, setData] = useState<Dash | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -29,7 +31,7 @@ export default function HomeScreen() {
   const first = (data?.greeting?.name || "").split(" ")[0] || "você";
   const stats = data?.stats;
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16, paddingBottom: 28 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
         <View style={{ width: 40, height: 40, borderRadius: 999, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" }}>
           <Text style={{ color: colors.primary, fontWeight: "700", fontSize: fonts.title }}>{first.slice(0, 1).toUpperCase()}</Text>

@@ -104,11 +104,11 @@ export default function AuthGate() {
         </View>
         <WelcomeCarousel />
         <View style={{ marginTop: "auto", gap: 12, paddingTop: 20 }}>
-          <Pressable onPress={() => setScreen("register")} style={{ height: 48, borderRadius: 16, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}>
-            <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>Começar</Text>
+          <Pressable onPress={() => setScreen("register")} style={{ height: control.height, borderRadius: 999, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ color: "#fff", fontSize: fonts.body, fontWeight: "600" }}>Começar</Text>
           </Pressable>
-          <Pressable onPress={() => setScreen("login")} style={{ height: 48, borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.35)", alignItems: "center", justifyContent: "center" }}>
-            <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>Já tenho conta</Text>
+          <Pressable onPress={() => setScreen("login")} style={{ height: control.height, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.35)", alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ color: "#fff", fontSize: fonts.body, fontWeight: "600" }}>Já tenho conta</Text>
           </Pressable>
         </View>
       </View>
@@ -144,7 +144,7 @@ export default function AuthGate() {
         {message ? <Text style={{ color: colors.primary, marginBottom: 8, textAlign: "center", fontSize: 12 }}>{message}</Text> : null}
         <Pressable
           disabled={busy || code.length !== 6}
-          style={{ height: 48, borderRadius: 16, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}
+          style={{ height: control.height, borderRadius: 999, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}
           onPress={async () => {
             setBusy(true);
             setError("");
@@ -292,7 +292,7 @@ export default function AuthGate() {
 
         <Pressable
           disabled={busy}
-          style={{ marginTop: 20, height: 48, borderRadius: 16, backgroundColor: "#6D4AFF", alignItems: "center", justifyContent: "center", opacity: busy ? 0.7 : 1 }}
+          style={{ marginTop: 20, height: control.height, borderRadius: 999, backgroundColor: "#6D4AFF", alignItems: "center", justifyContent: "center", opacity: busy ? 0.7 : 1 }}
           onPress={async () => {
             setBusy(true);
             setError("");

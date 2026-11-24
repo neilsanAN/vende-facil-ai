@@ -1,12 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Camera, Clapperboard, Gauge, ImageIcon, Layers, Mic2, Pencil, RefreshCw, Sparkles, Type } from "lucide-react";
 import { formatBrl, ASPECT_DIMENSIONS, PIPELINE_LABEL, type PipelineStatus } from "@vendefacil/types";
 import { parseBrlToCents } from "@vendefacil/validation";
-import { Button, Field, areaClass, areaSoftClass, buttonClass, chipClass, inputClass, inputSoftClass, sectionLabelClass, useToast } from "@/components/ui";
-import { api, ApiClientError } from "@/lib/http";
+import { Button, Field, areaClass, areaSoftClass, buttonClass, chipClass, inputClass, inputSoftClass, useToast } from "@/components/ui";
+import { api, ApiClientError, cn } from "@/lib/http";
 
 type Category = { id: string; name: string };
 type Product = {
@@ -112,6 +112,7 @@ export function ProductForm({ product, categories }: { product?: Product; catego
 function ImagePanel({ productId, images }: { productId: string; images: Product["images"] }) {
   const router = useRouter();
   const toast = useToast();
+  const inputRef = useRef<HTMLInputElement>(null);
   return (
     <div className="rounded-2xl border border-line bg-surface p-4">
       <p className="text-sm font-semibold">Fotos</p>
@@ -119,24 +120,34 @@ function ImagePanel({ productId, images }: { productId: string; images: Product[
         {images.map((image) => (
           <div key={image.id} className="relative">
             <img src={image.url} alt={image.alt || ""} className="aspect-square w-full rounded-lg object-cover" />
-            <button className="absolute right-1 top-1 rounded bg-black/50 px-1 text-white text-xs" onClick={async () => { await api(`/api/products/${productId}/images/${image.id}`, { method: "DELETE" }); router.refresh(); }}>x</button>
+            <button type="button" className="absolute right-1 top-1 rounded bg-black/50 px-1 text-xs text-white" onClick={async () => { await api(`/api/products/${productId}/images/${image.id}`, { method: "DELETE" }); router.refresh(); }}>x</button>
           </div>
         ))}
       </div>
-      <label className={`${buttonClass} mt-3 cursor-pointer border border-line bg-surface text-ink`}>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="sr-only"
+        tabIndex={-1}
+        onChange={async (event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (!file) return;
+          try {
+            const asset = await uploadFile(file);
+            await api(`/api/products/${productId}/images`, { method: "POST", body: JSON.stringify({ assetId: asset.id }) });
+            toast("Foto adicionada.");
+            router.refresh();
+          } catch (cause) {
+            toast(cause instanceof ApiClientError ? cause.message : "Falha no upload.", "err");
+          }
+        }}
+      />
+      <button type="button" className={`${buttonClass} mt-3 border border-line bg-surface text-ink`} onClick={() => inputRef.current?.click()}>
         <ImageIcon size={16} />
         Enviar foto
-        <input className="hidden" type="file" accept="image/jpeg,image/png,image/webp" onChange={async (event) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-        try {
-          const asset = await uploadFile(file);
-          await api(`/api/products/${productId}/images`, { method: "POST", body: JSON.stringify({ assetId: asset.id }) });
-          toast("Foto adicionada.");
-          router.refresh();
-        } catch (cause) { toast(cause instanceof ApiClientError ? cause.message : "Falha no upload.", "err"); }
-        }} />
-      </label>
+      </button>
     </div>
   );
 }
@@ -156,6 +167,44 @@ export async function uploadFile(file: File) {
   });
   if (!response.ok) throw new ApiClientError("O envio do arquivo falhou.", "UPLOAD", response.status);
   return api<{ id: string; url: string }>(`/api/uploads/${created.assetId}/confirm`, { method: "POST" });
+}
+
+function PhotoSourceButtons({ disabled, onPick }: { disabled?: boolean; onPick: (file: File) => void }) {
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
+
+  function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) onPick(file);
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="sr-only" tabIndex={-1} onChange={handleChange} />
+      <input ref={galleryRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" tabIndex={-1} onChange={handleChange} />
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => cameraRef.current?.click()}
+        className={cn(
+          "flex min-h-[96px] flex-col items-center justify-center gap-2 rounded-[16px] bg-primary px-3 py-4 text-[12px] font-semibold text-white shadow-lift transition disabled:opacity-50",
+        )}
+      >
+        <Camera size={22} strokeWidth={1.8} />
+        Câmera
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => galleryRef.current?.click()}
+        className="flex min-h-[96px] flex-col items-center justify-center gap-2 rounded-[16px] border border-line bg-surface px-3 py-4 text-[12px] font-semibold text-ink shadow-card transition disabled:opacity-50"
+      >
+        <ImageIcon size={22} strokeWidth={1.8} />
+        Galeria
+      </button>
+    </div>
+  );
 }
 
 export function AdStudio({ products }: { products: Array<{ id: string; name: string; priceCents: number }> }) {
@@ -275,18 +324,7 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
             </div>
           )}
           {uploading ? <p className="text-[10px] font-medium leading-[13px] text-muted">Enviando a foto...</p> : null}
-          <div className="grid grid-cols-2 gap-2">
-            <label className={`${buttonClass} cursor-pointer bg-primary text-white ${uploading ? "pointer-events-none opacity-50" : ""}`}>
-              <Camera size={16} />
-              Câmera
-              <input className="hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void sendPhoto(file); }} />
-            </label>
-            <label className={`${buttonClass} cursor-pointer border border-line bg-surface text-ink ${uploading ? "pointer-events-none opacity-50" : ""}`}>
-              <ImageIcon size={16} />
-              Galeria
-              <input className="hidden" type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void sendPhoto(file); }} />
-            </label>
-          </div>
+          <PhotoSourceButtons disabled={uploading} onPick={(file) => void sendPhoto(file)} />
           {products.length > 0 ? (
             <Field label="Produto (opcional)" section>
               <select
@@ -333,7 +371,7 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
             <textarea className={areaSoftClass} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
           </Field>
           <div>
-            <p className={sectionLabelClass}>Hashtags (sugeridas)</p>
+            <p className="text-[12px] font-semibold leading-4 text-ink">Hashtags (sugeridas)</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {draft.hashtags.map((tag) => (
                 <span key={tag} className="rounded-full bg-[#F3EEFF] px-3 py-1.5 text-[11px] font-semibold text-primary">
@@ -409,7 +447,7 @@ export function AdEditor({
         <textarea className={areaSoftClass} value={description} onChange={(event) => setDescription(event.target.value)} />
       </Field>
       <div>
-        <p className={sectionLabelClass}>Hashtags (sugeridas)</p>
+        <p className="text-[12px] font-semibold leading-4 text-ink">Hashtags (sugeridas)</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {tags.map((tag) => (
             <span key={tag} className="rounded-full bg-[#F3EEFF] px-3 py-1.5 text-[11px] font-semibold text-primary">
@@ -496,7 +534,7 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
       </Field>
 
       <div>
-        <p className={`${sectionLabelClass} mb-2`}>Estilo do vídeo</p>
+        <p className="mb-2 text-[12px] font-semibold leading-4 text-ink">Estilo do vídeo</p>
         <div className="flex flex-wrap gap-2">
           {styles.map(([value, label]) => (
             <button type="button" key={value} className={`${chipClass} ${form.style === value ? "bg-primary text-white" : "border border-line bg-surface text-ink"}`} onClick={() => setForm({ ...form, style: value })}>
@@ -507,7 +545,7 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
       </div>
 
       <div>
-        <p className={`${sectionLabelClass} mb-2`}>Duração</p>
+        <p className="mb-2 text-[12px] font-semibold leading-4 text-ink">Duração</p>
         <div className="flex gap-2">
           {[15, 30, 45, 60].map((item) => (
             <button type="button" key={item} className={`${chipClass} ${form.durationSec === item ? "bg-primary text-white" : "border border-line bg-surface text-ink"}`} onClick={() => setForm({ ...form, durationSec: item })}>
@@ -518,7 +556,7 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
       </div>
 
       <div>
-        <p className={`${sectionLabelClass} mb-2`}>Formato</p>
+        <p className="mb-2 text-[12px] font-semibold leading-4 text-ink">Formato</p>
         <div className="flex gap-2">
           {ratios.map(([value, ratio, label]) => (
             <button

@@ -38,8 +38,8 @@ export function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="block space-y-1.5">
-      <span className={cn(section ? sectionLabelClass : "block text-[10px] font-medium leading-[13px] text-muted")}>{label}</span>
+    <label className="block space-y-1">
+      <span className={cn(sectionLabelClass, section && "text-[12px] font-semibold leading-4 text-ink")}>{label}</span>
       {children}
       {hint ? <span className="block text-[10px] font-medium leading-[13px] text-muted">{hint}</span> : null}
     </label>
@@ -83,11 +83,15 @@ export function PageHeader({
   backHref?: string;
 }) {
   return (
-    <div className="mb-5">
-      <div className="flex items-center gap-1">
+    <div className="mb-5 pt-1">
+      <div className="flex items-center gap-2">
         {backHref ? (
-          <Link href={backHref} aria-label="Voltar" className="-ml-1 grid h-10 w-10 shrink-0 place-items-center rounded-full text-ink hover:bg-surface">
-            <ChevronLeft size={22} strokeWidth={2.2} />
+          <Link
+            href={backHref}
+            aria-label="Voltar"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line bg-surface text-ink shadow-card"
+          >
+            <ChevronLeft size={20} strokeWidth={2.2} />
           </Link>
         ) : null}
         <div className="min-w-0 flex-1">

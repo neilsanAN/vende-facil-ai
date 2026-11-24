@@ -71,12 +71,12 @@ function AuthGradientFrame({ title, children, footer }: { title: string; childre
   );
 }
 
-const authPrimaryClass = cn(buttonClass, "mt-5 w-full rounded-2xl bg-[#6D4AFF] text-white shadow-[0_10px_24px_rgba(109,74,255,0.35)]");
+const authPrimaryClass = cn(buttonClass, "mt-5 w-full bg-[#6D4AFF] text-white shadow-[0_10px_24px_rgba(109,74,255,0.35)]");
 
 function SocialButtons() {
   const toast = useToast();
   const iphone = useIphone();
-  const socialClass = cn(buttonClass, "w-full rounded-2xl border border-[#D7D5E5] bg-white text-[13px] font-semibold text-[#2A2740] shadow-sm");
+  const socialClass = cn(buttonClass, "w-full border border-[#D7D5E5] bg-white text-[12px] font-semibold text-[#2A2740] shadow-sm");
   return (
     <div className="mt-5 space-y-3">
       <div className="flex items-center gap-3">

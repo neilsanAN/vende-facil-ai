@@ -73,7 +73,7 @@ export function AppShell({ children, store, plan, user }: { children: React.Reac
             <p className="mt-1 text-[10px] font-medium capitalize leading-[13px] text-muted">Plano {plan}</p>
           </div>
         </aside>
-        <main className="mx-auto w-full max-w-lg px-4 py-4 pb-28 md:max-w-3xl md:px-8 md:pb-10">
+        <main className="mx-auto w-full max-w-lg px-4 pb-28 pt-[max(1.25rem,env(safe-area-inset-top))] md:max-w-3xl md:px-8 md:pb-10 md:pt-8">
           {children}
         </main>
       </div>

@@ -44,14 +44,20 @@ export const fonts = {
   brand: 22,
 } as const;
 
+/** Invento AI: input/botão h40, tipografia 12, input radius 8, botão pill. */
 export const control = {
   height: 40,
+  buttonHeight: 40,
   fontSize: 12,
+  buttonFontSize: 12,
   icon: 16,
   tabIcon: 20,
   radiusInput: 8,
+  radiusButton: 999,
   radiusCard: 10,
   radiusSheet: 16,
+  paddingH: 12,
+  paddingV: 8,
 } as const;
 
 export const brand = {
