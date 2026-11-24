@@ -26,6 +26,7 @@ export class AdminService {
       renders,
       ai: { count: generations._count, estimatedCostCents: generations._sum.estimatedCostCents ?? 0 },
       providers: {
+        gemini: Boolean(process.env.GEMINI_API_KEY),
         openai: Boolean(process.env.OPENAI_API_KEY),
         elevenlabs: Boolean(process.env.ELEVENLABS_API_KEY),
         r2: process.env.STORAGE_DRIVER === "r2",

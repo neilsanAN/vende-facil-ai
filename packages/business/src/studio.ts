@@ -29,7 +29,7 @@ export class StudioService {
       await this.record(tenant, "IMAGE_ANALYSIS", result.usage, { assetId });
       return result.analysis;
     } catch (error) {
-      await this.recordFailure(tenant, "IMAGE_ANALYSIS", "openai", error);
+      await this.recordFailure(tenant, "IMAGE_ANALYSIS", this.ai.vision?.id || "ai", error);
       throw new AppError("AI_FAILED", "Não foi possível analisar a imagem.", 502);
     }
   }
@@ -48,7 +48,7 @@ export class StudioService {
       result = await this.ai.text.adCopy({ facts: { ...input.facts, priceLabel: input.facts.priceCents != null ? formatBrl(input.facts.priceCents) : undefined }, tone: input.tone });
     } catch (error) {
       if (error instanceof ProviderNotConfiguredError) throw new AppError("PROVIDER_NOT_CONFIGURED", error.message, 503);
-      await this.recordFailure(tenant, "TEXT", "openai", error);
+      await this.recordFailure(tenant, "TEXT", this.ai.text?.id || "ai", error);
       throw new AppError("AI_FAILED", "Não foi possível gerar o anúncio.", 502);
     }
     assertGroundedCopy(`${result.copy.title}\n${result.copy.description}`, input.facts.priceCents != null);

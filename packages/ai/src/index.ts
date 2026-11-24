@@ -1,9 +1,13 @@
 import { createElevenLabsSpeech } from "./elevenlabs";
+import { createGeminiProviders } from "./gemini";
 import { createOpenAiProviders } from "./openai";
 import type { AiRegistry } from "./types";
 import { createHttpVideoProvider } from "./video";
 
 export function createAiRegistry(env: {
+  GEMINI_API_KEY?: string;
+  GEMINI_TEXT_MODEL?: string;
+  GEMINI_VISION_MODEL?: string;
   OPENAI_API_KEY?: string;
   OPENAI_TEXT_MODEL?: string;
   OPENAI_VISION_MODEL?: string;
@@ -13,6 +17,11 @@ export function createAiRegistry(env: {
   VIDEO_GEN_API_URL?: string;
   VIDEO_GEN_API_KEY?: string;
 }): AiRegistry {
+  const gemini = createGeminiProviders({
+    apiKey: env.GEMINI_API_KEY || "",
+    textModel: env.GEMINI_TEXT_MODEL || "gemini-2.0-flash",
+    visionModel: env.GEMINI_VISION_MODEL || "gemini-2.0-flash",
+  });
   const openai = createOpenAiProviders({
     apiKey: env.OPENAI_API_KEY || "",
     textModel: env.OPENAI_TEXT_MODEL || "gpt-4o-mini",
@@ -24,8 +33,9 @@ export function createAiRegistry(env: {
     model: env.ELEVENLABS_MODEL || "eleven_multilingual_v2",
   });
   return {
-    vision: openai?.vision ?? null,
-    text: openai?.text ?? null,
+    // Gemini first for text/vision when configured; OpenAI remains fallback.
+    vision: gemini?.vision ?? openai?.vision ?? null,
+    text: gemini?.text ?? openai?.text ?? null,
     speech: [openai?.speech, eleven].filter((item): item is NonNullable<typeof item> => Boolean(item)),
     generativeVideo: createHttpVideoProvider({
       apiUrl: env.VIDEO_GEN_API_URL || "",
