@@ -72,5 +72,22 @@ export function createApiClient(options: {
     dashboard: () => request("/api/dashboard"),
     orders: () => request("/api/orders"),
     stats: (range = "7d") => request(`/api/stats?range=${range}`),
+    createUpload: (body: { mimeType: string; sizeBytes: number; kind: "IMAGE" | "VIDEO" | "AUDIO"; originalName?: string }) =>
+      request<{ assetId: string; url: string; method: "PUT" | "POST"; headers: Record<string, string> }>("/api/uploads", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    confirmUpload: (assetId: string) => request<{ id: string; url: string }>(`/api/uploads/${assetId}/confirm`, { method: "POST" }),
+    generateAd: (body: {
+      productId?: string | null;
+      assetIds: string[];
+      tone: "PROFESSIONAL" | "FRIENDLY" | "URGENT" | "ELEGANT";
+      facts: { name: string; priceCents?: number | null; brand?: string; facts?: string; audience?: string };
+    }) =>
+      request<{ id: string; title: string; description: string; hashtags: string[] }>("/api/ai/ads", {
+        method: "POST",
+        headers: { "idempotency-key": `${Date.now()}-${Math.random().toString(36).slice(2, 10)}` },
+        body: JSON.stringify(body),
+      }),
   };
 }
