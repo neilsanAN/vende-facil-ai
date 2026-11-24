@@ -1,14 +1,10 @@
-# VendeFácil AI — Blueprint no estilo Invento (API + App Expo Web + Postgres)
-# Dashboard: https://dashboard.render.com → New → Blueprint → este repositório
+# VendeFácil AI — Blueprint no estilo Invento (API Node + App Expo Web + Postgres)
 #
-# Serviços no Render (já criados):
-#   API (nome vende-facil-api): https://vende-facil-ai.onrender.com  (slug histórico)
-#   App (vende-facil-app):      https://vende-facil-app.onrender.com
+# Serviços:
+#   API (vende-facil-api / Node): https://vende-facil-ai.onrender.com
+#   App (vende-facil-app / static): https://vende-facil-app.onrender.com
 #
 # Secrets (GEMINI_API_KEY etc.) só no serviço API.
-#
-# Depois do primeiro deploy: defina GEMINI_API_KEY (e demais secrets) em
-# vende-facil-api → Environment.
 
 databases:
   - name: vende-facil-db
@@ -19,15 +15,17 @@ databases:
 services:
   - type: web
     name: vende-facil-api
-    runtime: docker
+    runtime: node
     plan: free
     region: oregon
-    dockerfilePath: ./apps/web/Dockerfile
-    dockerContext: .
+    buildCommand: pnpm install --frozen-lockfile && pnpm build:render
+    startCommand: pnpm start:render
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: "20.19.0"
       - key: APP_URL
         value: https://vende-facil-ai.onrender.com
       - key: CORS_ORIGINS
@@ -74,3 +72,5 @@ services:
         value: https://vende-facil-ai.onrender.com
       - key: EXPO_PUBLIC_EAS_PROJECT_ID
         value: c1e70ad7-c5fe-4c1e-8a4b-3b8269553f5e
+      - key: NODE_VERSION
+        value: "20.19.0"

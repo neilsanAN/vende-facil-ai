@@ -17,7 +17,9 @@
     "db:migrate": "dotenv -e .env -- prisma migrate dev --schema packages/database/prisma/schema.prisma",
     "db:deploy": "dotenv -e .env -- prisma migrate deploy --schema packages/database/prisma/schema.prisma",
     "db:seed": "dotenv -e .env -- tsx packages/database/prisma/seed.ts",
-    "db:diff": "prisma migrate diff --from-empty --to-schema-datamodel packages/database/prisma/schema.prisma --script"
+    "db:diff": "prisma migrate diff --from-empty --to-schema-datamodel packages/database/prisma/schema.prisma --script",
+    "build:render": "pnpm db:generate && pnpm --filter @vendefacil/web build",
+    "start:render": "pnpm exec prisma migrate deploy --schema packages/database/prisma/schema.prisma && pnpm --filter @vendefacil/web exec next start -H 0.0.0.0 -p ${PORT:-3000}"
   },
   "dependencies": {
     "@prisma/client": "^6.6.0"
