@@ -84,12 +84,12 @@ function SocialButtons() {
         <span className="text-[12px] font-medium text-[#8B879C]">ou</span>
         <span className="h-px flex-1 bg-[#D9D6E5]" />
       </div>
-      <button type="button" className={socialClass} onClick={() => toast("O acesso com Google entra quando o aplicativo estiver configurado.", "err")}>
+      <button type="button" className={socialClass} onClick={() => toast("O acesso com Google entra quando o aplicativo estiver configurado.")}>
         <GoogleMark />
         Continuar com Google
       </button>
       {iphone ? (
-        <button type="button" className={socialClass} onClick={() => toast("O acesso com Apple entra quando o aplicativo estiver configurado.", "err")}>
+        <button type="button" className={socialClass} onClick={() => toast("O acesso com Apple entra quando o aplicativo estiver configurado.")}>
           <AppleMark />
           Continuar com Apple
         </button>
@@ -337,8 +337,8 @@ export function ForgotForm() {
             <input className="h-6 w-full border-0 bg-transparent text-[13px] font-medium text-[#171827] outline-none placeholder:text-[#9A96AB]" type="email" placeholder="seu@email.com" {...form.register("email")} />
           </label>
         </div>
-        <button type="submit" className={authPrimaryClass}>
-          Enviar
+        <button type="submit" disabled={form.formState.isSubmitting} className={cn(authPrimaryClass, "disabled:opacity-50")}>
+          {form.formState.isSubmitting ? "Enviando…" : "Enviar"}
         </button>
       </form>
       {done ? <p className="mt-3 text-center text-[12px] text-white">Se houver uma conta, o próximo passo foi preparado.</p> : null}
@@ -361,7 +361,16 @@ export function ResetForm() {
   const canSubmit = strength.checks.length && strength.checks.letter && strength.checks.number;
   const [visible, setVisible] = useState(false);
   return (
-    <AuthGradientFrame title="Nova senha">
+    <AuthGradientFrame
+      title="Nova senha"
+      footer={
+        <p className="mt-auto pt-8 text-center text-[13px] text-[#5C5870]">
+          <Link href="/entrar" className="font-bold text-[#6D4AFF]">
+            Voltar para entrar
+          </Link>
+        </p>
+      }
+    >
       <form
         className="mt-7 space-y-3"
         onSubmit={form.handleSubmit(async (values) => {
@@ -536,8 +545,8 @@ export function OnboardingForm() {
           </Field>
         </div>
         {error ? <p className="text-center text-[12px] text-danger">{error}</p> : null}
-        <button type="submit" className={authPrimaryClass}>
-          Criar loja
+        <button type="submit" disabled={form.formState.isSubmitting} className={cn(authPrimaryClass, "disabled:opacity-50")}>
+          {form.formState.isSubmitting ? "Criando…" : "Criar loja"}
         </button>
       </form>
     </AuthGradientFrame>

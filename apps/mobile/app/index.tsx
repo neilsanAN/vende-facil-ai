@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Linking, Platform, Pressable, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, control, fonts } from "@vendefacil/ui-tokens";
+import { brand, colors, control, fonts } from "@vendefacil/ui-tokens";
+import { WelcomeCarousel } from "../src/welcome-carousel";
 import { ApiClientError, createApiClient } from "@vendefacil/api-client";
 
-const api = createApiClient({ baseUrl: process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000" });
+const apiBase = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+const api = createApiClient({ baseUrl: apiBase });
 
-const features = [
-  { icon: "camera-outline" as const, title: "Tire foto do produto" },
-  { icon: "sparkles-outline" as const, title: "IA cria o anúncio" },
-  { icon: "play-outline" as const, title: "Gere vídeos com voz" },
-  { icon: "share-social-outline" as const, title: "Publique nas redes" },
-];
+function openLegal(path: "/termos" | "/privacidade") {
+  Linking.openURL(`${apiBase}${path}`).catch(() => undefined);
+}
 
 export default function AuthGate() {
   const [booting, setBooting] = useState(true);
@@ -40,7 +39,7 @@ export default function AuthGate() {
           return;
         }
         if (refresh) {
-          const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000"}/api/auth/refresh`, {
+          const response = await fetch(`${apiBase}/api/auth/refresh`, {
             method: "POST",
             headers: { "content-type": "application/json", "x-vendefacil-client": "mobile" },
             body: JSON.stringify({ refreshToken: refresh }),
@@ -99,26 +98,12 @@ export default function AuthGate() {
           <Text style={{ marginTop: 18, color: "#fff", fontSize: 28, fontWeight: "700" }}>
             VendeFácil <Text style={{ color: "#C4B5FD" }}>AI</Text>
           </Text>
-          <Text style={{ marginTop: 8, color: "rgba(255,255,255,0.75)", fontSize: fonts.body, textAlign: "center", maxWidth: 250 }}>
-            Crie, divulgue e venda seus produtos com IA
+          <Text style={{ marginTop: 8, color: "rgba(255,255,255,0.75)", fontSize: fonts.body, textAlign: "center", maxWidth: 280 }}>
+            {brand.tagline}
           </Text>
         </View>
-        <View style={{ marginTop: 36, gap: 14 }}>
-          {features.map((item) => (
-            <View key={item.title} style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-              <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" }}>
-                <Ionicons name={item.icon} size={20} color="#fff" />
-              </View>
-              <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>{item.title}</Text>
-            </View>
-          ))}
-        </View>
-        <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginTop: 28 }}>
-          <View style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: "#fff" }} />
-          <View style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.3)" }} />
-          <View style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.3)" }} />
-        </View>
-        <View style={{ marginTop: "auto", gap: 12 }}>
+        <WelcomeCarousel />
+        <View style={{ marginTop: "auto", gap: 12, paddingTop: 20 }}>
           <Pressable onPress={() => setScreen("register")} style={{ height: 48, borderRadius: 16, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}>
             <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>Começar</Text>
           </Pressable>
@@ -133,6 +118,17 @@ export default function AuthGate() {
   if (screen === "otp") {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, padding: 24, justifyContent: "center" }}>
+        <Pressable
+          onPress={() => {
+            setError("");
+            setMessage("");
+            setScreen("login");
+          }}
+          style={{ position: "absolute", left: 16, top: 48, flexDirection: "row", alignItems: "center", gap: 4 }}
+        >
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
+          <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "600" }}>Voltar</Text>
+        </Pressable>
         <Text style={{ color: colors.text, fontSize: fonts.heading, fontWeight: "700", textAlign: "center" }}>Confirme seu e-mail</Text>
         <Text style={{ color: colors.textSecondary, fontSize: fonts.body, marginTop: 8, marginBottom: 16, textAlign: "center" }}>Código enviado para {email}</Text>
         <TextInput
@@ -145,6 +141,7 @@ export default function AuthGate() {
           style={{ height: control.height, borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.surface, color: colors.text, textAlign: "center", letterSpacing: 8, fontSize: 18, marginBottom: 12 }}
         />
         {error ? <Text style={{ color: colors.error, marginBottom: 8 }}>{error}</Text> : null}
+        {message ? <Text style={{ color: colors.primary, marginBottom: 8, textAlign: "center", fontSize: 12 }}>{message}</Text> : null}
         <Pressable
           disabled={busy || code.length !== 6}
           style={{ height: 48, borderRadius: 16, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}
@@ -170,8 +167,7 @@ export default function AuthGate() {
             setBusy(true);
             setError("");
             try {
-              const base = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
-              const response = await fetch(`${base}/api/auth/resend`, {
+              const response = await fetch(`${apiBase}/api/auth/resend`, {
                 method: "POST",
                 headers: { "content-type": "application/json", "x-vendefacil-client": "mobile" },
                 body: JSON.stringify({ email }),
@@ -196,6 +192,17 @@ export default function AuthGate() {
   return (
     <View style={{ flex: 1, backgroundColor: "#2A1760", paddingHorizontal: 24, paddingTop: 48, paddingBottom: 28 }}>
       <View style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, backgroundColor: "#E9E4F8", opacity: 0 }} />
+      <Pressable
+        onPress={() => {
+          setError("");
+          setMessage("");
+          setScreen("welcome");
+        }}
+        style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8 }}
+      >
+        <Ionicons name="chevron-back" size={22} color="#D4C8FF" />
+        <Text style={{ color: "#D4C8FF", fontSize: 13, fontWeight: "600" }}>Início</Text>
+      </Pressable>
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 }}>
           <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}>
@@ -245,8 +252,7 @@ export default function AuthGate() {
               setError("");
               setMessage("");
               try {
-                const base = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
-                await fetch(`${base}/api/auth/forgot`, {
+                await fetch(`${apiBase}/api/auth/forgot`, {
                   method: "POST",
                   headers: { "content-type": "application/json", "x-vendefacil-client": "mobile" },
                   body: JSON.stringify({ email }),
@@ -262,10 +268,22 @@ export default function AuthGate() {
             <Text style={{ color: "#6D4AFF", fontSize: 12, fontWeight: "600" }}>Esqueci minha senha</Text>
           </Pressable>
         ) : (
-          <Pressable onPress={() => setAcceptTerms((v) => !v)} style={{ flexDirection: "row", gap: 8, marginTop: 12, alignItems: "center" }}>
-            <View style={{ width: 18, height: 18, borderRadius: 4, borderWidth: 1, borderColor: "#fff", backgroundColor: acceptTerms ? colors.primary : "transparent" }} />
-            <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, flex: 1 }}>Li e aceito os termos e a política de privacidade.</Text>
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 12, alignItems: "flex-start" }}>
+            <Pressable onPress={() => setAcceptTerms((v) => !v)} hitSlop={8}>
+              <View style={{ width: 18, height: 18, marginTop: 2, borderRadius: 4, borderWidth: 1, borderColor: "#fff", backgroundColor: acceptTerms ? colors.primary : "transparent" }} />
+            </Pressable>
+            <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, flex: 1 }}>
+              Li e aceito os{" "}
+              <Text onPress={() => openLegal("/termos")} style={{ color: "#D4C8FF", fontWeight: "700" }}>
+                termos
+              </Text>{" "}
+              e a{" "}
+              <Text onPress={() => openLegal("/privacidade")} style={{ color: "#D4C8FF", fontWeight: "700" }}>
+                política de privacidade
+              </Text>
+              .
+            </Text>
+          </View>
         )}
 
         {error ? <Text style={{ color: "#FF6B7A", marginTop: 10, textAlign: "center" }}>{error}</Text> : null}
@@ -309,7 +327,9 @@ export default function AuthGate() {
             }
           }}
         >
-          <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>{screen === "register" ? "Criar conta" : "Entrar"}</Text>
+          <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>
+            {busy ? "Aguarde…" : screen === "register" ? "Criar conta" : "Entrar"}
+          </Text>
         </Pressable>
 
         <View style={{ marginTop: 20, flexDirection: "row", alignItems: "center", gap: 12 }}>
@@ -318,12 +338,24 @@ export default function AuthGate() {
           <View style={{ flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.25)" }} />
         </View>
 
-        <Pressable onPress={() => setError("O acesso com Google entra quando o aplicativo estiver configurado.")} style={{ marginTop: 14, height: control.height, borderRadius: 16, backgroundColor: "#fff", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
+        <Pressable
+          onPress={() => {
+            setError("");
+            setMessage("O acesso com Google entra quando o aplicativo estiver configurado.");
+          }}
+          style={{ marginTop: 14, height: control.height, borderRadius: 16, backgroundColor: "#fff", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}
+        >
           <Ionicons name="logo-google" size={16} color={colors.text} />
           <Text style={{ color: colors.text, fontSize: 13, fontWeight: "600" }}>Continuar com Google</Text>
         </Pressable>
         {Platform.OS === "ios" ? (
-          <Pressable onPress={() => setError("O acesso com Apple entra quando o aplicativo estiver configurado.")} style={{ marginTop: 10, height: control.height, borderRadius: 16, backgroundColor: "#fff", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <Pressable
+            onPress={() => {
+              setError("");
+              setMessage("O acesso com Apple entra quando o aplicativo estiver configurado.");
+            }}
+            style={{ marginTop: 10, height: control.height, borderRadius: 16, backgroundColor: "#fff", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}
+          >
             <Ionicons name="logo-apple" size={16} color={colors.text} />
             <Text style={{ color: colors.text, fontSize: 13, fontWeight: "600" }}>Continuar com Apple</Text>
           </Pressable>
@@ -333,6 +365,7 @@ export default function AuthGate() {
           style={{ marginTop: "auto", paddingTop: 24 }}
           onPress={() => {
             setError("");
+            setMessage("");
             setScreen(screen === "register" ? "login" : "register");
           }}
         >

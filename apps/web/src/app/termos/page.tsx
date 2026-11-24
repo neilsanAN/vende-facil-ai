@@ -1,3 +1,22 @@
+import Link from "next/link";
+
 export default function TermsPage() {
-  return <article className="mx-auto max-w-2xl px-4 py-10 text-sm leading-6"><h1 className="text-2xl font-semibold">Termos de uso</h1><p className="mt-4">A VendeFacil AI é uma ferramenta para o vendedor criar cadastro, anúncios, artes e vídeos da própria loja. O vendedor é responsável pelo conteúdo que publica, pelos direitos das imagens, das músicas e pelas informações comerciais que confirma.</p><p className="mt-3">A IA não substitui a revisão humana. Texto gerado precisa ser conferido antes da publicação. Recursos que dependem de provedor externo só funcionam quando esse provedor está configurado e autorizado.</p><p className="mt-3">Planos, créditos e cobranças seguem o que estiver contratado. Créditos inclusos do período não acumulam. Falha técnica de renderização estorna o crédito da plataforma; custo cobrado diretamente por um provedor externo segue a política desse provedor.</p><p className="mt-3">Este texto é a base operacional do produto e deve ser revisado por assessoria jurídica antes do uso comercial público.</p></article>;
+  return (
+    <article className="mx-auto max-w-2xl px-4 py-10 text-sm leading-6">
+      <Link href="/cadastro" className="text-[12px] font-semibold text-primary">
+        ← Voltar
+      </Link>
+      <h1 className="mt-4 text-2xl font-semibold">Termos de uso</h1>
+      <p className="mt-4">
+        A VendeFacil AI é uma ferramenta para o vendedor criar cadastro, anúncios, artes e vídeos da própria loja. O vendedor é responsável pelo conteúdo que publica, pelos direitos das imagens, das músicas e pelas informações comerciais que confirma.
+      </p>
+      <p className="mt-3">
+        A IA não substitui a revisão humana. Texto gerado precisa ser conferido antes da publicação. Recursos que dependem de provedor externo só funcionam quando esse provedor está configurado e autorizado.
+      </p>
+      <p className="mt-3">
+        Planos, créditos e cobranças seguem o que estiver contratado. Créditos inclusos do período não acumulam. Falha técnica de renderização estorna o crédito da plataforma; custo cobrado diretamente por um provedor externo segue a política desse provedor.
+      </p>
+      <p className="mt-3">Este texto é a base operacional do produto e deve ser revisado por assessoria jurídica antes do uso comercial público.</p>
+    </article>
+  );
 }

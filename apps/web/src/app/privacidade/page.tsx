@@ -1,3 +1,28 @@
+import Link from "next/link";
+
 export default function PrivacyPage() {
-  return <article className="mx-auto max-w-2xl px-4 py-10 text-sm leading-6"><h1 className="text-2xl font-semibold">Política de privacidade</h1><p className="mt-4">A VendeFacil AI trata dados de conta, loja, produtos, pedidos, contatos e registros de uso para prestar o serviço. A base inclui execução de contrato e legítimo interesse de segurança.</p><p className="mt-3">Visualizações e cliques são contados com um identificador diário derivado de IP e navegador. O IP bruto não entra na estatística da loja. Sessões de acesso guardam IP e agente por segurança e podem ser encerradas em Configurações.</p><p className="mt-3">Imagens originais ficam em armazenamento privado. A publicação da vitrine gera uma cópia sem os metadados originais. Arquivos temporários de upload não confirmados são apagados pelo worker.</p><p className="mt-3">Conteúdo enviado à IA sai apenas quando um provedor está configurado, limitado aos fatos confirmados e à imagem necessária. Chaves de provedores e tokens de redes não são gravados em log.</p><p className="mt-3">Você pode exportar os dados da conta e pedir exclusão. A exclusão despublica a loja quando você é o único membro, apaga os arquivos e anonimiza o usuário. Pedidos já registrados podem permanecer pelo prazo necessário a obrigações legais, sem o e-mail da conta excluída.</p><p className="mt-3">Este texto deve ser revisado por assessoria jurídica, inclusive quanto à LGPD, antes da operação com clientes.</p></article>;
+  return (
+    <article className="mx-auto max-w-2xl px-4 py-10 text-sm leading-6">
+      <Link href="/cadastro" className="text-[12px] font-semibold text-primary">
+        ← Voltar
+      </Link>
+      <h1 className="mt-4 text-2xl font-semibold">Política de privacidade</h1>
+      <p className="mt-4">
+        A VendeFacil AI trata dados de conta, loja, produtos, pedidos, contatos e registros de uso para prestar o serviço. A base inclui execução de contrato e legítimo interesse de segurança.
+      </p>
+      <p className="mt-3">
+        Visualizações e cliques são contados com um identificador diário derivado de IP e navegador. O IP bruto não entra na estatística da loja. Sessões de acesso guardam IP e agente por segurança e podem ser encerradas em Configurações.
+      </p>
+      <p className="mt-3">
+        Imagens originais ficam em armazenamento privado. A publicação da vitrine gera uma cópia sem os metadados originais. Arquivos temporários de upload não confirmados são apagados pelo worker.
+      </p>
+      <p className="mt-3">
+        Conteúdo enviado à IA sai apenas quando um provedor está configurado, limitado aos fatos confirmados e à imagem necessária. Chaves de provedores e tokens de redes não são gravados em log.
+      </p>
+      <p className="mt-3">
+        Você pode exportar os dados da conta e pedir exclusão. A exclusão despublica a loja quando você é o único membro, apaga os arquivos e anonimiza o usuário. Pedidos já registrados podem permanecer pelo prazo necessário a obrigações legais, sem o e-mail da conta excluída.
+      </p>
+      <p className="mt-3">Este texto deve ser revisado por assessoria jurídica, inclusive quanto à LGPD, antes da operação com clientes.</p>
+    </article>
+  );
 }

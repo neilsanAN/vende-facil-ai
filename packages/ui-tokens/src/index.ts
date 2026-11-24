@@ -66,3 +66,31 @@ export const mobileNav = [
   { href: "/estudio", label: "Estúdio", icon: "sparkles" },
   { href: "/mais", label: "Mais", icon: "menu" },
 ] as const;
+
+/** Onboarding da tela inicial — web e mobile. */
+export const welcomeSlides = [
+  {
+    key: "create",
+    eyebrow: "Criação com IA",
+    title: "Da foto ao anúncio pronto",
+    description: "Fotografe o produto e receba título, descrição e hashtags alinhados ao que você vende.",
+    bullets: ["Upload rápido no celular ou web", "Revise cada detalhe antes de publicar", "Salve rascunhos no estúdio"],
+    ionIcon: "sparkles-outline",
+  },
+  {
+    key: "studio",
+    eyebrow: "Estúdio criativo",
+    title: "Vídeo, voz e arte para redes",
+    description: "Monte vídeos com narração, artes para feed e stories sem ferramentas extras.",
+    bullets: ["Narração em português", "Formatos pensados para Instagram e WhatsApp", "Exportação quando o render concluir"],
+    ionIcon: "play-circle-outline",
+  },
+  {
+    key: "sell",
+    eyebrow: "Venda inteligente",
+    title: "Vitrine, pedidos e métricas",
+    description: "Compartilhe o link da loja, receba pedidos e acompanhe visualizações e vendas em tempo real.",
+    bullets: ["Link profissional da sua loja", "Botão WhatsApp na vitrine", "Painel dos últimos 7 dias"],
+    ionIcon: "trending-up-outline",
+  },
+] as const;
