@@ -1,15 +1,15 @@
 import Link from "next/link";
-import { Clapperboard, FolderOpen, ImageIcon, Mic2, Sparkles } from "lucide-react";
+import { ChevronRight, Clapperboard, FolderOpen, ImageIcon, Mic2, Play } from "lucide-react";
 import { getContainer } from "@vendefacil/business";
 import { tenant } from "@/server/session";
 
 export const dynamic = "force-dynamic";
 
 const items = [
-  { href: "/estudio/video/novo", label: "Criar vídeo com IA", text: "Roteiro, cenas e narração.", icon: Clapperboard },
-  { href: "/estudio/arte", label: "Criar arte para redes", text: "Peça visual para feed e stories.", icon: ImageIcon },
-  { href: "/estudio/narracao", label: "Gerar narração", text: "Áudio para o anúncio ou vídeo.", icon: Mic2 },
-  { href: "/estudio/historico", label: "Meus projetos", text: "Histórico de gerações e vídeos.", icon: FolderOpen },
+  { href: "/estudio/video/novo", label: "Criar vídeo com IA", text: "Transforme fotos em um vídeo com voz", icon: Clapperboard, tone: "bg-[#F3EEFF] text-primary" },
+  { href: "/estudio/arte", label: "Criar arte para redes", text: "Posts, Stories e ofertas", icon: ImageIcon, tone: "bg-[#FFF4E6] text-orange-500" },
+  { href: "/estudio/narracao", label: "Gerar narração", text: "Voz profissional com IA", icon: Mic2, tone: "bg-[#F0FFF4] text-emerald-600" },
+  { href: "/estudio/historico", label: "Meus projetos", text: "Vídeos, artes e rascunhos", icon: FolderOpen, tone: "bg-[#F0F4FF] text-blue-600" },
 ] as const;
 
 export default async function StudioPage() {
@@ -17,29 +17,34 @@ export default async function StudioPage() {
   const videos = await getContainer().videos.list(session);
   return (
     <div>
-      <div className="rounded-2xl bg-gradient-to-br from-[#7C5CFF] to-[#5B3DF0] px-4 py-5 text-white shadow-lift">
-        <div className="flex items-start gap-3">
-          <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/15">
-            <Sparkles size={18} />
-          </span>
-          <div>
-            <h1 className="text-[16px] font-bold leading-5">Estúdio IA</h1>
-            <p className="mt-1 text-[12px] font-medium leading-4 text-white/85">Crie vídeos profissionais com IA.</p>
-          </div>
-        </div>
-      </div>
+      <h1 className="mb-4 text-[22px] font-bold leading-7 tracking-tight text-ink">Estúdio IA</h1>
 
-      <ul className="mt-4 space-y-2">
+      {/* Hero CTA */}
+      <Link
+        href="/estudio/video/novo"
+        className="relative mb-5 flex items-center gap-4 overflow-hidden rounded-[22px] bg-gradient-to-br from-[#3B1D8F] via-[#5B3DF0] to-[#8B6CFF] p-5 text-white shadow-lift"
+      >
+        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/15 ring-8 ring-white/10">
+          <Play size={22} fill="currentColor" />
+        </span>
+        <span>
+          <strong className="block text-[15px] font-bold leading-5">Crie vídeos profissionais com IA</strong>
+        </span>
+      </Link>
+
+      {/* Menu items */}
+      <ul className="space-y-2.5">
         {items.map((item) => (
           <li key={item.href}>
-            <Link href={item.href} className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3.5 shadow-card">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary-soft text-primary">
+            <Link href={item.href} className="flex items-center gap-3 rounded-[18px] border border-line bg-surface p-3.5 shadow-card">
+              <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${item.tone}`}>
                 <item.icon size={18} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-semibold leading-4">{item.label}</span>
-                <span className="text-[11px] font-medium leading-[14px] text-muted">{item.text}</span>
+                <span className="block text-[13px] font-bold leading-4 text-ink">{item.label}</span>
+                <span className="mt-0.5 block text-[11px] font-medium leading-[14px] text-muted">{item.text}</span>
               </span>
+              <ChevronRight size={16} className="shrink-0 text-line" />
             </Link>
           </li>
         ))}

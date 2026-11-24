@@ -27,5 +27,5 @@ export async function PublishPage() {
   const container = getContainer();
   const [channels, products] = await Promise.all([container.publications.channels(session), container.catalog.list(session, { q: "", sort: "recent", page: 1, pageSize: 50 })]);
   const { PublishDesk } = await import("@/components/studio-forms");
-  return <div><PageHeader backHref="/mais" title="Publicar nas redes" text="WhatsApp abre link real. Instagram/Facebook só se o canal estiver configurado." /><PublishDesk channels={channels} products={products.data.map((item) => ({ id: item.id, name: item.name }))} /></div>;
+  return <div><PageHeader backHref="/mais" title="Publicar nas redes" /><PublishDesk channels={channels} products={products.data.map((item) => ({ id: item.id, name: item.name }))} /></div>;
 }

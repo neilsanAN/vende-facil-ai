@@ -111,40 +111,71 @@ export function PublishDesk({ channels, products }: { channels: Array<{ provider
   const [enabled, setEnabled] = useState({ WHATSAPP: true, INSTAGRAM: false, FACEBOOK: false });
   const [schedule, setSchedule] = useState(false);
 
+  const socials = [
+    { key: "WHATSAPP" as const, label: "Compartilhar no WhatsApp", icon: "🟢", detail: "" },
+    { key: "INSTAGRAM" as const, label: "Publicar no Instagram", icon: "📸", detail: "(Feed ou Stories)" },
+    { key: "FACEBOOK" as const, label: "Publicar no Facebook", icon: "📘", detail: "(Página)" },
+  ];
+
   return (
     <div className="space-y-4">
-      <ul className="space-y-2">
-        {channels.map((channel) => {
-          const key = channel.provider as keyof typeof enabled;
-          const label = channel.provider === "WHATSAPP" ? "WhatsApp" : channel.provider === "INSTAGRAM" ? "Instagram" : "Facebook";
-          return (
-            <li key={channel.provider} className="flex items-center justify-between rounded-2xl border border-line bg-surface px-3 py-3 shadow-card">
-              <span>
-                <strong className="text-[12px] font-semibold">{label}</strong>
-                <span className="mt-0.5 block text-[10px] font-medium leading-[13px] text-muted">{channel.detail}</span>
-              </span>
-              <button
-                type="button"
-                className={`relative h-6 w-11 rounded-full transition ${enabled[key] ? "bg-primary" : "bg-line"}`}
-                onClick={() => setEnabled((current) => ({ ...current, [key]: !current[key] }))}
-                aria-label={`Alternar ${label}`}
-              >
-                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${enabled[key] ? "left-5" : "left-0.5"}`} />
-              </button>
-            </li>
-          );
-        })}
+      {/* Social toggle cards */}
+      <ul className="space-y-2.5">
+        {socials.map((item) => (
+          <li key={item.key} className="flex items-center gap-3 rounded-[18px] border border-line bg-surface px-4 py-3.5 shadow-card">
+            <span className="text-lg">{item.icon}</span>
+            <span className="min-w-0 flex-1">
+              <strong className="block text-[13px] font-semibold leading-4 text-ink">{item.label}</strong>
+              {item.detail ? <span className="text-[11px] font-medium text-muted">{item.detail}</span> : null}
+            </span>
+            <button
+              type="button"
+              className={`relative h-7 w-12 shrink-0 rounded-full transition ${enabled[item.key] ? "bg-primary" : "bg-[#E0E3EA]"}`}
+              onClick={() => setEnabled((current) => ({ ...current, [item.key]: !current[item.key] }))}
+              aria-label={`Alternar ${item.label}`}
+            >
+              <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-card transition ${enabled[item.key] ? "left-[22px]" : "left-0.5"}`} />
+            </button>
+          </li>
+        ))}
       </ul>
 
-      {share?.link ? (
-        <div className="rounded-2xl border border-line bg-surface px-3 py-3 text-[12px] shadow-card">
-          <p className="font-semibold">Link da minha loja</p>
-          <p className="mt-1 break-all text-muted">{share.link}</p>
+      {/* Store link card */}
+      <div className="flex items-center gap-3 rounded-[18px] border border-line bg-surface px-4 py-3.5 shadow-card">
+        <span className="text-lg">🔗</span>
+        <span className="min-w-0 flex-1">
+          <strong className="block text-[13px] font-semibold leading-4 text-ink">Link da minha loja</strong>
+          <span className="text-[11px] font-medium text-muted">{share?.link || "Compartilhe seu catálogo online"}</span>
+        </span>
+        <button type="button" className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-background text-muted" aria-label="Copiar">📋</button>
+      </div>
+
+      {/* Schedule toggle */}
+      <div className="flex items-center justify-between rounded-[18px] border border-line bg-surface px-4 py-3.5 shadow-card">
+        <span className="flex items-center gap-3">
+          <span className="text-lg">📅</span>
+          <span className="text-[13px] font-semibold text-ink">Agendar publicação</span>
+        </span>
+        <button
+          type="button"
+          className={`relative h-7 w-12 shrink-0 rounded-full transition ${schedule ? "bg-primary" : "bg-[#E0E3EA]"}`}
+          onClick={() => setSchedule((v) => !v)}
+        >
+          <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-card transition ${schedule ? "left-[22px]" : "left-0.5"}`} />
+        </button>
+      </div>
+
+      {schedule ? (
+        <div className="rounded-[18px] border border-line bg-surface p-4 shadow-card">
+          <Field label="Quando">
+            <input name="when" type="datetime-local" className={inputClass} />
+          </Field>
         </div>
       ) : null}
 
+      {/* Publish form */}
       <form
-        className="space-y-3 rounded-2xl border border-line bg-surface p-4 shadow-card"
+        className="space-y-3"
         onSubmit={async (event) => {
           event.preventDefault();
           const data = new FormData(event.currentTarget);
@@ -172,15 +203,9 @@ export function PublishDesk({ channels, products }: { channels: Array<{ provider
           }
         }}
       >
-        <Field label="Canal">
-          <select name="channel" className={inputClass}>
-            <option value="WHATSAPP">WhatsApp</option>
-            <option value="INSTAGRAM">Instagram</option>
-            <option value="FACEBOOK">Facebook</option>
-          </select>
-        </Field>
+        <input type="hidden" name="channel" value={Object.entries(enabled).find(([, v]) => v)?.[0] || "WHATSAPP"} />
         <Field label="Produto">
-          <select name="targetId" className={inputClass}>
+          <select name="targetId" className={`${inputClass} rounded-[12px]`}>
             {products.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
@@ -189,27 +214,13 @@ export function PublishDesk({ channels, products }: { channels: Array<{ provider
           </select>
         </Field>
         <Field label="Legenda">
-          <textarea name="caption" className={areaClass} />
+          <textarea name="caption" className={areaClass} placeholder="Escreva algo para compartilhar..." />
         </Field>
-        <label className="flex items-center justify-between text-[12px]">
-          <span className="font-medium">Agendar publicação</span>
-          <button type="button" className={`relative h-6 w-11 rounded-full transition ${schedule ? "bg-primary" : "bg-line"}`} onClick={() => setSchedule((v) => !v)}>
-            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${schedule ? "left-5" : "left-0.5"}`} />
-          </button>
-        </label>
-        {schedule ? (
-          <Field label="Quando">
-            <input name="when" type="datetime-local" className={inputClass} />
-          </Field>
-        ) : null}
-        <label className="flex items-center gap-2 text-[12px] text-muted">
-          <input type="checkbox" name="confirm" /> Já compartilhei manualmente
-        </label>
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full !h-12 !rounded-[14px] !text-[14px]">
           Publicar agora
         </Button>
-        <p className="text-[10px] font-medium leading-[13px] text-muted">Registra a divulgação. WhatsApp abre o link real; Instagram/Facebook só concluem se o canal estiver configurado.</p>
       </form>
+
       {share?.whatsappUrl ? (
         <a className="block text-center text-[12px] font-semibold text-primary" href={share.whatsappUrl} target="_blank" rel="noreferrer">
           Abrir WhatsApp

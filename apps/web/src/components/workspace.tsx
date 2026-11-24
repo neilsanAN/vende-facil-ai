@@ -492,21 +492,24 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
   const toast = useToast();
   const female = voices.find((voice) => voice.gender === "FEMALE");
   const male = voices.find((voice) => voice.gender === "MALE");
-  const [form, setForm] = useState({ productId: products[0]?.id || "", objective: "SELL", style: "ELEGANT", durationSec: 15, aspectRatio: "R9_16", voiceProfileId: female?.id || male?.id || "" });
+  const [form, setForm] = useState({ productId: products[0]?.id || "", objective: "SELL", style: "ELEGANT", durationSec: 30, aspectRatio: "R9_16", voiceProfileId: female?.id || male?.id || "" });
   const selected = products.find((item) => item.id === form.productId);
   const styles = [
     ["ELEGANT", "Comercial"],
     ["OFFER", "Oferta"],
     ["SOCIAL", "Apresentação"],
+    ["VITRINE", "Vitrine"],
+    ["MINIMAL", "Minimalista"],
+    ["REDES", "Redes sociais"],
   ] as const;
   const ratios = [
-    ["R9_16", "9:16 Reels"],
-    ["R1_1", "1:1 Feed"],
-    ["R16_9", "16:9 YouTube"],
+    ["R9_16", "9:16", "Reels/Stories"],
+    ["R1_1", "1:1", "Feed"],
+    ["R16_9", "16:9", "YouTube"],
   ] as const;
   return (
     <form
-      className="max-w-xl space-y-3"
+      className="max-w-xl space-y-4"
       onSubmit={async (event) => {
         event.preventDefault();
         try {
@@ -517,24 +520,28 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
         }
       }}
     >
-      <Field label="Objetivo">
-        <select className={inputClass} value={form.objective} onChange={(event) => setForm({ ...form, objective: event.target.value })}>
+      {/* Product card */}
+      {selected ? (
+        <div className="flex items-center gap-3 rounded-[16px] border border-line bg-surface p-3 shadow-card">
+          {selected.imageUrl ? (
+            <img src={selected.imageUrl} alt="" className="h-14 w-14 rounded-xl object-cover" />
+          ) : (
+            <span className="grid h-14 w-14 place-items-center rounded-xl bg-background text-[10px] text-muted">Foto</span>
+          )}
+          <span className="text-[13px] font-bold leading-4 text-ink">{selected.name}</span>
+        </div>
+      ) : null}
+
+      <Field label="Objetivo do vídeo">
+        <select className={`${inputClass} rounded-[12px]`} value={form.objective} onChange={(event) => setForm({ ...form, objective: event.target.value })}>
           <option value="SELL">Vender o produto</option>
           <option value="AWARENESS">Apresentar a marca</option>
           <option value="OFFER">Destacar oferta</option>
         </select>
       </Field>
-      <Field label="Produto">
-        <select className={inputClass} value={form.productId} onChange={(event) => setForm({ ...form, productId: event.target.value })}>
-          {products.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
-        </select>
-      </Field>
-      {selected?.imageUrl ? <img src={selected.imageUrl} alt="" className="h-28 w-28 rounded-xl object-cover" /> : null}
-      <Field label="Estilo do vídeo">
+
+      <div>
+        <p className="mb-2 text-[12px] font-semibold text-ink">Estilo do vídeo</p>
         <div className="flex flex-wrap gap-2">
           {styles.map(([value, label]) => (
             <button type="button" key={value} className={`${chipClass} ${form.style === value ? "bg-primary text-white" : "border border-line bg-surface text-ink"}`} onClick={() => setForm({ ...form, style: value })}>
@@ -542,39 +549,47 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
             </button>
           ))}
         </div>
-      </Field>
-      <Field label="Duração">
-        <div className="flex flex-wrap gap-2">
+      </div>
+
+      <div>
+        <p className="mb-2 text-[12px] font-semibold text-ink">Duração</p>
+        <div className="flex gap-2">
           {[15, 30, 45, 60].map((item) => (
             <button type="button" key={item} className={`${chipClass} ${form.durationSec === item ? "bg-primary text-white" : "border border-line bg-surface text-ink"}`} onClick={() => setForm({ ...form, durationSec: item })}>
               {item}s
             </button>
           ))}
         </div>
-      </Field>
-      <Field label="Formato">
-        <div className="flex flex-wrap gap-2">
-          {ratios.map(([value, label]) => (
-            <button type="button" key={value} className={`${chipClass} ${form.aspectRatio === value ? "bg-primary text-white" : "border border-line bg-surface text-ink"}`} onClick={() => setForm({ ...form, aspectRatio: value })}>
-              {label}
+      </div>
+
+      <div>
+        <p className="mb-2 text-[12px] font-semibold text-ink">Formato</p>
+        <div className="flex gap-2">
+          {ratios.map(([value, ratio, label]) => (
+            <button
+              type="button"
+              key={value}
+              className={`flex flex-col items-center rounded-[14px] px-4 py-2.5 text-center ${form.aspectRatio === value ? "border-2 border-primary bg-primary-soft text-primary" : "border border-line bg-surface text-ink"}`}
+              onClick={() => setForm({ ...form, aspectRatio: value })}
+            >
+              <span className="text-[13px] font-bold leading-4">{ratio}</span>
+              <span className="mt-0.5 text-[9px] font-medium leading-3 text-muted">{label}</span>
             </button>
           ))}
         </div>
-      </Field>
-      <Field label="Voz do narrador">
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { id: female?.id || "", label: "Feminina" },
-            { id: male?.id || "", label: "Masculina" },
-          ].map((voice) => (
-            <button type="button" key={voice.label} disabled={!voice.id} className={`${buttonClass} w-full ${form.voiceProfileId === voice.id ? "bg-primary text-white" : "border border-line bg-surface text-ink"}`} onClick={() => setForm({ ...form, voiceProfileId: voice.id })}>
-              {voice.label}
-            </button>
+      </div>
+
+      <Field label="Produto">
+        <select className={`${inputClass} rounded-[12px]`} value={form.productId} onChange={(event) => setForm({ ...form, productId: event.target.value })}>
+          {products.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
           ))}
-        </div>
+        </select>
       </Field>
-      <p className="text-[10px] font-medium leading-[13px] text-muted">Sem worker de render neste deploy, o projeto é criado e a exportação completa fica indisponível até o pipeline voltar.</p>
-      <Button type="submit" className="w-full">
+
+      <Button type="submit" className="w-full !h-12 !rounded-[14px] !text-[14px]">
         Gerar vídeo com IA
       </Button>
     </form>
@@ -593,6 +608,7 @@ export function VideoEditor({ project }: { project: Project }) {
   const [draft, setDraft] = useState(project);
   const [index, setIndex] = useState(0);
   const [status, setStatus] = useState(project.renders[0]);
+  const [tab, setTab] = useState<"cenas" | "texto" | "audio" | "transicao" | "velocidade">("cenas");
   const scene = draft.scenes[index];
   const ratio = ASPECT_DIMENSIONS[draft.aspectRatio];
   if (!scene) return <p className="text-sm">Este projeto não tem cenas.</p>;
@@ -606,84 +622,120 @@ export function VideoEditor({ project }: { project: Project }) {
     toast("Rascunho salvo.");
   }
 
+  const tabs = [
+    { key: "cenas" as const, label: "Cenas", icon: "🎬" },
+    { key: "texto" as const, label: "Texto", icon: "T" },
+    { key: "audio" as const, label: "Áudio", icon: "🔊" },
+    { key: "transicao" as const, label: "Transição", icon: "⇄" },
+    { key: "velocidade" as const, label: "Velocidade", icon: "⏩" },
+  ];
+
   return (
-    <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-      <div>
-        <div className="mx-auto overflow-hidden rounded-2xl bg-gradient-to-br from-[#2A1B5C] to-[#0F0A24]" style={{ aspectRatio: `${ratio.width} / ${ratio.height}`, maxHeight: 520 }}>
-          <div className="flex h-full flex-col justify-between p-4 text-white" style={{ transform: `scale(${scene.zoom}) translate(${scene.panX * 12}px, ${scene.panY * 12}px)` }}>
-            <p className="text-lg font-semibold">{scene.headline || draft.title}</p>
-            <p className="text-sm">{scene.caption}</p>
+    <div className="space-y-3">
+      {/* Video preview – dark card */}
+      <div className="relative mx-auto overflow-hidden rounded-[20px] bg-gradient-to-br from-[#2A1B5C] to-[#0F0A24]" style={{ aspectRatio: `${ratio.width} / ${ratio.height}`, maxHeight: 420 }}>
+        <div className="flex h-full flex-col justify-between p-5 text-white" style={{ transform: `scale(${scene.zoom}) translate(${scene.panX * 12}px, ${scene.panY * 12}px)` }}>
+          <div>
+            <p className="text-[18px] font-bold leading-6">{scene.headline || draft.title}</p>
+            <p className="mt-1 text-[12px] leading-4 text-white/80">{scene.caption}</p>
           </div>
         </div>
-        <p className="mt-2 text-center text-xs text-muted">Prévia de edição. O arquivo final é gerado na exportação.</p>
-        {status?.outputAssetId ? <video className="mt-3 w-full rounded-xl" controls src={`/api/media/${status.outputAssetId}`} /> : null}
-        {status ? <p className="mt-2 text-sm">{PIPELINE_LABEL[status.status]} · {status.progress}% {status.errorMessage || ""}</p> : null}
-      </div>
-      <div className="space-y-3">
-        <div className="flex gap-2 overflow-auto">
-          {draft.scenes.map((item, itemIndex) => <button key={itemIndex} className={`${chipClass} border ${itemIndex === index ? "border-primary text-primary" : "border-line text-ink"}`} onClick={() => setIndex(itemIndex)}>Cena {itemIndex + 1}</button>)}
+        {/* Play overlay */}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-4 pb-4 pt-8">
+          <div className="flex items-center gap-2 text-[11px] font-medium text-white/80">
+            <span>▶</span>
+            <span>0:00 / 0:{String(draft.durationSec).padStart(2, "0")}</span>
+            <span className="ml-auto">🔊</span>
+          </div>
         </div>
-        <Field label="Título da cena"><input className={inputClass} value={scene.headline} onChange={(event) => updateScene({ headline: event.target.value })} /></Field>
-        <Field label="Legenda"><input className={inputClass} value={scene.caption} onChange={(event) => updateScene({ caption: event.target.value })} /></Field>
-        <div className="grid grid-cols-2 gap-3">
+        {status?.outputAssetId ? <video className="absolute inset-0 h-full w-full rounded-[20px] object-cover" controls src={`/api/media/${status.outputAssetId}`} /> : null}
+      </div>
+
+      {/* Scene thumbnails */}
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1">
+        {draft.scenes.map((item, itemIndex) => (
+          <button
+            key={itemIndex}
+            type="button"
+            className={`h-14 w-16 shrink-0 rounded-xl ${itemIndex === index ? "ring-2 ring-primary" : "ring-1 ring-line"} overflow-hidden bg-gradient-to-br from-[#2A1B5C] to-[#0F0A24]`}
+            onClick={() => setIndex(itemIndex)}
+          >
+            <span className="flex h-full items-center justify-center text-[9px] font-semibold text-white/70">Cena {itemIndex + 1}</span>
+          </button>
+        ))}
+      </div>
+
+      {status ? <p className="text-[11px] font-medium text-muted">{PIPELINE_LABEL[status.status]} · {status.progress}% {status.errorMessage || ""}</p> : null}
+
+      {/* Bottom toolbar */}
+      <div className="flex justify-between rounded-[18px] border border-line bg-surface p-1.5 shadow-card">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setTab(t.key)}
+            className={`flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2 text-[9px] font-semibold transition ${tab === t.key ? "bg-primary-soft text-primary" : "text-muted hover:bg-background"}`}
+          >
+            <span className="text-sm">{t.icon}</span>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      {tab === "cenas" ? (
+        <div className="space-y-3">
+          <Field label="Título da cena"><input className={inputClass} value={scene.headline} onChange={(event) => updateScene({ headline: event.target.value })} /></Field>
+          <Field label="Legenda"><input className={inputClass} value={scene.caption} onChange={(event) => updateScene({ caption: event.target.value })} /></Field>
           <Field label="Duração (ms)"><input className={inputClass} type="number" value={scene.durationMs} onChange={(event) => updateScene({ durationMs: Number(event.target.value) })} /></Field>
+        </div>
+      ) : tab === "texto" ? (
+        <div className="space-y-3">
+          <Field label="Roteiro"><textarea className={areaClass} value={draft.script} onChange={(event) => setDraft({ ...draft, script: event.target.value })} /></Field>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.showPrice} onChange={(event) => setDraft({ ...draft, showPrice: event.target.checked })} /> Mostrar preço</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.showLogo} onChange={(event) => setDraft({ ...draft, showLogo: event.target.checked })} /> Logo da loja</label>
+        </div>
+      ) : tab === "audio" ? (
+        <div className="space-y-3">
+          <Field label="Volume narração"><input className={inputClass} type="range" min="0" max="1" step="0.05" value={draft.narrationVolume} onChange={(event) => setDraft({ ...draft, narrationVolume: Number(event.target.value) })} /></Field>
+          <Field label="Volume música"><input className={inputClass} type="range" min="0" max="1" step="0.05" value={draft.musicVolume} onChange={(event) => setDraft({ ...draft, musicVolume: Number(event.target.value) })} /></Field>
+        </div>
+      ) : tab === "transicao" ? (
+        <div className="space-y-3">
           <Field label="Transição"><select className={inputClass} value={scene.transition} onChange={(event) => updateScene({ transition: event.target.value as Scene["transition"] })}><option>CUT</option><option>FADE</option><option>SLIDE</option><option>WIPE</option></select></Field>
+        </div>
+      ) : (
+        <div className="space-y-3">
           <Field label="Zoom"><input className={inputClass} type="number" step="0.01" min="1" max="1.4" value={scene.zoom} onChange={(event) => updateScene({ zoom: Number(event.target.value) })} /></Field>
           <Field label="Pan horizontal"><input className={inputClass} type="number" step="0.1" min="-1" max="1" value={scene.panX} onChange={(event) => updateScene({ panX: Number(event.target.value) })} /></Field>
         </div>
-        <Field label="Roteiro"><textarea className={areaClass} value={draft.script} onChange={(event) => setDraft({ ...draft, script: event.target.value })} /></Field>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.showPrice} onChange={(event) => setDraft({ ...draft, showPrice: event.target.checked })} /> Mostrar preço</label>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.showLogo} onChange={(event) => setDraft({ ...draft, showLogo: event.target.checked })} /> Guardar preferência de logo</label>
-        <div className="rounded-2xl border border-line bg-background p-3">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted">Timeline</p>
-          <div className="flex gap-1 overflow-auto">
-            {draft.scenes.map((item, itemIndex) => (
-              <button
-                key={itemIndex}
-                type="button"
-                className={`h-10 min-w-16 rounded-lg px-2 text-[10px] font-semibold ${itemIndex === index ? "bg-primary text-white" : "bg-surface text-muted"}`}
-                onClick={() => setIndex(itemIndex)}
-              >
-                {Math.round(item.durationMs / 1000)}s
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="grid grid-cols-5 gap-1 rounded-2xl border border-line bg-surface p-2 shadow-card">
-          {["Cenas", "Texto", "Áudio", "Transição", "Velocidade"].map((label) => (
-            <button key={label} type="button" className="rounded-xl px-1 py-2 text-[9px] font-semibold text-muted hover:bg-background hover:text-primary">
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={save}>Salvar rascunho</Button>
-          <Button variant="secondary" onClick={async () => {
-            try { const next = await api<Project>(`/api/videos/${draft.id}/storyboard`, { method: "POST", body: JSON.stringify({ mode: "ai" }) }); setDraft(next); toast("Roteiro atualizado."); }
-            catch (cause) { toast(cause instanceof ApiClientError ? cause.message : "Roteiro indisponível.", "err"); }
-          }}>Gerar roteiro</Button>
-          {status?.outputAssetId ? (
-            <a className={buttonClass + " bg-primary text-white"} href={`/api/media/${status.outputAssetId}`} download>
-              Baixar vídeo
-            </a>
-          ) : (
-            <Button onClick={async () => {
-              await save();
-              try {
-                const render = await api<{ id: string; status: PipelineStatus; progress: number }>(`/api/videos/${draft.id}/render`, { method: "POST", headers: { "idempotency-key": crypto.randomUUID() } });
-                setStatus(render);
-                const timer = setInterval(async () => {
-                  const fresh = await api<Project>(`/api/videos/${draft.id}`);
-                  const latest = fresh.renders[0];
-                  if (latest) setStatus(latest);
-                  if (latest && ["COMPLETED", "FAILED", "CANCELLED"].includes(latest.status)) clearInterval(timer);
-                }, 3000);
-              } catch (cause) { toast(cause instanceof ApiClientError ? cause.message : "Exportação indisponível sem o pipeline de render.", "err"); }
-            }}>Tentar exportar</Button>
-          )}
-        </div>
-        <p className="text-[10px] font-medium leading-[13px] text-muted">Exportação completa só aparece quando houver arquivo gerado. Sem worker, o pedido pode falhar com mensagem honesta.</p>
-      </div>
+      )}
+
+      {/* Export button */}
+      {status?.outputAssetId ? (
+        <a className={`${buttonClass} w-full bg-primary text-white !h-12 !rounded-[14px] !text-[14px] justify-center`} href={`/api/media/${status.outputAssetId}`} download>
+          ⬇ Exportar vídeo
+        </a>
+      ) : (
+        <Button
+          className="w-full !h-12 !rounded-[14px] !text-[14px]"
+          onClick={async () => {
+            await save();
+            try {
+              const render = await api<{ id: string; status: PipelineStatus; progress: number }>(`/api/videos/${draft.id}/render`, { method: "POST", headers: { "idempotency-key": crypto.randomUUID() } });
+              setStatus(render);
+              const timer = setInterval(async () => {
+                const fresh = await api<Project>(`/api/videos/${draft.id}`);
+                const latest = fresh.renders[0];
+                if (latest) setStatus(latest);
+                if (latest && ["COMPLETED", "FAILED", "CANCELLED"].includes(latest.status)) clearInterval(timer);
+              }, 3000);
+            } catch (cause) { toast(cause instanceof ApiClientError ? cause.message : "Exportação indisponível sem o pipeline de render.", "err"); }
+          }}
+        >
+          ⬇ Exportar vídeo
+        </Button>
+      )}
     </div>
   );
 }

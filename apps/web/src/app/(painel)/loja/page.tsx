@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Heart } from "lucide-react";
+import { Heart, Pencil, Store } from "lucide-react";
 import { formatBrl } from "@vendefacil/types";
 import { getContainer } from "@vendefacil/business";
-import { StoreForm } from "@/components/ops-forms";
 import { buttonClass } from "@/components/controls";
+import { StoreForm } from "@/components/ops-forms";
 import { tenant } from "@/server/session";
 
 export const dynamic = "force-dynamic";
@@ -16,20 +16,27 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   const store = await container.db.store.findUnique({ where: { organizationId: session.organizationId }, include: { settings: true } });
   if (!store) return null;
   const products = await container.catalog.list(session, { q: "", sort: "recent", page: 1, pageSize: 12, published: "true" });
+  const categories = store.description ? store.description.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 3) : [];
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-3">
-        <span className="grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft text-base font-bold text-primary">{store.name.slice(0, 1)}</span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[16px] font-bold leading-5">{store.name}</p>
+      {/* Store header */}
+      <div className="mb-4 flex flex-col items-center gap-2 text-center">
+        <span className="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-[#8B6CFF] to-[#5B3DF0] text-white shadow-lift">
+          <Store size={24} />
+        </span>
+        <h1 className="text-[18px] font-bold leading-5 text-ink">{store.name}</h1>
+        {categories.length > 0 ? (
+          <p className="text-[11px] font-medium text-muted">{categories.join(" · ")}</p>
+        ) : (
           <p className="text-[11px] font-medium text-muted">{store.published ? "Vitrine no ar" : "Vitrine oculta"}</p>
-        </div>
+        )}
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-2">
+      {/* Action buttons */}
+      <div className="mb-5 grid grid-cols-2 gap-2">
         <a href="#editar-loja" className={`${buttonClass} border border-line bg-surface text-ink`}>
-          Editar loja
+          <Pencil size={14} /> Editar loja
         </a>
         {store.published ? (
           <Link href={`/v/${store.slug}`} className={`${buttonClass} bg-primary text-white`}>
@@ -40,20 +47,28 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         )}
       </div>
 
-      <div className="mb-4 flex gap-5 border-b border-line text-[13px] font-semibold">
-        <Link href="/loja?tab=produtos" className={tab === "produtos" ? "border-b-2 border-primary pb-2 text-primary" : "pb-2 text-muted"}>
-          Produtos ({products.meta.total})
-        </Link>
-        <Link href="/loja?tab=destaques" className={tab === "destaques" ? "border-b-2 border-primary pb-2 text-primary" : "pb-2 text-muted"}>
-          Destaques
-        </Link>
-        <Link href="/loja?tab=sobre" className={tab === "sobre" ? "border-b-2 border-primary pb-2 text-primary" : "pb-2 text-muted"}>
-          Sobre
-        </Link>
+      {/* Tabs */}
+      <div className="mb-4 flex gap-2 overflow-auto">
+        {([
+          { key: "produtos", label: `Produtos (${products.meta.total})`, href: "/loja?tab=produtos" },
+          { key: "destaques", label: "Destaques", href: "/loja?tab=destaques" },
+          { key: "sobre", label: "Sobre", href: "/loja?tab=sobre" },
+        ] as const).map((item) => (
+          <Link
+            key={item.key}
+            href={item.href}
+            className={`inline-flex items-center rounded-full px-4 py-2 text-[11px] font-semibold leading-[14px] transition ${
+              tab === item.key ? "bg-primary text-white" : "border border-line bg-surface text-ink"
+            }`}
+          >
+            {item.label}
+          </Link>
+        ))}
       </div>
 
+      {/* Content */}
       {tab === "sobre" ? (
-        <div className="rounded-2xl border border-line bg-surface p-4 text-[12px] leading-4 text-muted shadow-card">
+        <div className="rounded-[18px] border border-line bg-surface p-4 text-[12px] leading-4 text-muted shadow-card">
           <p className="text-[13px] font-semibold text-ink">{store.name}</p>
           <p className="mt-2">{store.description || "Sem descrição ainda."}</p>
           {store.whatsapp ? <p className="mt-3">WhatsApp: {store.whatsapp}</p> : null}
@@ -61,8 +76,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {(tab === "destaques" ? products.data.slice(0, 4) : products.data).map((product) => (
-            <Link key={product.id} href={`/produtos/${product.id}`} className="relative overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
-              <span className="absolute right-2 top-2 z-10 grid h-8 w-8 place-items-center rounded-full bg-white/90 text-danger shadow-card">
+            <Link key={product.id} href={`/produtos/${product.id}`} className="relative overflow-hidden rounded-[18px] border border-line bg-surface shadow-card">
+              <span className="absolute right-2 top-2 z-10 grid h-8 w-8 place-items-center rounded-full bg-white/90 text-line shadow-card">
                 <Heart size={14} />
               </span>
               {product.images[0] ? (
@@ -70,9 +85,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
               ) : (
                 <div className="grid aspect-square place-items-center bg-background text-xs text-muted">Sem foto</div>
               )}
-              <div className="p-3">
+              <div className="p-2.5">
                 <p className="truncate text-[12px] font-semibold leading-4">{product.name}</p>
-                <p className="text-[12px] font-semibold text-primary">{formatBrl(product.promoPriceCents ?? product.priceCents)}</p>
+                <p className="text-[12px] font-bold text-ink">{formatBrl(product.promoPriceCents ?? product.priceCents)}</p>
               </div>
             </Link>
           ))}
@@ -80,6 +95,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         </div>
       )}
 
+      {/* Store edit form */}
       <div id="editar-loja" className="mt-8">
         <h2 className="mb-3 text-[13px] font-semibold">Editar loja</h2>
         <StoreForm
