@@ -520,40 +520,40 @@ export function OnboardingForm() {
   const form = useForm({ resolver: zodResolver(onboardingSchema), defaultValues: { storeName: "", description: "", whatsapp: "" } });
   const [error, setError] = useState("");
   return (
-    <AuthGradientFrame title="Configure sua loja">
+    <AuthGradientFrame title="Seu canal de divulgação">
       <p className="mt-3 text-center text-[12px] leading-4 text-white/85">
-        Antes de criar anúncios com IA, informe o nome da loja. Isso libera o painel, a vitrine e os créditos.
+        Não é loja física. É o nome do seu perfil/canal para criar anúncios, postar nas redes e receber contatos.
       </p>
       <form
         className="mt-5 space-y-3"
         onSubmit={form.handleSubmit(async (values) => {
           try {
             await api("/api/onboarding", { method: "POST", body: JSON.stringify(values) });
-            // Hard navigation garante que a sessão lê a loja recém-criada.
+            // Hard navigation garante que a sessão lê o canal recém-criado.
             window.location.assign("/inicio");
           } catch (cause) {
             if (cause instanceof ApiClientError && cause.code === "CONFLICT") {
               window.location.assign("/inicio");
               return;
             }
-            setError(cause instanceof ApiClientError ? cause.message : "Não foi possível criar a loja.");
+            setError(cause instanceof ApiClientError ? cause.message : "Não foi possível criar o canal.");
           }
         })}
       >
         <div className="space-y-3 rounded-2xl bg-white p-4 shadow-[0_12px_32px_rgba(42,23,96,0.18)]">
-          <Field label="Nome da loja" section>
+          <Field label="Nome do canal / marca" section>
             <input className={inputClass} placeholder="Ex.: José Variedades" {...form.register("storeName")} />
           </Field>
-          <Field label="Descrição" section>
-            <textarea className={areaClass} placeholder="O que você vende" {...form.register("description")} />
+          <Field label="O que você divulga" section>
+            <textarea className={areaClass} placeholder="Produtos, serviços ou nicho" {...form.register("description")} />
           </Field>
-          <Field label="WhatsApp" section hint="DDD e número. Usado no botão da vitrine.">
+          <Field label="WhatsApp" section hint="Opcional. Usado no botão de contato da vitrine.">
             <input className={inputClass} placeholder="11999999999" {...form.register("whatsapp")} />
           </Field>
         </div>
         {error ? <p className="text-center text-[12px] text-danger">{error}</p> : null}
         <button type="submit" disabled={form.formState.isSubmitting} className={cn(authPrimaryClass, "disabled:opacity-50")}>
-          {form.formState.isSubmitting ? "Criando…" : "Criar loja e continuar"}
+          {form.formState.isSubmitting ? "Criando…" : "Continuar"}
         </button>
       </form>
     </AuthGradientFrame>

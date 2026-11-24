@@ -11,7 +11,7 @@ export type Tenant = SessionContext & { organizationId: string; role: NonNullabl
 export function requireTenant(session: SessionContext | null): Tenant {
   if (!session) throw new AppError("UNAUTHENTICATED", "Entre para continuar.", 401);
   if (!session.emailVerified) throw new AppError("EMAIL_UNVERIFIED", "Confirme seu e-mail para continuar.", 403);
-  if (!session.organizationId || !session.role) throw new AppError("ONBOARDING_REQUIRED", "Configure sua loja para continuar.", 409);
+  if (!session.organizationId || !session.role) throw new AppError("ONBOARDING_REQUIRED", "Configure seu canal de divulgação para continuar.", 409);
   return { ...session, organizationId: session.organizationId, role: session.role };
 }
 
@@ -44,11 +44,28 @@ export class TenantService {
     return parseLimits(subscription.plan.limits);
   }
 
+  async ensurePlans() {
+    for (const plan of PLAN_CATALOG) {
+      await this.db.plan.upsert({
+        where: { code: plan.code },
+        create: plan,
+        update: {
+          name: plan.name,
+          description: plan.description,
+          priceCents: plan.priceCents,
+          limits: plan.limits,
+          position: plan.position,
+        },
+      });
+    }
+  }
+
   async onboard(session: SessionContext, input: { storeName: string; description?: string; whatsapp?: string }, ip?: string) {
-    if (!session.emailVerified) throw new AppError("EMAIL_UNVERIFIED", "Confirme seu e-mail antes de criar a loja.", 403);
-    if (session.organizationId) throw new AppError("CONFLICT", "Sua loja já está configurada.", 409);
+    if (!session.emailVerified) throw new AppError("EMAIL_UNVERIFIED", "Confirme seu e-mail antes de criar o perfil.", 403);
+    if (session.organizationId) throw new AppError("CONFLICT", "Seu perfil de divulgação já está configurado.", 409);
+    await this.ensurePlans();
     const free = await this.db.plan.findUnique({ where: { code: "free" } });
-    if (!free) throw new AppError("PLAN_INVALID", "O plano gratuito ainda não foi configurado. Rode o seed.", 500);
+    if (!free) throw new AppError("PLAN_INVALID", "Não foi possível preparar o plano gratuito. Tente de novo em instantes.", 500);
     const limits = parseLimits(free.limits);
     const orgSlug = await uniqueSlug(input.storeName, async (slug) => Boolean(await this.db.organization.findUnique({ where: { slug } })));
     const storeSlug = await uniqueSlug(input.storeName, async (slug) => Boolean(await this.db.store.findUnique({ where: { slug } })));
@@ -95,7 +112,7 @@ export class TenantService {
       await audit(tx, { organizationId: org.id, actorUserId: session.userId, action: "store.created", entityType: "Store", entityId: store.id, ip });
       return org;
     });
-    return { organizationId: organization.id };
+    return { organizationId: organization.id, storeName: input.storeName };
   }
 
   async shell(tenant: Tenant) {

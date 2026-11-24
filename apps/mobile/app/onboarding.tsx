@@ -25,14 +25,14 @@ export default function OnboardingScreen() {
           VendeFácil <Text style={{ color: "#D4C8FF" }}>AI</Text>
         </Text>
       </View>
-      <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", textAlign: "center" }}>Configure sua loja</Text>
+      <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", textAlign: "center" }}>Seu canal de divulgação</Text>
       <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, textAlign: "center", marginTop: 8, marginBottom: 20, lineHeight: 16 }}>
-        Informe o nome da loja para liberar o painel, a vitrine e os anúncios com IA.
+        Não é loja física. É o nome do seu perfil/canal para criar anúncios, postar nas redes e receber contatos.
       </Text>
 
       <View style={{ borderRadius: 16, overflow: "hidden", backgroundColor: "#fff" }}>
         <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
-          <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 }}>Nome da loja</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 }}>Nome do canal / marca</Text>
           <TextInput
             value={storeName}
             onChangeText={setStoreName}
@@ -43,11 +43,11 @@ export default function OnboardingScreen() {
         </View>
         <View style={{ height: 1, backgroundColor: "#ECEAF3", marginHorizontal: 16 }} />
         <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
-          <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 }}>Descrição</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 }}>O que você divulga</Text>
           <TextInput
             value={description}
             onChangeText={setDescription}
-            placeholder="O que você vende"
+            placeholder="Produtos, serviços ou nicho"
             placeholderTextColor="#9A96AB"
             multiline
             style={{ color: colors.text, fontSize: 14, minHeight: 64, textAlignVertical: "top" }}
@@ -55,7 +55,7 @@ export default function OnboardingScreen() {
         </View>
         <View style={{ height: 1, backgroundColor: "#ECEAF3", marginHorizontal: 16 }} />
         <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
-          <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 }}>WhatsApp</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 }}>WhatsApp (opcional)</Text>
           <TextInput
             value={whatsapp}
             onChangeText={setWhatsapp}
@@ -86,7 +86,7 @@ export default function OnboardingScreen() {
               router.replace("/inicio");
               return;
             }
-            setError(cause instanceof Error ? cause.message : "Não foi possível criar a loja.");
+            setError(cause instanceof Error ? cause.message : "Não foi possível criar o canal.");
           } finally {
             setBusy(false);
           }
@@ -101,7 +101,7 @@ export default function OnboardingScreen() {
           opacity: busy || storeName.trim().length < 2 ? 0.7 : 1,
         }}
       >
-        {busy ? <ActivityIndicator color="#fff" /> : <Text style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}>Criar loja e continuar</Text>}
+        {busy ? <ActivityIndicator color="#fff" /> : <Text style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}>Continuar</Text>}
       </Pressable>
     </View>
   );
