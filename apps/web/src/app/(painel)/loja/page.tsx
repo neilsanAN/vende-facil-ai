@@ -4,6 +4,7 @@ import { formatBrl } from "@vendefacil/types";
 import { getContainer } from "@vendefacil/business";
 import { buttonClass } from "@/components/controls";
 import { StoreForm } from "@/components/ops-forms";
+import { PageHeader } from "@/components/ui";
 import { tenant } from "@/server/session";
 
 export const dynamic = "force-dynamic";
@@ -20,12 +21,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
 
   return (
     <div>
-      {/* Store header */}
-      <div className="mb-4 flex flex-col items-center gap-2 text-center">
-        <span className="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-[#8B6CFF] to-[#5B3DF0] text-white shadow-lift">
+      <PageHeader backHref="/mais" title="Minha loja" />
+      <div className="relative mb-16 overflow-hidden rounded-[20px] bg-gradient-to-br from-[#5B3DF0] via-[#7C5CFF] to-[#3B82F6] px-4 pb-14 pt-6 shadow-lift">
+        <span aria-hidden className="absolute -right-6 top-4 h-20 w-20 rounded-full bg-white/10" />
+        <span aria-hidden className="absolute left-4 top-8 h-12 w-12 rounded-full bg-white/10" />
+      </div>
+      <div className="-mt-12 mb-4 flex flex-col items-center gap-2 text-center">
+        <span className="grid h-16 w-16 place-items-center rounded-2xl border-4 border-background bg-gradient-to-br from-[#8B6CFF] to-[#5B3DF0] text-white shadow-lift">
           <Store size={24} />
         </span>
-        <h1 className="text-[18px] font-bold leading-5 text-ink">{store.name}</h1>
+        <h2 className="text-[18px] font-bold leading-5 text-ink">{store.name}</h2>
         {categories.length > 0 ? (
           <p className="text-[11px] font-medium text-muted">{categories.join(" · ")}</p>
         ) : (

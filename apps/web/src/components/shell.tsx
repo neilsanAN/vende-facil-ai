@@ -2,16 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, Clapperboard, Home, Menu, Package, Plus, ShoppingBag } from "lucide-react";
+import { Briefcase, Home, Menu, Package, Plus, ShoppingBag } from "lucide-react";
 import { cn } from "@/lib/http";
-import { panelBackHref } from "@/lib/nav";
 import { SessionKeepAlive } from "@/components/session-keepalive";
 
 const items = [
   { href: "/inicio", label: "Início", icon: Home },
   { href: "/produtos", label: "Produtos", icon: Package },
   { href: "/anuncios/novo", label: "Criar", icon: Plus, fab: true },
-  { href: "/estudio", label: "Estúdio", icon: Clapperboard },
+  { href: "/estudio", label: "Estúdio", icon: Briefcase },
   { href: "/mais", label: "Mais", icon: Menu },
 ];
 
@@ -52,7 +51,6 @@ export function Brand({ light = false }: { light?: boolean }) {
 
 export function AppShell({ children, store, plan, user }: { children: React.ReactNode; store?: string; plan: string; user: string }) {
   const pathname = usePathname();
-  const backHref = panelBackHref(pathname);
   return (
     <div className="min-h-screen bg-background">
       <SessionKeepAlive />
@@ -76,23 +74,22 @@ export function AppShell({ children, store, plan, user }: { children: React.Reac
           </div>
         </aside>
         <main className="mx-auto w-full max-w-lg px-4 py-4 pb-28 md:max-w-3xl md:px-8 md:pb-10">
-          {backHref ? (
-            <div className="sticky top-0 z-20 -mx-4 mb-3 flex items-center gap-1 border-b border-line bg-background/95 px-4 py-2 backdrop-blur">
-              <Link href={backHref} aria-label="Voltar" className="-ml-1 grid h-10 w-10 place-items-center rounded-full text-ink hover:bg-surface">
-                <ChevronLeft size={22} />
-              </Link>
-              <Link href={backHref} className="text-[13px] font-semibold text-ink">
-                Voltar
-              </Link>
-            </div>
-          ) : null}
           {children}
         </main>
       </div>
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         <ul className="mx-auto grid max-w-lg grid-cols-5">
           {items.map((item) => {
-            const active = item.href === "/inicio" ? pathname === "/inicio" : pathname.startsWith(item.href);
+            const active =
+              item.href === "/inicio"
+                ? pathname === "/inicio"
+                : item.href === "/produtos"
+                  ? pathname.startsWith("/produtos")
+                  : item.href === "/estudio"
+                    ? pathname.startsWith("/estudio")
+                    : item.href === "/mais"
+                      ? pathname === "/mais"
+                      : pathname.startsWith(item.href);
             const Icon = item.icon;
             if (item.fab) {
               return (

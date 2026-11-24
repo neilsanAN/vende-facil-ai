@@ -94,9 +94,13 @@ export default async function InicioPage() {
       ) : (
         <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
           {recent.map((product) => (
-            <Link key={product.id} href={`/produtos/${product.id}`} className="w-[104px] shrink-0 overflow-hidden rounded-[18px] border border-line bg-surface shadow-card">
+            <Link key={product.id} href={`/produtos/${product.id}`} className="w-[118px] shrink-0 overflow-hidden rounded-[18px] border border-line bg-surface shadow-card">
               <div className="aspect-square bg-background">
                 {product.images[0] ? <img src={`/api/media/${product.images[0].mediaAssetId}`} alt="" className="h-full w-full object-cover" /> : null}
+              </div>
+              <div className="px-2 py-2">
+                <p className="truncate text-[10px] font-semibold leading-3 text-ink">{product.name}</p>
+                <p className="mt-0.5 text-[10px] font-bold text-ink">{formatBrl(product.promoPriceCents ?? product.priceCents)}</p>
               </div>
             </Link>
           ))}

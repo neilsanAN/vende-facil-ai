@@ -11,10 +11,10 @@ type Dash = {
 };
 
 const actions = [
-  { href: "/anuncios", label: "Criar anúncio", color: "#6D4AFF" },
-  { href: "/estudio", label: "Vídeo com voz", color: "#7C5CFF" },
-  { href: "/estudio", label: "Arte social", color: "#14B8A6" },
-  { href: "/mais", label: "Publicar", color: "#22C55E" },
+  { href: "/anuncios", label: "Anúncio com IA", color: "#7C5CFF" },
+  { href: "/estudio", label: "Vídeo com voz", color: "#6D4AFF" },
+  { href: "/estudio", label: "Arte para redes", color: "#7C5CFF" },
+  { href: "/mais", label: "Publicar nas redes", color: "#7C5CFF" },
 ] as const;
 
 export default function HomeScreen() {

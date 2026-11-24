@@ -29,24 +29,23 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
       <PageHeader
         backHref="/mais"
         title="Estatísticas"
-        action={
-          <div className="flex gap-1.5">
-            {(["7d", "30d", "90d"] as const).map((item) => {
-              const days = Number(item.replace("d", ""));
-              const active = range === days;
-              return (
-                <Link
-                  key={item}
-                  href={`?range=${item}`}
-                  className={`inline-flex items-center rounded-full px-3 py-1.5 text-[10px] font-semibold leading-[13px] ${active ? "bg-primary text-white" : "border border-line text-muted"}`}
-                >
-                  {item === "7d" ? "Últimos 7 dias" : item === "30d" ? "30 dias" : "90 dias"}
-                </Link>
-              );
-            })}
-          </div>
-        }
       />
+
+      <div className="mb-4 flex gap-2">
+        {(["7d", "30d", "90d"] as const).map((item) => {
+          const days = Number(item.replace("d", ""));
+          const active = range === days;
+          return (
+            <Link
+              key={item}
+              href={`?range=${item}`}
+              className={`inline-flex h-10 items-center rounded-full px-3 text-[10px] font-semibold leading-[13px] ${active ? "bg-primary text-white" : "border border-line bg-surface text-ink"}`}
+            >
+              {item === "7d" ? "Últimos 7 dias" : item === "30d" ? "30 dias" : "90 dias"}
+            </Link>
+          );
+        })}
+      </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-2">

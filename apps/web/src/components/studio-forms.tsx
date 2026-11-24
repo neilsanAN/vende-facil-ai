@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Calendar, Copy, Facebook, Instagram, Link2, MessageCircle } from "lucide-react";
 import { VOICE_STYLES } from "@vendefacil/types";
 import { Button, Field, areaClass, inputClass, useToast } from "@/components/ui";
 import { api, ApiClientError } from "@/lib/http";
@@ -105,16 +106,29 @@ export function ArtForm({ products }: { products: Array<{ id: string; name: stri
   );
 }
 
-export function PublishDesk({ channels: _channels, products }: { channels: Array<{ provider: string; status: string; detail: string }>; products: Array<{ id: string; name: string }> }) {
+export function PublishDesk({
+  channels,
+  products,
+  storeLink = "",
+}: {
+  channels: Array<{ provider: string; status: string; detail: string }>;
+  products: Array<{ id: string; name: string }>;
+  storeLink?: string;
+}) {
   const toast = useToast();
   const [share, setShare] = useState<{ whatsappUrl?: string; link?: string; caption?: string } | null>(null);
-  const [enabled, setEnabled] = useState({ WHATSAPP: true, INSTAGRAM: false, FACEBOOK: false });
+  const [enabled, setEnabled] = useState({
+    WHATSAPP: true,
+    INSTAGRAM: channels.find((item) => item.provider === "INSTAGRAM")?.status !== "REQUIRES_AUTH",
+    FACEBOOK: channels.find((item) => item.provider === "FACEBOOK")?.status === "CONNECTED",
+  });
   const [schedule, setSchedule] = useState(false);
+  const catalogLink = share?.link || storeLink;
 
   const socials = [
-    { key: "WHATSAPP" as const, label: "Compartilhar no WhatsApp", icon: "🟢", detail: "" },
-    { key: "INSTAGRAM" as const, label: "Publicar no Instagram", icon: "📸", detail: "(Feed ou Stories)" },
-    { key: "FACEBOOK" as const, label: "Publicar no Facebook", icon: "📘", detail: "(Página)" },
+    { key: "WHATSAPP" as const, label: "Compartilhar no WhatsApp", Icon: MessageCircle, iconClass: "text-emerald-600 bg-emerald-50", detail: "" },
+    { key: "INSTAGRAM" as const, label: "Publicar no Instagram", Icon: Instagram, iconClass: "text-pink-600 bg-pink-50", detail: "(Feed ou Stories)" },
+    { key: "FACEBOOK" as const, label: "Publicar no Facebook", Icon: Facebook, iconClass: "text-blue-600 bg-blue-50", detail: "(Página)" },
   ];
 
   return (
@@ -123,7 +137,9 @@ export function PublishDesk({ channels: _channels, products }: { channels: Array
       <ul className="space-y-2.5">
         {socials.map((item) => (
           <li key={item.key} className="flex items-center gap-3 rounded-[18px] border border-line bg-surface px-4 py-3.5 shadow-card">
-            <span className="text-lg">{item.icon}</span>
+            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${item.iconClass}`}>
+              <item.Icon size={18} />
+            </span>
             <span className="min-w-0 flex-1">
               <strong className="block text-[13px] font-semibold leading-4 text-ink">{item.label}</strong>
               {item.detail ? <span className="text-[11px] font-medium text-muted">{item.detail}</span> : null}
@@ -142,18 +158,38 @@ export function PublishDesk({ channels: _channels, products }: { channels: Array
 
       {/* Store link card */}
       <div className="flex items-center gap-3 rounded-[18px] border border-line bg-surface px-4 py-3.5 shadow-card">
-        <span className="text-lg">🔗</span>
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
+          <Link2 size={18} />
+        </span>
         <span className="min-w-0 flex-1">
           <strong className="block text-[13px] font-semibold leading-4 text-ink">Link da minha loja</strong>
-          <span className="text-[11px] font-medium text-muted">{share?.link || "Compartilhe seu catálogo online"}</span>
+          <span className="text-[11px] font-medium text-muted">{catalogLink || "Compartilhe seu catálogo online"}</span>
         </span>
-        <button type="button" className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-background text-muted" aria-label="Copiar">📋</button>
+        <button
+          type="button"
+          className="grid h-10 w-10 place-items-center rounded-lg border border-line bg-background text-muted"
+          aria-label="Copiar"
+          disabled={!catalogLink}
+          onClick={async () => {
+            if (!catalogLink) return;
+            try {
+              await navigator.clipboard.writeText(catalogLink);
+              toast("Link copiado.");
+            } catch {
+              toast("Não foi possível copiar.", "err");
+            }
+          }}
+        >
+          <Copy size={16} />
+        </button>
       </div>
 
       {/* Schedule toggle */}
       <div className="flex items-center justify-between rounded-[18px] border border-line bg-surface px-4 py-3.5 shadow-card">
         <span className="flex items-center gap-3">
-          <span className="text-lg">📅</span>
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-background text-primary">
+            <Calendar size={18} />
+          </span>
           <span className="text-[13px] font-semibold text-ink">Agendar publicação</span>
         </span>
         <button
@@ -204,8 +240,8 @@ export function PublishDesk({ channels: _channels, products }: { channels: Array
         }}
       >
         <input type="hidden" name="channel" value={Object.entries(enabled).find(([, v]) => v)?.[0] || "WHATSAPP"} />
-        <Field label="Produto">
-          <select name="targetId" className={`${inputClass} rounded-[12px]`}>
+        <Field label="Produto" section>
+          <select name="targetId" className={inputClass}>
             {products.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
@@ -213,10 +249,10 @@ export function PublishDesk({ channels: _channels, products }: { channels: Array
             ))}
           </select>
         </Field>
-        <Field label="Legenda">
+        <Field label="Legenda" section>
           <textarea name="caption" className={areaClass} placeholder="Escreva algo para compartilhar..." />
         </Field>
-        <Button type="submit" className="w-full !h-12 !rounded-[14px] !text-[14px]">
+        <Button type="submit" className="w-full">
           Publicar agora
         </Button>
       </form>

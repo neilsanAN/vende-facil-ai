@@ -25,7 +25,17 @@ export async function HistoryPage() {
 export async function PublishPage() {
   const session = await tenant();
   const container = getContainer();
-  const [channels, products] = await Promise.all([container.publications.channels(session), container.catalog.list(session, { q: "", sort: "recent", page: 1, pageSize: 50 })]);
+  const [channels, products, store] = await Promise.all([
+    container.publications.channels(session),
+    container.catalog.list(session, { q: "", sort: "recent", page: 1, pageSize: 50 }),
+    container.db.store.findUnique({ where: { organizationId: session.organizationId }, select: { slug: true, published: true } }),
+  ]);
+  const storeLink = store?.published && store.slug ? `${container.config.APP_URL}/v/${store.slug}` : "";
   const { PublishDesk } = await import("@/components/studio-forms");
-  return <div><PageHeader backHref="/mais" title="Publicar nas redes" /><PublishDesk channels={channels} products={products.data.map((item) => ({ id: item.id, name: item.name }))} /></div>;
+  return (
+    <div>
+      <PageHeader backHref="/mais" title="Publicar nas redes" />
+      <PublishDesk channels={channels} products={products.data.map((item) => ({ id: item.id, name: item.name }))} storeLink={storeLink} />
+    </div>
+  );
 }

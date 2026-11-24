@@ -5,9 +5,9 @@ import { createContext, useContext, useState, type ButtonHTMLAttributes, type Re
 import { ChevronLeft } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/http";
-import { buttonClass } from "@/components/controls";
+import { buttonClass, sectionLabelClass } from "@/components/controls";
 
-export { areaClass, buttonClass, chipClass, inputClass } from "@/components/controls";
+export { areaClass, areaSoftClass, buttonClass, chipClass, inputClass, inputSoftClass, sectionLabelClass } from "@/components/controls";
 
 const buttonStyles = cva(buttonClass, {
   variants: {
@@ -26,10 +26,20 @@ export function Button({ className, variant, size, ...props }: ButtonHTMLAttribu
   return <button className={cn(buttonStyles({ variant, size }), className)} {...props} />;
 }
 
-export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+export function Field({
+  label,
+  hint,
+  section = false,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  section?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <label className="block space-y-1">
-      <span className="block text-[10px] font-medium leading-[13px] text-muted">{label}</span>
+    <label className="block space-y-1.5">
+      <span className={cn(section ? sectionLabelClass : "block text-[10px] font-medium leading-[13px] text-muted")}>{label}</span>
       {children}
       {hint ? <span className="block text-[10px] font-medium leading-[13px] text-muted">{hint}</span> : null}
     </label>
@@ -74,24 +84,18 @@ export function PageHeader({
 }) {
   return (
     <div className="mb-5">
-      <div className="flex items-start gap-1.5">
+      <div className="flex items-center gap-1">
         {backHref ? (
-          <Link
-            href={backHref}
-            aria-label="Voltar"
-            className="-ml-1 mt-0.5 hidden h-9 w-9 shrink-0 place-items-center rounded-full text-ink hover:bg-surface md:grid"
-          >
-            <ChevronLeft size={22} />
+          <Link href={backHref} aria-label="Voltar" className="-ml-1 grid h-10 w-10 shrink-0 place-items-center rounded-full text-ink hover:bg-surface">
+            <ChevronLeft size={22} strokeWidth={2.2} />
           </Link>
         ) : null}
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="text-[18px] font-bold leading-[22px] tracking-tight">{title}</h1>
-              {text ? <p className="mt-1 text-[12px] leading-4 text-muted">{text}</p> : null}
-            </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h1 className={cn("font-bold tracking-tight text-ink", backHref ? "text-[17px] leading-[21px]" : "text-[20px] leading-6")}>{title}</h1>
             {action}
           </div>
+          {text ? <p className="mt-1 text-[12px] leading-4 text-muted">{text}</p> : null}
         </div>
       </div>
     </div>
@@ -110,7 +114,7 @@ export function Stat({ label, value, hint }: { label: string; value: string; hin
 
 const ToastContext = createContext<(message: string, tone?: "ok" | "err") => void>(() => undefined);
 
-export function ToastProvider({ children }: { children: ReactNode }) {
+export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toast, setToast] = useState<{ message: string; tone: "ok" | "err" } | null>(null);
   return (
     <ToastContext.Provider value={(message, tone = "ok") => { setToast({ message, tone }); setTimeout(() => setToast(null), 3400); }}>

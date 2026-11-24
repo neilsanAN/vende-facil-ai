@@ -22,7 +22,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   return (
     <div>
-      <PageHeader backHref="/inicio" title="Anúncio gerado pela IA" text="Revise título, descrição e hashtags. Nada é publicado sozinho." />
+      <PageHeader backHref="/inicio" title="Anúncio gerado pela IA" />
       <AdEditor ad={{ ...ad, imageUrl }} />
     </div>
   );

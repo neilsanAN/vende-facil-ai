@@ -2,10 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Camera, ImageIcon, Pencil, RefreshCw, Sparkles } from "lucide-react";
+import { Camera, Clapperboard, Gauge, ImageIcon, Layers, Mic2, Pencil, RefreshCw, Sparkles, Type } from "lucide-react";
 import { formatBrl, TONE_LABEL, ASPECT_DIMENSIONS, PIPELINE_LABEL, type PipelineStatus } from "@vendefacil/types";
 import { parseBrlToCents } from "@vendefacil/validation";
-import { Button, Field, areaClass, buttonClass, chipClass, inputClass, useToast } from "@/components/ui";
+import { Button, Field, areaClass, areaSoftClass, buttonClass, chipClass, inputClass, inputSoftClass, sectionLabelClass, useToast } from "@/components/ui";
 import { api, ApiClientError } from "@/lib/http";
 
 type Category = { id: string; name: string };
@@ -372,14 +372,14 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
               ))}
             </div>
           </div>
-          <Field label="Título">
-            <input className={`${inputClass} rounded-[12px] bg-[#F3F4F8]`} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
+          <Field label="Título" section>
+            <input className={inputSoftClass} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
           </Field>
-          <Field label="Descrição">
-            <textarea className={`${areaClass} rounded-[12px] bg-[#F3F4F8]`} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
+          <Field label="Descrição" section>
+            <textarea className={areaSoftClass} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
           </Field>
           <div>
-            <p className="mb-2 text-[12px] font-semibold text-ink">Hashtags (sugeridas)</p>
+            <p className={sectionLabelClass}>Hashtags (sugeridas)</p>
             <div className="flex flex-wrap gap-2">
               {draft.hashtags.map((tag) => (
                 <span key={tag} className="rounded-full bg-[#F3EEFF] px-3 py-1.5 text-[11px] font-semibold text-primary">
@@ -388,7 +388,7 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
               ))}
             </div>
             <input
-              className={`${inputClass} mt-2 rounded-[12px] bg-[#F3F4F8]`}
+              className={`${inputSoftClass} mt-2`}
               value={draft.hashtags.join(" ")}
               onChange={(event) => setDraft({ ...draft, hashtags: event.target.value.split(/[\s,]+/).filter(Boolean) })}
               placeholder="Editar hashtags"
@@ -454,14 +454,14 @@ export function AdEditor({
           ))}
         </div>
       </div>
-      <Field label="Título">
-        <input className={`${inputClass} rounded-[12px] bg-[#F3F4F8]`} value={title} onChange={(event) => setTitle(event.target.value)} />
+      <Field label="Título" section>
+        <input className={inputSoftClass} value={title} onChange={(event) => setTitle(event.target.value)} />
       </Field>
-      <Field label="Descrição">
-        <textarea className={`${areaClass} rounded-[12px] bg-[#F3F4F8]`} value={description} onChange={(event) => setDescription(event.target.value)} />
+      <Field label="Descrição" section>
+        <textarea className={areaSoftClass} value={description} onChange={(event) => setDescription(event.target.value)} />
       </Field>
       <div>
-        <p className="mb-2 text-[12px] font-semibold text-ink">Hashtags (sugeridas)</p>
+        <p className={sectionLabelClass}>Hashtags (sugeridas)</p>
         <div className="flex flex-wrap gap-2">
           {tags.map((tag) => (
             <span key={tag} className="rounded-full bg-[#F3EEFF] px-3 py-1.5 text-[11px] font-semibold text-primary">
@@ -470,7 +470,7 @@ export function AdEditor({
           ))}
         </div>
         <input
-          className={`${inputClass} mt-2 rounded-[12px] bg-[#F3F4F8]`}
+          className={`${inputSoftClass} mt-2`}
           value={tags.join(" ")}
           onChange={(event) => setTags(event.target.value.split(/[\s,]+/).filter(Boolean))}
           placeholder="Editar hashtags"
@@ -498,9 +498,9 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
     ["ELEGANT", "Comercial"],
     ["OFFER", "Oferta"],
     ["SOCIAL", "Apresentação"],
-    ["VITRINE", "Vitrine"],
+    ["SHOWCASE", "Vitrine"],
     ["MINIMAL", "Minimalista"],
-    ["REDES", "Redes sociais"],
+    ["PREMIUM", "Redes sociais"],
   ] as const;
   const ratios = [
     ["R9_16", "9:16", "Reels/Stories"],
@@ -532,8 +532,8 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
         </div>
       ) : null}
 
-      <Field label="Objetivo do vídeo">
-        <select className={`${inputClass} rounded-[12px]`} value={form.objective} onChange={(event) => setForm({ ...form, objective: event.target.value })}>
+      <Field label="Objetivo do vídeo" section>
+        <select className={inputClass} value={form.objective} onChange={(event) => setForm({ ...form, objective: event.target.value })}>
           <option value="SELL">Vender o produto</option>
           <option value="AWARENESS">Apresentar a marca</option>
           <option value="OFFER">Destacar oferta</option>
@@ -541,7 +541,7 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
       </Field>
 
       <div>
-        <p className="mb-2 text-[12px] font-semibold text-ink">Estilo do vídeo</p>
+        <p className={`${sectionLabelClass} mb-2`}>Estilo do vídeo</p>
         <div className="flex flex-wrap gap-2">
           {styles.map(([value, label]) => (
             <button type="button" key={value} className={`${chipClass} ${form.style === value ? "bg-primary text-white" : "border border-line bg-surface text-ink"}`} onClick={() => setForm({ ...form, style: value })}>
@@ -552,7 +552,7 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
       </div>
 
       <div>
-        <p className="mb-2 text-[12px] font-semibold text-ink">Duração</p>
+        <p className={`${sectionLabelClass} mb-2`}>Duração</p>
         <div className="flex gap-2">
           {[15, 30, 45, 60].map((item) => (
             <button type="button" key={item} className={`${chipClass} ${form.durationSec === item ? "bg-primary text-white" : "border border-line bg-surface text-ink"}`} onClick={() => setForm({ ...form, durationSec: item })}>
@@ -563,7 +563,7 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
       </div>
 
       <div>
-        <p className="mb-2 text-[12px] font-semibold text-ink">Formato</p>
+        <p className={`${sectionLabelClass} mb-2`}>Formato</p>
         <div className="flex gap-2">
           {ratios.map(([value, ratio, label]) => (
             <button
@@ -579,8 +579,8 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
         </div>
       </div>
 
-      <Field label="Produto">
-        <select className={`${inputClass} rounded-[12px]`} value={form.productId} onChange={(event) => setForm({ ...form, productId: event.target.value })}>
+      <Field label="Trocar produto" section>
+        <select className={inputClass} value={form.productId} onChange={(event) => setForm({ ...form, productId: event.target.value })}>
           {products.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
@@ -589,7 +589,7 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
         </select>
       </Field>
 
-      <Button type="submit" className="w-full !h-12 !rounded-[14px] !text-[14px]">
+      <Button type="submit" className="w-full">
         Gerar vídeo com IA
       </Button>
     </form>
@@ -623,11 +623,11 @@ export function VideoEditor({ project }: { project: Project }) {
   }
 
   const tabs = [
-    { key: "cenas" as const, label: "Cenas", icon: "🎬" },
-    { key: "texto" as const, label: "Texto", icon: "T" },
-    { key: "audio" as const, label: "Áudio", icon: "🔊" },
-    { key: "transicao" as const, label: "Transição", icon: "⇄" },
-    { key: "velocidade" as const, label: "Velocidade", icon: "⏩" },
+    { key: "cenas" as const, label: "Cenas", icon: Layers },
+    { key: "texto" as const, label: "Texto", icon: Type },
+    { key: "audio" as const, label: "Áudio", icon: Mic2 },
+    { key: "transicao" as const, label: "Transição", icon: Clapperboard },
+    { key: "velocidade" as const, label: "Velocidade", icon: Gauge },
   ];
 
   return (
@@ -676,7 +676,7 @@ export function VideoEditor({ project }: { project: Project }) {
             onClick={() => setTab(t.key)}
             className={`flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2 text-[9px] font-semibold transition ${tab === t.key ? "bg-primary-soft text-primary" : "text-muted hover:bg-background"}`}
           >
-            <span className="text-sm">{t.icon}</span>
+            <t.icon size={16} strokeWidth={1.8} />
             {t.label}
           </button>
         ))}
@@ -713,12 +713,12 @@ export function VideoEditor({ project }: { project: Project }) {
 
       {/* Export button */}
       {status?.outputAssetId ? (
-        <a className={`${buttonClass} w-full bg-primary text-white !h-12 !rounded-[14px] !text-[14px] justify-center`} href={`/api/media/${status.outputAssetId}`} download>
-          ⬇ Exportar vídeo
+        <a className={`${buttonClass} w-full bg-primary text-white justify-center`} href={`/api/media/${status.outputAssetId}`} download>
+          Exportar vídeo
         </a>
       ) : (
         <Button
-          className="w-full !h-12 !rounded-[14px] !text-[14px]"
+          className="w-full"
           onClick={async () => {
             await save();
             try {
@@ -733,7 +733,7 @@ export function VideoEditor({ project }: { project: Project }) {
             } catch (cause) { toast(cause instanceof ApiClientError ? cause.message : "Exportação indisponível sem o pipeline de render.", "err"); }
           }}
         >
-          ⬇ Exportar vídeo
+          Exportar vídeo
         </Button>
       )}
     </div>
