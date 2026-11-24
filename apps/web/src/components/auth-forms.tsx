@@ -516,7 +516,6 @@ export function VerifyPanel() {
 }
 
 export function OnboardingForm() {
-  const router = useRouter();
   const form = useForm({ resolver: zodResolver(onboardingSchema), defaultValues: { storeName: "", description: "", whatsapp: "" } });
   const [error, setError] = useState("");
   return (
