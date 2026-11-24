@@ -5,9 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, registerSchema, forgotSchema, resetSchema, onboardingSchema } from "@vendefacil/validation";
-import { Eye, EyeOff, Lock, Mail } from "lucide-react";
-import { LogoMark } from "@/components/shell";
-import { Button, Field, areaClass, inputClass, useToast } from "@/components/ui";
+import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
+import { buttonClass } from "@/components/controls";
+import { Field, areaClass, inputClass, useToast } from "@/components/ui";
 import { api, ApiClientError, cn } from "@/lib/http";
 import { useEffect, useMemo, useState } from "react";
 
@@ -23,23 +23,6 @@ function AuthLogo({ className }: { className?: string }) {
         </svg>
       </span>
     </span>
-  );
-}
-
-function Screen({ children, title, dark = false }: { children: React.ReactNode; title?: string; dark?: boolean }) {
-  return (
-    <main className={cn("min-h-screen", dark ? "bg-[radial-gradient(circle_at_top,_#1A1240_0%,_#070B18_46%)] text-white" : "bg-background text-ink")}>
-      <div className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col px-6 py-10">
-        <div className="mb-8 flex flex-col items-center text-center">
-          <LogoMark />
-          <p className={cn("mt-4 text-2xl font-bold tracking-tight", dark ? "text-white" : "text-ink")}>
-            VendeFácil <span className="text-primary">AI</span>
-          </p>
-          {title ? <p className={cn("mt-1 text-sm", dark ? "text-white/60" : "text-muted")}>{title}</p> : null}
-        </div>
-        {children}
-      </div>
-    </main>
   );
 }
 
@@ -70,10 +53,30 @@ function useIphone() {
   return iphone;
 }
 
-function SocialButtons({ alwaysApple = false }: { alwaysApple?: boolean }) {
+function AuthGradientFrame({ title, children, footer }: { title: string; children: React.ReactNode; footer?: React.ReactNode }) {
+  return (
+    <main className="min-h-screen bg-[linear-gradient(180deg,#2A1760_0%,#6B4AD6_42%,#E9E4F8_78%,#F7F5FC_100%)]">
+      <div className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col px-6 pb-8 pt-12">
+        <div className="flex items-center justify-center gap-2.5">
+          <AuthLogo />
+          <p className="text-[22px] font-bold leading-7 tracking-tight text-white">
+            VendeFácil <span className="text-[#D4C8FF]">AI</span>
+          </p>
+        </div>
+        <h1 className="mt-8 text-center text-[22px] font-bold leading-7 tracking-tight text-white">{title}</h1>
+        {children}
+        {footer}
+      </div>
+    </main>
+  );
+}
+
+const authPrimaryClass = cn(buttonClass, "mt-5 w-full rounded-2xl bg-[#6D4AFF] text-white shadow-[0_10px_24px_rgba(109,74,255,0.35)]");
+
+function SocialButtons() {
   const toast = useToast();
   const iphone = useIphone();
-  const socialClass = "flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#D7D5E5] bg-white px-4 text-[13px] font-semibold leading-[16px] text-[#2A2740] shadow-sm";
+  const socialClass = cn(buttonClass, "w-full rounded-2xl border border-[#D7D5E5] bg-white text-[13px] font-semibold text-[#2A2740] shadow-sm");
   return (
     <div className="mt-5 space-y-3">
       <div className="flex items-center gap-3">
@@ -85,46 +88,12 @@ function SocialButtons({ alwaysApple = false }: { alwaysApple?: boolean }) {
         <GoogleMark />
         Continuar com Google
       </button>
-      {alwaysApple || iphone ? (
+      {iphone ? (
         <button type="button" className={socialClass} onClick={() => toast("O acesso com Apple entra quando o aplicativo estiver configurado.", "err")}>
           <AppleMark />
           Continuar com Apple
         </button>
       ) : null}
-    </div>
-  );
-}
-
-function PasswordInput({
-  label,
-  password,
-  registration,
-  showStrength = false,
-}: {
-  label: string;
-  password: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  registration: any;
-  showStrength?: boolean;
-}) {
-  const [visible, setVisible] = useState(false);
-  const strength = useMemo(() => scorePassword(password), [password]);
-  return (
-    <div className="space-y-1.5">
-      <Field label={label}>
-        <div className="relative">
-          <input className={cn(inputClass, "pr-10")} type={visible ? "text" : "password"} autoComplete="new-password" {...registration} />
-          <button
-            type="button"
-            className="absolute inset-y-0 right-0 grid w-10 place-items-center text-muted"
-            onClick={() => setVisible((current) => !current)}
-            aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
-          >
-            {visible ? <EyeOff size={16} /> : <Eye size={16} />}
-          </button>
-        </div>
-      </Field>
-      {showStrength ? <PasswordStrength value={password} score={strength.score} checks={strength.checks} /> : null}
     </div>
   );
 }
@@ -182,16 +151,17 @@ export function LoginForm() {
   const [error, setError] = useState("");
   const [visible, setVisible] = useState(false);
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#2A1760_0%,#6B4AD6_42%,#E9E4F8_78%,#F7F5FC_100%)]">
-      <div className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col px-6 pb-8 pt-12">
-        <div className="flex items-center justify-center gap-2.5">
-          <AuthLogo />
-          <p className="text-[22px] font-bold leading-7 tracking-tight text-white">
-            VendeFácil <span className="text-[#D4C8FF]">AI</span>
-          </p>
-        </div>
-        <h1 className="mt-8 text-center text-[24px] font-bold leading-8 tracking-tight text-white">Acesse sua conta</h1>
-
+    <AuthGradientFrame
+      title="Acesse sua conta"
+      footer={
+        <p className="mt-auto pt-8 text-center text-[13px] text-[#5C5870]">
+          Não tem uma conta?{" "}
+          <Link href="/cadastro" className="font-bold text-[#6D4AFF]">
+            Cadastre-se
+          </Link>
+        </p>
+      }
+    >
         <form
           className="mt-7"
           onSubmit={form.handleSubmit(async (values) => {
@@ -248,25 +218,13 @@ export function LoginForm() {
 
           {error ? <p className="mt-3 text-center text-[12px] text-danger">{error}</p> : null}
 
-          <button
-            type="submit"
-            disabled={form.formState.isSubmitting}
-            className="mt-5 flex h-12 w-full items-center justify-center rounded-2xl bg-[#6D4AFF] text-[14px] font-semibold text-white shadow-[0_10px_24px_rgba(109,74,255,0.35)] disabled:opacity-50"
-          >
+          <button type="submit" disabled={form.formState.isSubmitting} className={cn(authPrimaryClass, "disabled:opacity-50")}>
             Entrar
           </button>
         </form>
 
-        <SocialButtons alwaysApple />
-
-        <p className="mt-auto pt-8 text-center text-[13px] text-[#5C5870]">
-          Não tem uma conta?{" "}
-          <Link href="/cadastro" className="font-bold text-[#6D4AFF]">
-            Cadastre-se
-          </Link>
-        </p>
-      </div>
-    </main>
+        <SocialButtons />
+    </AuthGradientFrame>
   );
 }
 
@@ -277,10 +235,21 @@ export function RegisterForm() {
   const password = form.watch("password") || "";
   const strength = scorePassword(password);
   const canSubmit = strength.checks.length && strength.checks.letter && strength.checks.number && form.watch("acceptTerms");
+  const [visible, setVisible] = useState(false);
   return (
-    <Screen title="Criar conta com e-mail">
+    <AuthGradientFrame
+      title="Criar conta"
+      footer={
+        <p className="mt-auto pt-8 text-center text-[13px] text-[#5C5870]">
+          Já tem conta?{" "}
+          <Link href="/entrar" className="font-bold text-[#6D4AFF]">
+            Entrar
+          </Link>
+        </p>
+      }
+    >
       <form
-        className="space-y-3"
+        className="mt-7"
         onSubmit={form.handleSubmit(async (values) => {
           setError("");
           try {
@@ -294,31 +263,47 @@ export function RegisterForm() {
           }
         })}
       >
-        <Field label="Nome">
-          <input className={inputClass} autoComplete="name" {...form.register("name")} />
-        </Field>
-        <Field label="E-mail">
-          <input className={inputClass} type="email" autoComplete="email" {...form.register("email")} />
-        </Field>
-        <PasswordInput label="Senha" password={password} registration={form.register("password")} showStrength />
-        <label className="flex items-start gap-2 text-[12px] leading-4 text-muted">
+        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_12px_32px_rgba(42,23,96,0.18)]">
+          <label className="flex items-center gap-3 px-4 py-3.5">
+            <User size={18} className="shrink-0 text-[#9A96AB]" />
+            <input className="h-6 w-full border-0 bg-transparent text-[13px] font-medium text-[#171827] outline-none placeholder:text-[#9A96AB]" autoComplete="name" placeholder="Nome" {...form.register("name")} />
+          </label>
+          <div className="mx-4 h-px bg-[#ECEAF3]" />
+          <label className="flex items-center gap-3 px-4 py-3.5">
+            <Mail size={18} className="shrink-0 text-[#9A96AB]" />
+            <input className="h-6 w-full border-0 bg-transparent text-[13px] font-medium text-[#171827] outline-none placeholder:text-[#9A96AB]" type="email" autoComplete="email" placeholder="seu@email.com" {...form.register("email")} />
+          </label>
+          <div className="mx-4 h-px bg-[#ECEAF3]" />
+          <label className="flex items-center gap-3 px-4 py-3.5">
+            <Lock size={18} className="shrink-0 text-[#9A96AB]" />
+            <input
+              className="h-6 w-full border-0 bg-transparent text-[13px] font-medium tracking-wide text-[#171827] outline-none placeholder:text-[#9A96AB]"
+              type={visible ? "text" : "password"}
+              autoComplete="new-password"
+              placeholder="••••••••"
+              {...form.register("password")}
+            />
+            <button type="button" className="grid h-8 w-8 place-items-center text-[#9A96AB]" onClick={() => setVisible((v) => !v)} aria-label={visible ? "Ocultar senha" : "Mostrar senha"}>
+              {visible ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </label>
+        </div>
+        <div className="mt-3">
+          <PasswordStrength value={password} score={strength.score} checks={strength.checks} />
+        </div>
+        <label className="mt-3 flex items-start gap-2 text-[12px] leading-4 text-[#5C5870]">
           <input className="mt-0.5" type="checkbox" {...form.register("acceptTerms")} />
           <span>
-            Li e aceito os <Link className="text-primary" href="/termos">termos</Link> e a <Link className="text-primary" href="/privacidade">política de privacidade</Link>.
+            Li e aceito os <Link className="font-semibold text-[#6D4AFF]" href="/termos">termos</Link> e a <Link className="font-semibold text-[#6D4AFF]" href="/privacidade">política de privacidade</Link>.
           </span>
         </label>
-        {error || form.formState.errors.acceptTerms ? <p className="text-sm text-danger">{error || form.formState.errors.acceptTerms?.message}</p> : null}
-        <Button className="w-full" type="submit" disabled={!canSubmit || form.formState.isSubmitting}>
+        {error || form.formState.errors.acceptTerms ? <p className="mt-3 text-center text-[12px] text-danger">{error || form.formState.errors.acceptTerms?.message}</p> : null}
+        <button type="submit" disabled={!canSubmit || form.formState.isSubmitting} className={cn(authPrimaryClass, "disabled:opacity-50")}>
           Criar conta
-        </Button>
+        </button>
       </form>
-      <p className="mt-4 text-center text-sm text-muted">
-        Já tem conta?{" "}
-        <Link href="/entrar" className="font-semibold text-primary">
-          Entrar
-        </Link>
-      </p>
-    </Screen>
+      <SocialButtons />
+    </AuthGradientFrame>
   );
 }
 
@@ -327,30 +312,42 @@ export function ForgotForm() {
   const [link, setLink] = useState("");
   const [done, setDone] = useState(false);
   return (
-    <Screen title="Recuperar senha">
-      <p className="text-sm text-muted">Se o e-mail existir, enviaremos as instruções. A resposta não revela se a conta existe.</p>
+    <AuthGradientFrame
+      title="Recuperar senha"
+      footer={
+        <p className="mt-auto pt-8 text-center text-[13px] text-[#5C5870]">
+          <Link href="/entrar" className="font-bold text-[#6D4AFF]">
+            Voltar para entrar
+          </Link>
+        </p>
+      }
+    >
+      <p className="mt-4 text-center text-[12px] leading-4 text-white/80">Se o e-mail existir, enviaremos as instruções. A resposta não revela se a conta existe.</p>
       <form
-        className="mt-5 space-y-3"
+        className="mt-6"
         onSubmit={form.handleSubmit(async (values) => {
           const result = await api<{ devResetUrl?: string | null }>("/api/auth/forgot", { method: "POST", body: JSON.stringify(values) });
           setDone(true);
           if (result.devResetUrl) setLink(result.devResetUrl);
         })}
       >
-        <Field label="E-mail">
-          <input className={inputClass} type="email" {...form.register("email")} />
-        </Field>
-        <Button className="w-full" type="submit">
+        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_12px_32px_rgba(42,23,96,0.18)]">
+          <label className="flex items-center gap-3 px-4 py-3.5">
+            <Mail size={18} className="shrink-0 text-[#9A96AB]" />
+            <input className="h-6 w-full border-0 bg-transparent text-[13px] font-medium text-[#171827] outline-none placeholder:text-[#9A96AB]" type="email" placeholder="seu@email.com" {...form.register("email")} />
+          </label>
+        </div>
+        <button type="submit" className={authPrimaryClass}>
           Enviar
-        </Button>
+        </button>
       </form>
-      {done ? <p className="mt-3 text-sm">Se houver uma conta, o próximo passo foi preparado.</p> : null}
+      {done ? <p className="mt-3 text-center text-[12px] text-white">Se houver uma conta, o próximo passo foi preparado.</p> : null}
       {link ? (
-        <a className="mt-2 block text-sm text-primary" href={link}>
+        <a className="mt-2 block text-center text-[12px] font-semibold text-[#D4C8FF]" href={link}>
           Abrir redefinição deste ambiente local
         </a>
       ) : null}
-    </Screen>
+    </AuthGradientFrame>
   );
 }
 
@@ -362,10 +359,11 @@ export function ResetForm() {
   const password = form.watch("password") || "";
   const strength = scorePassword(password);
   const canSubmit = strength.checks.length && strength.checks.letter && strength.checks.number;
+  const [visible, setVisible] = useState(false);
   return (
-    <Screen title="Nova senha">
+    <AuthGradientFrame title="Nova senha">
       <form
-        className="space-y-3"
+        className="mt-7 space-y-3"
         onSubmit={form.handleSubmit(async (values) => {
           try {
             await api("/api/auth/reset", { method: "POST", body: JSON.stringify(values) });
@@ -376,13 +374,28 @@ export function ResetForm() {
         })}
       >
         <input type="hidden" {...form.register("token")} />
-        <PasswordInput label="Nova senha" password={password} registration={form.register("password")} showStrength />
-        {error ? <p className="text-sm text-danger">{error}</p> : null}
-        <Button className="w-full" type="submit" disabled={!canSubmit || form.formState.isSubmitting}>
+        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_12px_32px_rgba(42,23,96,0.18)]">
+          <label className="flex items-center gap-3 px-4 py-3.5">
+            <Lock size={18} className="shrink-0 text-[#9A96AB]" />
+            <input
+              className="h-6 w-full border-0 bg-transparent text-[13px] font-medium tracking-wide text-[#171827] outline-none placeholder:text-[#9A96AB]"
+              type={visible ? "text" : "password"}
+              autoComplete="new-password"
+              placeholder="Nova senha"
+              {...form.register("password")}
+            />
+            <button type="button" className="grid h-8 w-8 place-items-center text-[#9A96AB]" onClick={() => setVisible((v) => !v)} aria-label={visible ? "Ocultar senha" : "Mostrar senha"}>
+              {visible ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </label>
+        </div>
+        <PasswordStrength value={password} score={strength.score} checks={strength.checks} />
+        {error ? <p className="text-center text-[12px] text-danger">{error}</p> : null}
+        <button type="submit" disabled={!canSubmit || form.formState.isSubmitting} className={cn(authPrimaryClass, "disabled:opacity-50")}>
           Salvar senha
-        </Button>
+        </button>
       </form>
-    </Screen>
+    </AuthGradientFrame>
   );
 }
 
@@ -405,9 +418,18 @@ export function VerifyPanel() {
   }, [email]);
 
   return (
-    <Screen title="Verificar e-mail">
-      <div className="rounded-2xl border border-line bg-surface px-3 py-3 text-[12px] leading-4 text-muted shadow-card">
-        Enviamos um código de 6 dígitos para <strong className="text-ink">{email || "seu e-mail"}</strong>. Confira a caixa de entrada e o spam.
+    <AuthGradientFrame
+      title="Verificar e-mail"
+      footer={
+        <p className="mt-auto pt-8 text-center text-[13px] text-[#5C5870]">
+          <Link href="/entrar" className="font-bold text-[#6D4AFF]">
+            Voltar para entrar
+          </Link>
+        </p>
+      }
+    >
+      <div className="mt-4 rounded-2xl bg-white/95 px-4 py-3 text-[12px] leading-4 text-[#5C5870] shadow-[0_12px_32px_rgba(42,23,96,0.12)]">
+        Enviamos um código de 6 dígitos para <strong className="text-[#171827]">{email || "seu e-mail"}</strong>. Confira a caixa de entrada e o spam.
       </div>
       <form
         className="mt-5 space-y-3"
@@ -428,13 +450,16 @@ export function VerifyPanel() {
         }}
       >
         {!initialEmail ? (
-          <Field label="E-mail">
-            <input className={inputClass} type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-          </Field>
+          <div className="overflow-hidden rounded-2xl bg-white shadow-[0_12px_32px_rgba(42,23,96,0.18)]">
+            <label className="flex items-center gap-3 px-4 py-3.5">
+              <Mail size={18} className="shrink-0 text-[#9A96AB]" />
+              <input className="h-6 w-full border-0 bg-transparent text-[13px] font-medium text-[#171827] outline-none" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+            </label>
+          </div>
         ) : null}
-        <Field label="Código de 6 dígitos">
+        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_12px_32px_rgba(42,23,96,0.18)]">
           <input
-            className={cn(inputClass, "tracking-[0.35em]")}
+            className="w-full border-0 bg-transparent px-4 py-3.5 text-center text-[18px] font-semibold tracking-[0.35em] text-[#171827] outline-none placeholder:text-[#9A96AB]"
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={6}
@@ -443,17 +468,17 @@ export function VerifyPanel() {
             onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
             required
           />
-        </Field>
-        {error ? <p className="text-sm text-danger">{error}</p> : null}
-        {message ? <p className="text-sm text-primary">{message}</p> : null}
-        {devCode ? <p className="text-[10px] font-medium leading-[13px] text-muted">Ambiente local: use o código {devCode}</p> : null}
-        <Button className="w-full" type="submit" disabled={busy || code.length !== 6 || !email}>
+        </div>
+        {error ? <p className="text-center text-[12px] text-danger">{error}</p> : null}
+        {message ? <p className="text-center text-[12px] text-[#D4C8FF]">{message}</p> : null}
+        {devCode ? <p className="text-center text-[10px] font-medium leading-[13px] text-white/80">Ambiente local: use o código {devCode}</p> : null}
+        <button type="submit" disabled={busy || code.length !== 6 || !email} className={cn(authPrimaryClass, "disabled:opacity-50")}>
           Confirmar e-mail
-        </Button>
+        </button>
       </form>
       <button
         type="button"
-        className="mt-3 w-full text-center text-[12px] font-semibold text-primary"
+        className="mt-3 w-full text-center text-[12px] font-semibold text-[#D4C8FF]"
         disabled={busy || !email}
         onClick={async () => {
           setError("");
@@ -477,12 +502,7 @@ export function VerifyPanel() {
       >
         Reenviar código por e-mail
       </button>
-      <p className="mt-4 text-center text-sm text-muted">
-        <Link href="/entrar" className="font-semibold text-primary">
-          Voltar para entrar
-        </Link>
-      </p>
-    </Screen>
+    </AuthGradientFrame>
   );
 }
 
@@ -491,9 +511,9 @@ export function OnboardingForm() {
   const form = useForm({ resolver: zodResolver(onboardingSchema), defaultValues: { storeName: "", description: "", whatsapp: "" } });
   const [error, setError] = useState("");
   return (
-    <Screen title="Configure sua loja">
+    <AuthGradientFrame title="Configure sua loja">
       <form
-        className="mt-5 space-y-3"
+        className="mt-7 space-y-3"
         onSubmit={form.handleSubmit(async (values) => {
           try {
             await api("/api/onboarding", { method: "POST", body: JSON.stringify(values) });
@@ -504,20 +524,22 @@ export function OnboardingForm() {
           }
         })}
       >
-        <Field label="Nome da loja">
-          <input className={inputClass} {...form.register("storeName")} />
-        </Field>
-        <Field label="Descrição">
-          <textarea className={areaClass} {...form.register("description")} />
-        </Field>
-        <Field label="WhatsApp" hint="DDD e número. Usado no botão da vitrine.">
-          <input className={inputClass} {...form.register("whatsapp")} />
-        </Field>
-        {error ? <p className="text-sm text-danger">{error}</p> : null}
-        <Button className="w-full" type="submit">
+        <div className="space-y-3 rounded-2xl bg-white p-4 shadow-[0_12px_32px_rgba(42,23,96,0.18)]">
+          <Field label="Nome da loja" section>
+            <input className={inputClass} {...form.register("storeName")} />
+          </Field>
+          <Field label="Descrição" section>
+            <textarea className={areaClass} {...form.register("description")} />
+          </Field>
+          <Field label="WhatsApp" section hint="DDD e número. Usado no botão da vitrine.">
+            <input className={inputClass} {...form.register("whatsapp")} />
+          </Field>
+        </div>
+        {error ? <p className="text-center text-[12px] text-danger">{error}</p> : null}
+        <button type="submit" className={authPrimaryClass}>
           Criar loja
-        </Button>
+        </button>
       </form>
-    </Screen>
+    </AuthGradientFrame>
   );
 }

@@ -163,6 +163,32 @@ export default function AuthGate() {
         >
           <Text style={{ color: "#fff", fontWeight: "600" }}>Confirmar e-mail</Text>
         </Pressable>
+        <Pressable
+          disabled={busy}
+          style={{ marginTop: 12, alignItems: "center" }}
+          onPress={async () => {
+            setBusy(true);
+            setError("");
+            try {
+              const base = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+              const response = await fetch(`${base}/api/auth/resend`, {
+                method: "POST",
+                headers: { "content-type": "application/json", "x-vendefacil-client": "mobile" },
+                body: JSON.stringify({ email }),
+              });
+              if (!response.ok) throw new Error("Falha");
+              const payload = (await response.json()) as { devCode?: string | null };
+              if (payload.devCode) setDevCode(payload.devCode);
+              setMessage("Novo código enviado por e-mail.");
+            } catch {
+              setError("Não foi possível reenviar o código.");
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "600" }}>Reenviar código</Text>
+        </Pressable>
       </View>
     );
   }
@@ -208,7 +234,31 @@ export default function AuthGate() {
         </View>
 
         {screen === "login" ? (
-          <Pressable style={{ alignSelf: "flex-end", marginTop: 12 }}>
+          <Pressable
+            style={{ alignSelf: "flex-end", marginTop: 12 }}
+            onPress={async () => {
+              if (!email.trim()) {
+                setError("Informe o e-mail para recuperar a senha.");
+                return;
+              }
+              setBusy(true);
+              setError("");
+              setMessage("");
+              try {
+                const base = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+                await fetch(`${base}/api/auth/forgot`, {
+                  method: "POST",
+                  headers: { "content-type": "application/json", "x-vendefacil-client": "mobile" },
+                  body: JSON.stringify({ email }),
+                });
+                setMessage("Se o e-mail existir, enviamos as instruções de recuperação.");
+              } catch {
+                setError("Não foi possível solicitar a recuperação agora.");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
             <Text style={{ color: "#6D4AFF", fontSize: 12, fontWeight: "600" }}>Esqueci minha senha</Text>
           </Pressable>
         ) : (
@@ -268,14 +318,16 @@ export default function AuthGate() {
           <View style={{ flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.25)" }} />
         </View>
 
-        <Pressable onPress={() => setError("O acesso com Google entra quando o aplicativo estiver configurado.")} style={{ marginTop: 14, height: 48, borderRadius: 16, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" }}>
+        <Pressable onPress={() => setError("O acesso com Google entra quando o aplicativo estiver configurado.")} style={{ marginTop: 14, height: control.height, borderRadius: 16, backgroundColor: "#fff", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <Ionicons name="logo-google" size={16} color={colors.text} />
           <Text style={{ color: colors.text, fontSize: 13, fontWeight: "600" }}>Continuar com Google</Text>
         </Pressable>
-        {(Platform.OS === "ios" || true) && (
-          <Pressable onPress={() => setError("O acesso com Apple entra quando o aplicativo estiver configurado.")} style={{ marginTop: 10, height: 48, borderRadius: 16, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" }}>
+        {Platform.OS === "ios" ? (
+          <Pressable onPress={() => setError("O acesso com Apple entra quando o aplicativo estiver configurado.")} style={{ marginTop: 10, height: control.height, borderRadius: 16, backgroundColor: "#fff", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <Ionicons name="logo-apple" size={16} color={colors.text} />
             <Text style={{ color: colors.text, fontSize: 13, fontWeight: "600" }}>Continuar com Apple</Text>
           </Pressable>
-        )}
+        ) : null}
 
         <Pressable
           style={{ marginTop: "auto", paddingTop: 24 }}
