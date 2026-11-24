@@ -12,7 +12,7 @@ const buttonStyles = cva(buttonClass, {
     variant: {
       primary: "bg-primary text-white hover:bg-primary-hover",
       secondary: "border border-line bg-surface text-ink hover:border-primary/50",
-      ghost: "text-ink hover:bg-white/5",
+      ghost: "text-ink hover:bg-background",
       danger: "bg-danger text-white hover:opacity-90",
     },
     size: { sm: "h-10", md: "h-10", lg: "h-10" },
@@ -36,11 +36,11 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 
 export function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "success" | "warning" | "danger" | "primary" }) {
   const tones = {
-    neutral: "bg-white/5 text-muted",
+    neutral: "bg-background text-muted",
     success: "bg-emerald-400/15 text-success",
     warning: "bg-amber-400/15 text-warning",
     danger: "bg-rose-400/15 text-danger",
-    primary: "bg-primary-soft text-[#C4B5FF]",
+    primary: "bg-primary-soft text-primary",
   };
   return <span className={cn("inline-flex rounded-full px-2 py-0.5 text-tiny font-semibold", tones[tone])}>{children}</span>;
 }

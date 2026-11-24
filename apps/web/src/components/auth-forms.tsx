@@ -5,19 +5,20 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, registerSchema, forgotSchema, resetSchema, onboardingSchema } from "@vendefacil/validation";
+import { Eye, EyeOff } from "lucide-react";
 import { LogoMark } from "@/components/shell";
 import { Button, Field, areaClass, inputClass, useToast } from "@/components/ui";
-import { api, ApiClientError } from "@/lib/http";
-import { useEffect, useState } from "react";
+import { api, ApiClientError, cn } from "@/lib/http";
+import { useEffect, useMemo, useState } from "react";
 
-function Screen({ children, title }: { children: React.ReactNode; title?: string }) {
+function Screen({ children, title, dark = false }: { children: React.ReactNode; title?: string; dark?: boolean }) {
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#1A1240_0%,_#070B18_46%)] text-white">
+    <main className={cn("min-h-screen", dark ? "bg-[radial-gradient(circle_at_top,_#1A1240_0%,_#070B18_46%)] text-white" : "bg-background text-ink")}>
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-6 py-10">
         <div className="mb-8 flex flex-col items-center text-center">
           <LogoMark />
-          <p className="mt-4 text-2xl font-bold tracking-tight">VendeFácil AI</p>
-          {title ? <p className="mt-1 text-sm text-white/60">{title}</p> : null}
+          <p className={cn("mt-4 text-2xl font-bold tracking-tight", dark ? "text-white" : "text-ink")}>VendeFácil AI</p>
+          {title ? <p className={cn("mt-1 text-sm", dark ? "text-white/60" : "text-muted")}>{title}</p> : null}
         </div>
         {children}
       </div>
@@ -55,10 +56,10 @@ function useIphone() {
 function SocialButtons() {
   const toast = useToast();
   const iphone = useIphone();
-  const socialClass = "flex h-10 w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 text-[12px] font-semibold leading-[15px]";
+  const socialClass = "flex h-10 w-full items-center justify-center gap-2 rounded-full border border-line bg-surface px-4 text-[12px] font-semibold leading-[15px] text-ink";
   return (
     <div className="mt-4 space-y-2">
-      <p className="text-center text-[10px] font-medium leading-[13px] text-white/40">ou</p>
+      <p className="text-center text-[10px] font-medium leading-[13px] text-muted">ou</p>
       <button type="button" className={socialClass} onClick={() => toast("O acesso com Google entra quando o aplicativo estiver configurado.", "err")}>
         <GoogleMark />
         Continuar com Google
@@ -73,25 +74,135 @@ function SocialButtons() {
   );
 }
 
+function PasswordInput({
+  label,
+  password,
+  registration,
+  showStrength = false,
+}: {
+  label: string;
+  password: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  registration: any;
+  showStrength?: boolean;
+}) {
+  const [visible, setVisible] = useState(false);
+  const strength = useMemo(() => scorePassword(password), [password]);
+  return (
+    <div className="space-y-1.5">
+      <Field label={label}>
+        <div className="relative">
+          <input className={cn(inputClass, "pr-10")} type={visible ? "text" : "password"} autoComplete="new-password" {...registration} />
+          <button
+            type="button"
+            className="absolute inset-y-0 right-0 grid w-10 place-items-center text-muted"
+            onClick={() => setVisible((current) => !current)}
+            aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
+          >
+            {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
+      </Field>
+      {showStrength ? <PasswordStrength value={password} score={strength.score} checks={strength.checks} /> : null}
+    </div>
+  );
+}
+
+function scorePassword(password: string) {
+  const checks = {
+    length: password.length >= 8,
+    letter: /[A-Za-z]/.test(password),
+    number: /\d/.test(password),
+    upper: /[A-Z]/.test(password),
+    symbol: /[^A-Za-z0-9]/.test(password),
+  };
+  const score = [checks.length, checks.letter, checks.number, checks.upper, checks.symbol].filter(Boolean).length;
+  return { score, checks };
+}
+
+function PasswordStrength({
+  value,
+  score,
+  checks,
+}: {
+  value: string;
+  score: number;
+  checks: { length: boolean; letter: boolean; number: boolean; upper: boolean; symbol: boolean };
+}) {
+  const labels = ["", "Fraca", "Fraca", "Média", "Forte", "Muito forte"];
+  const colors = ["bg-line", "bg-danger", "bg-danger", "bg-warning", "bg-success", "bg-success"];
+  const width = value ? `${Math.max(20, score * 20)}%` : "0%";
+  return (
+    <div className="space-y-2">
+      <div className="h-1.5 overflow-hidden rounded-full bg-line">
+        <div className={cn("h-full rounded-full transition-all duration-300 ease-out", colors[score])} style={{ width }} />
+      </div>
+      <p className="text-[10px] font-medium leading-[13px] text-muted">{value ? labels[score] : "Digite uma senha"}</p>
+      <ul className="grid grid-cols-2 gap-1">
+        {[
+          [checks.length, "8+ caracteres"],
+          [checks.letter, "Letras"],
+          [checks.number, "Números"],
+          [checks.upper, "Maiúscula"],
+          [checks.symbol, "Símbolo"],
+        ].map(([ok, text]) => (
+          <li key={String(text)} className={cn("text-[10px] font-medium leading-[13px] transition-colors duration-200", ok ? "text-success" : "text-muted")}>
+            {ok ? "✓" : "○"} {text}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function LoginForm() {
   const router = useRouter();
   const form = useForm({ resolver: zodResolver(loginSchema), defaultValues: { email: "", password: "" } });
   const [error, setError] = useState("");
+  const [visible, setVisible] = useState(false);
   return (
     <Screen title="Acesse sua conta">
-      <form className="space-y-3" onSubmit={form.handleSubmit(async (values) => {
-        setError("");
-        try { await api("/api/auth/login", { method: "POST", body: JSON.stringify(values) }); router.push("/inicio"); router.refresh(); }
-        catch (cause) { setError(cause instanceof ApiClientError ? cause.message : "Falha no acesso."); }
-      })}>
-        <Field label="E-mail"><input className={inputClass} type="email" {...form.register("email")} /></Field>
-        <Field label="Senha"><input className={inputClass} type="password" {...form.register("password")} /></Field>
+      <form
+        className="space-y-3"
+        onSubmit={form.handleSubmit(async (values) => {
+          setError("");
+          try {
+            await api("/api/auth/login", { method: "POST", body: JSON.stringify(values) });
+            router.push("/inicio");
+            router.refresh();
+          } catch (cause) {
+            setError(cause instanceof ApiClientError ? cause.message : "Falha no acesso.");
+          }
+        })}
+      >
+        <Field label="E-mail">
+          <input className={inputClass} type="email" autoComplete="email" {...form.register("email")} />
+        </Field>
+        <Field label="Senha">
+          <div className="relative">
+            <input className={cn(inputClass, "pr-10")} type={visible ? "text" : "password"} autoComplete="current-password" {...form.register("password")} />
+            <button type="button" className="absolute inset-y-0 right-0 grid w-10 place-items-center text-muted" onClick={() => setVisible((v) => !v)} aria-label={visible ? "Ocultar senha" : "Mostrar senha"}>
+              {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </Field>
         {error ? <p className="text-sm text-danger">{error}</p> : null}
-        <Button className="w-full" type="submit" disabled={form.formState.isSubmitting}>Entrar</Button>
+        <Button className="w-full" type="submit" disabled={form.formState.isSubmitting}>
+          Entrar
+        </Button>
       </form>
-      <div className="mt-3 text-center"><Link href="/recuperar-senha" className="text-[10px] font-medium leading-[13px] text-white/70 underline">Esqueci minha senha</Link></div>
+      <div className="mt-3 text-center">
+        <Link href="/recuperar-senha" className="text-[10px] font-medium leading-[13px] text-muted underline">
+          Esqueci minha senha
+        </Link>
+      </div>
       <SocialButtons />
-      <Link href="/cadastro" className="mt-4 block text-center text-sm text-[#C4B5FF]">Criar conta grátis</Link>
+      <p className="mt-4 text-center text-sm text-muted">
+        Não tem uma conta?{" "}
+        <Link href="/cadastro" className="font-semibold text-primary">
+          Cadastre-se
+        </Link>
+      </p>
     </Screen>
   );
 }
@@ -100,23 +211,48 @@ export function RegisterForm() {
   const router = useRouter();
   const form = useForm({ resolver: zodResolver(registerSchema), defaultValues: { name: "", email: "", password: "", acceptTerms: false as unknown as true } });
   const [error, setError] = useState("");
+  const password = form.watch("password") || "";
+  const strength = scorePassword(password);
+  const canSubmit = strength.checks.length && strength.checks.letter && strength.checks.number && form.watch("acceptTerms");
   return (
-    <Screen title="Criar conta grátis">
-      <form className="mt-5 space-y-3" onSubmit={form.handleSubmit(async (values) => {
-        setError("");
-        try {
-          const result = await api<{ devVerificationUrl?: string | null }>("/api/auth/register", { method: "POST", body: JSON.stringify(values) });
-          if (result.devVerificationUrl) sessionStorage.setItem("vf_verify", result.devVerificationUrl);
-          router.push("/verificar-email");
-        } catch (cause) { setError(cause instanceof ApiClientError ? cause.message : "Não foi possível cadastrar."); }
-      })}>
-        <Field label="Nome"><input className={inputClass} {...form.register("name")} /></Field>
-        <Field label="E-mail"><input className={inputClass} type="email" {...form.register("email")} /></Field>
-        <Field label="Senha" hint="Mínimo de 8 caracteres, com letras e números."><input className={inputClass} type="password" {...form.register("password")} /></Field>
-        <label className="flex items-start gap-2 text-sm"><input type="checkbox" {...form.register("acceptTerms")} /> <span>Li e aceito os <Link className="text-primary" href="/termos">termos</Link> e a <Link className="text-primary" href="/privacidade">política de privacidade</Link>.</span></label>
+    <Screen title="Criar conta com e-mail">
+      <form
+        className="space-y-3"
+        onSubmit={form.handleSubmit(async (values) => {
+          setError("");
+          try {
+            const result = await api<{ devVerificationUrl?: string | null }>("/api/auth/register", { method: "POST", body: JSON.stringify(values) });
+            if (result.devVerificationUrl) sessionStorage.setItem("vf_verify", result.devVerificationUrl);
+            router.push("/verificar-email");
+          } catch (cause) {
+            setError(cause instanceof ApiClientError ? cause.message : "Não foi possível cadastrar.");
+          }
+        })}
+      >
+        <Field label="Nome">
+          <input className={inputClass} autoComplete="name" {...form.register("name")} />
+        </Field>
+        <Field label="E-mail">
+          <input className={inputClass} type="email" autoComplete="email" {...form.register("email")} />
+        </Field>
+        <PasswordInput label="Senha" password={password} registration={form.register("password")} showStrength />
+        <label className="flex items-start gap-2 text-[12px] leading-4 text-muted">
+          <input className="mt-0.5" type="checkbox" {...form.register("acceptTerms")} />
+          <span>
+            Li e aceito os <Link className="text-primary" href="/termos">termos</Link> e a <Link className="text-primary" href="/privacidade">política de privacidade</Link>.
+          </span>
+        </label>
         {error || form.formState.errors.acceptTerms ? <p className="text-sm text-danger">{error || form.formState.errors.acceptTerms?.message}</p> : null}
-        <Button className="w-full" type="submit">Criar conta</Button>
+        <Button className="w-full" type="submit" disabled={!canSubmit || form.formState.isSubmitting}>
+          Criar conta
+        </Button>
       </form>
+      <p className="mt-4 text-center text-sm text-muted">
+        Já tem conta?{" "}
+        <Link href="/entrar" className="font-semibold text-primary">
+          Entrar
+        </Link>
+      </p>
     </Screen>
   );
 }
@@ -127,17 +263,28 @@ export function ForgotForm() {
   const [done, setDone] = useState(false);
   return (
     <Screen title="Recuperar senha">
-      <p className="mt-1 text-sm text-muted">Se o e-mail existir, enviaremos as instruções. A resposta não revela se a conta existe.</p>
-      <form className="mt-5 space-y-3" onSubmit={form.handleSubmit(async (values) => {
-        const result = await api<{ devResetUrl?: string | null }>("/api/auth/forgot", { method: "POST", body: JSON.stringify(values) });
-        setDone(true);
-        if (result.devResetUrl) setLink(result.devResetUrl);
-      })}>
-        <Field label="E-mail"><input className={inputClass} type="email" {...form.register("email")} /></Field>
-        <Button className="w-full" type="submit">Enviar</Button>
+      <p className="text-sm text-muted">Se o e-mail existir, enviaremos as instruções. A resposta não revela se a conta existe.</p>
+      <form
+        className="mt-5 space-y-3"
+        onSubmit={form.handleSubmit(async (values) => {
+          const result = await api<{ devResetUrl?: string | null }>("/api/auth/forgot", { method: "POST", body: JSON.stringify(values) });
+          setDone(true);
+          if (result.devResetUrl) setLink(result.devResetUrl);
+        })}
+      >
+        <Field label="E-mail">
+          <input className={inputClass} type="email" {...form.register("email")} />
+        </Field>
+        <Button className="w-full" type="submit">
+          Enviar
+        </Button>
       </form>
       {done ? <p className="mt-3 text-sm">Se houver uma conta, o próximo passo foi preparado.</p> : null}
-      {link ? <a className="mt-2 block text-sm text-primary" href={link}>Abrir redefinição deste ambiente local</a> : null}
+      {link ? (
+        <a className="mt-2 block text-sm text-primary" href={link}>
+          Abrir redefinição deste ambiente local
+        </a>
+      ) : null}
     </Screen>
   );
 }
@@ -147,16 +294,28 @@ export function ResetForm() {
   const router = useRouter();
   const form = useForm({ resolver: zodResolver(resetSchema), defaultValues: { token: params.get("token") || "", password: "" } });
   const [error, setError] = useState("");
+  const password = form.watch("password") || "";
+  const strength = scorePassword(password);
+  const canSubmit = strength.checks.length && strength.checks.letter && strength.checks.number;
   return (
     <Screen title="Nova senha">
-      <form className="mt-5 space-y-3" onSubmit={form.handleSubmit(async (values) => {
-        try { await api("/api/auth/reset", { method: "POST", body: JSON.stringify(values) }); router.push("/entrar"); }
-        catch (cause) { setError(cause instanceof ApiClientError ? cause.message : "Link inválido."); }
-      })}>
+      <form
+        className="space-y-3"
+        onSubmit={form.handleSubmit(async (values) => {
+          try {
+            await api("/api/auth/reset", { method: "POST", body: JSON.stringify(values) });
+            router.push("/entrar");
+          } catch (cause) {
+            setError(cause instanceof ApiClientError ? cause.message : "Link inválido.");
+          }
+        })}
+      >
         <input type="hidden" {...form.register("token")} />
-        <Field label="Nova senha"><input className={inputClass} type="password" {...form.register("password")} /></Field>
+        <PasswordInput label="Nova senha" password={password} registration={form.register("password")} showStrength />
         {error ? <p className="text-sm text-danger">{error}</p> : null}
-        <Button className="w-full" type="submit">Salvar senha</Button>
+        <Button className="w-full" type="submit" disabled={!canSubmit || form.formState.isSubmitting}>
+          Salvar senha
+        </Button>
       </form>
     </Screen>
   );
@@ -170,19 +329,43 @@ export function VerifyPanel() {
   return (
     <Screen title="Verificar e-mail">
       <p className="mt-2 text-sm text-muted">{message}</p>
-      <Button className="mt-5 w-full" onClick={async () => {
-        const stored = typeof window !== "undefined" ? sessionStorage.getItem("vf_verify") : null;
-        const token = params.get("token") || (stored ? new URL(stored).searchParams.get("token") : "");
-        if (!token) { setMessage("Abra o link enviado ou solicite outro."); return; }
-        try { await api("/api/auth/verify", { method: "POST", body: JSON.stringify({ token }) }); router.push("/onboarding"); }
-        catch (cause) { setMessage(cause instanceof ApiClientError ? cause.message : "Não foi possível confirmar."); }
-      }}>Confirmar e-mail</Button>
-      <button className="mt-3 text-sm text-primary" onClick={async () => {
-        const result = await api<{ devVerificationUrl?: string | null }>("/api/auth/resend", { method: "POST" });
-        if (result.devVerificationUrl) { sessionStorage.setItem("vf_verify", result.devVerificationUrl); setLink(result.devVerificationUrl); }
-        setMessage("Se o envio estiver configurado, a mensagem foi disparada.");
-      }}>Enviar novamente</button>
-      {link ? <a className="mt-3 block text-sm text-primary" href={link}>Link local de verificação</a> : null}
+      <Button
+        className="mt-5 w-full"
+        onClick={async () => {
+          const stored = typeof window !== "undefined" ? sessionStorage.getItem("vf_verify") : null;
+          const token = params.get("token") || (stored ? new URL(stored).searchParams.get("token") : "");
+          if (!token) {
+            setMessage("Abra o link enviado ou solicite outro.");
+            return;
+          }
+          try {
+            await api("/api/auth/verify", { method: "POST", body: JSON.stringify({ token }) });
+            router.push("/onboarding");
+          } catch (cause) {
+            setMessage(cause instanceof ApiClientError ? cause.message : "Não foi possível confirmar.");
+          }
+        }}
+      >
+        Confirmar e-mail
+      </Button>
+      <button
+        className="mt-3 text-sm text-primary"
+        onClick={async () => {
+          const result = await api<{ devVerificationUrl?: string | null }>("/api/auth/resend", { method: "POST" });
+          if (result.devVerificationUrl) {
+            sessionStorage.setItem("vf_verify", result.devVerificationUrl);
+            setLink(result.devVerificationUrl);
+          }
+          setMessage("Se o envio estiver configurado, a mensagem foi disparada.");
+        }}
+      >
+        Enviar novamente
+      </button>
+      {link ? (
+        <a className="mt-3 block text-sm text-primary" href={link}>
+          Link local de verificação
+        </a>
+      ) : null}
     </Screen>
   );
 }
@@ -193,15 +376,31 @@ export function OnboardingForm() {
   const [error, setError] = useState("");
   return (
     <Screen title="Configure sua loja">
-      <form className="mt-5 space-y-3" onSubmit={form.handleSubmit(async (values) => {
-        try { await api("/api/onboarding", { method: "POST", body: JSON.stringify(values) }); router.push("/inicio"); router.refresh(); }
-        catch (cause) { setError(cause instanceof ApiClientError ? cause.message : "Não foi possível criar a loja."); }
-      })}>
-        <Field label="Nome da loja"><input className={inputClass} {...form.register("storeName")} /></Field>
-        <Field label="Descrição"><textarea className={areaClass} {...form.register("description")} /></Field>
-        <Field label="WhatsApp" hint="DDD e número. Usado no botão da vitrine."><input className={inputClass} {...form.register("whatsapp")} /></Field>
+      <form
+        className="mt-5 space-y-3"
+        onSubmit={form.handleSubmit(async (values) => {
+          try {
+            await api("/api/onboarding", { method: "POST", body: JSON.stringify(values) });
+            router.push("/inicio");
+            router.refresh();
+          } catch (cause) {
+            setError(cause instanceof ApiClientError ? cause.message : "Não foi possível criar a loja.");
+          }
+        })}
+      >
+        <Field label="Nome da loja">
+          <input className={inputClass} {...form.register("storeName")} />
+        </Field>
+        <Field label="Descrição">
+          <textarea className={areaClass} {...form.register("description")} />
+        </Field>
+        <Field label="WhatsApp" hint="DDD e número. Usado no botão da vitrine.">
+          <input className={inputClass} {...form.register("whatsapp")} />
+        </Field>
         {error ? <p className="text-sm text-danger">{error}</p> : null}
-        <Button className="w-full" type="submit">Criar loja</Button>
+        <Button className="w-full" type="submit">
+          Criar loja
+        </Button>
       </form>
     </Screen>
   );

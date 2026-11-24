@@ -5,18 +5,18 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        primary: { DEFAULT: "#7C5CFF", hover: "#6846F0", soft: "#241B4A" },
-        background: "#070B18",
-        surface: "#12182B",
-        ink: "#F5F7FB",
-        muted: "#9AA3B8",
-        line: "#2A3148",
-        success: "#3DDC97",
+        primary: { DEFAULT: "#7C5CFF", hover: "#6846F0", soft: "#EFEAFF" },
+        background: "#F5F6FA",
+        surface: "#FFFFFF",
+        ink: "#171827",
+        muted: "#6B7288",
+        line: "#E6E8F0",
+        success: "#22C55E",
         warning: "#F5B942",
         danger: "#FF6B7A",
       },
       boxShadow: {
-        card: "0 1px 2px rgba(4, 6, 16, .28)",
+        card: "0 1px 2px rgba(23, 24, 39, .06)",
         lift: "0 8px 20px rgba(108, 77, 255, .22)",
       },
       fontFamily: {

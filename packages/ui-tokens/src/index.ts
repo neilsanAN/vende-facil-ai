@@ -1,16 +1,17 @@
 export const colors = {
   primary: "#7C5CFF",
   primaryHover: "#6846F0",
-  primarySoft: "#241B4A",
-  background: "#070B18",
-  surface: "#12182B",
-  text: "#F5F7FB",
-  textSecondary: "#9AA3B8",
-  border: "#2A3148",
-  success: "#3DDC97",
+  primarySoft: "#EFEAFF",
+  background: "#F5F6FA",
+  surface: "#FFFFFF",
+  text: "#171827",
+  textSecondary: "#6B7288",
+  border: "#E6E8F0",
+  success: "#22C55E",
   warning: "#F5B942",
   error: "#FF6B7A",
-  ink: "#070B18",
+  ink: "#171827",
+  welcome: "#070B18",
 } as const;
 
 export const radius = {
@@ -61,7 +62,7 @@ export const brand = {
 export const mobileNav = [
   { href: "/inicio", label: "Início", icon: "home" },
   { href: "/produtos", label: "Produtos", icon: "package" },
-  { href: "/pedidos", label: "Pedidos", icon: "receipt" },
-  { href: "/estatisticas", label: "Estatísticas", icon: "chart" },
+  { href: "/anuncios/novo", label: "Criar", icon: "plus" },
+  { href: "/estudio", label: "Estúdio", icon: "sparkles" },
   { href: "/mais", label: "Mais", icon: "menu" },
 ] as const;

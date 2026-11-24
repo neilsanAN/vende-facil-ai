@@ -155,17 +155,21 @@ export async function uploadFile(file: File) {
 export function AdStudio({ products }: { products: Array<{ id: string; name: string; priceCents: number }> }) {
   const router = useRouter();
   const toast = useToast();
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [assetId, setAssetId] = useState("");
   const [preview, setPreview] = useState("");
-  const [analysis, setAnalysis] = useState("");
   const [tone, setTone] = useState("PROFESSIONAL");
   const [productId, setProductId] = useState(products[0]?.id || "");
   const [facts, setFacts] = useState({ name: products[0]?.name || "", brand: "", facts: "", audience: "" });
   const [busy, setBusy] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [draft, setDraft] = useState<{ id: string; title: string; description: string; hashtags: string[] } | null>(null);
 
   async function generate() {
-    if (!assetId) { toast("Envie uma foto do produto.", "err"); return; }
+    if (!assetId) {
+      toast("Envie uma foto do produto.", "err");
+      return;
+    }
     const price = products.find((item) => item.id === productId)?.priceCents;
     setBusy("Gerando seu anúncio com a foto e os fatos confirmados.");
     try {
@@ -174,7 +178,9 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
         headers: { "idempotency-key": crypto.randomUUID() },
         body: JSON.stringify({ productId: productId || null, assetIds: [assetId], tone, facts: { ...facts, priceCents: price ?? null } }),
       });
-      router.push(`/anuncios/${ad.id}`);
+      setDraft(ad);
+      setBusy("");
+      setStep(3);
     } catch (cause) {
       setBusy("");
       toast(cause instanceof ApiClientError ? cause.message : "A IA não gerou o anúncio.", "err");
@@ -207,51 +213,166 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
     }
   }
 
-  if (busy) {
-    return (
-      <div className="rounded-3xl border border-line bg-surface px-5 py-8 text-center">
-        <p className="text-sm font-semibold">Anúncio com IA</p>
-        <ul className="mx-auto mt-5 max-w-xs space-y-2 text-left text-sm text-muted">
-          {["Analisando a imagem", "Identificando o produto", "Criando título e descrição", "Gerando hashtags"].map((step) => <li key={step} className="rounded-xl bg-white/5 px-3 py-2">{step}</li>)}
-        </ul>
-        <div className="mx-auto mt-6 grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-[#7C5CFF] to-[#4C2ED6] text-lg font-semibold">IA</div>
-        <p className="mt-4 text-sm">Gerando seu anúncio...</p>
-        <p className="text-xs text-muted">{busy}</p>
-      </div>
-    );
-  }
+  const steps = [
+    { n: 1, label: "Foto" },
+    { n: 2, label: "IA" },
+    { n: 3, label: "Ajustes" },
+  ] as const;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <section className="space-y-3 rounded-[10px] border border-line bg-surface p-4">
-        <p className="text-[14px] font-bold leading-[18px]">Foto do produto</p>
-        <p className="text-[10px] font-medium leading-[13px] text-muted">No celular, Câmera abre a lente traseira. Galeria escolhe uma foto já salva.</p>
-        {preview ? <img src={preview} alt="Foto do produto" className="aspect-[4/5] w-full rounded-[10px] object-cover" /> : <div className="grid aspect-[4/5] place-items-center gap-2 rounded-[10px] border border-dashed border-line text-center text-[12px] leading-4 text-muted"><Camera size={20} /><span>A foto aparece aqui</span></div>}
-        {uploading ? <p className="text-[10px] font-medium leading-[13px] text-muted">Enviando a foto...</p> : null}
-        <div className="grid grid-cols-2 gap-2">
-          <label className={`${buttonClass} cursor-pointer bg-primary text-white ${uploading ? "pointer-events-none opacity-50" : ""}`}><Camera size={16} />Câmera<input className="hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void sendPhoto(file); }} /></label>
-          <label className={`${buttonClass} cursor-pointer border border-line bg-surface text-ink ${uploading ? "pointer-events-none opacity-50" : ""}`}><ImageIcon size={16} />Galeria<input className="hidden" type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void sendPhoto(file); }} /></label>
+    <div>
+      <div className="mb-4 flex items-center justify-between gap-2">
+        {steps.map((item) => (
+          <div key={item.n} className={`flex flex-1 flex-col items-center gap-1 ${step >= item.n ? "text-primary" : "text-muted"}`}>
+            <span className={`grid h-7 w-7 place-items-center rounded-full text-[10px] font-semibold ${step >= item.n ? "bg-primary text-white" : "bg-line text-muted"}`}>{item.n}</span>
+            <span className="text-[10px] font-medium leading-[13px]">{item.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {busy ? (
+        <div className="rounded-3xl border border-line bg-surface px-5 py-8 text-center shadow-card">
+          <p className="text-sm font-semibold">Anúncio com IA</p>
+          <ul className="mx-auto mt-5 max-w-xs space-y-2 text-left text-sm text-muted">
+            {["Analisando a imagem", "Identificando o produto", "Criando título e descrição", "Gerando hashtags"].map((item) => (
+              <li key={item} className="rounded-xl bg-background px-3 py-2">
+                {item}
+              </li>
+            ))}
+          </ul>
+          <div className="mx-auto mt-6 grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-[#7C5CFF] to-[#4C2ED6] text-lg font-semibold text-white">IA</div>
+          <p className="mt-4 text-sm">Gerando seu anúncio...</p>
+          <p className="text-xs text-muted">{busy}</p>
         </div>
-        <Button variant="secondary" onClick={async () => {
-          if (!assetId) return;
-          try { const result = await api<Record<string, unknown>>("/api/ai/analyze", { method: "POST", body: JSON.stringify({ assetId }) }); setAnalysis(JSON.stringify(result, null, 2)); }
-          catch (cause) { toast(cause instanceof ApiClientError ? cause.message : "Análise indisponível.", "err"); }
-        }}>Identificar o que está visível</Button>
-        {analysis ? <pre className="max-h-40 overflow-auto rounded-lg bg-background p-2 text-xs">{analysis}</pre> : null}
-      </section>
-      <section className="space-y-3 rounded-2xl border border-line bg-surface p-4">
-        <p className="text-[14px] font-bold leading-[18px]">Fatos confirmados</p>
-        <p className="text-[12px] leading-4 text-muted">A IA só pode usar o que você confirmar. Marca, garantia, composição e preço não são inventados.</p>
-        <Field label="Produto"><select className={inputClass} value={productId} onChange={(event) => { setProductId(event.target.value); const found = products.find((item) => item.id === event.target.value); if (found) setFacts({ ...facts, name: found.name }); }}><option value="">Sem vínculo</option>{products.map((item) => <option key={item.id} value={item.id}>{item.name} · {formatBrl(item.priceCents)}</option>)}</select></Field>
-        <Field label="Nome confirmado"><input className={inputClass} value={facts.name} onChange={(event) => setFacts({ ...facts, name: event.target.value })} /></Field>
-        <Field label="Marca, se quiser citar"><input className={inputClass} value={facts.brand} onChange={(event) => setFacts({ ...facts, brand: event.target.value })} /></Field>
-        <Field label="Características confirmadas"><textarea className={areaClass} value={facts.facts} onChange={(event) => setFacts({ ...facts, facts: event.target.value })} /></Field>
-        <Field label="Tom"><select className={inputClass} value={tone} onChange={(event) => setTone(event.target.value)}>{Object.entries(TONE_LABEL).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></Field>
-        <div className="flex gap-2"><Button onClick={generate}>Gerar com IA</Button><Button variant="secondary" onClick={async () => {
-          const saved = await api<{ id: string }>("/api/ads", { method: "POST", body: JSON.stringify({ title: facts.name || "Anúncio", description: facts.facts || "Descrição pendente.", hashtags: [], tone, productId: productId || null, status: "DRAFT" }) });
-          router.push(`/anuncios/${saved.id}`);
-        }}>Escrever manualmente</Button></div>
-      </section>
+      ) : null}
+
+      {!busy && step === 1 ? (
+        <section className="space-y-3 rounded-2xl border border-line bg-surface p-4 shadow-card">
+          <p className="text-[14px] font-bold leading-[18px]">Foto do produto</p>
+          <p className="text-[12px] leading-4 text-muted">Tire uma foto do produto ou escolha da galeria.</p>
+          {preview ? (
+            <img src={preview} alt="Foto do produto" className="aspect-[4/5] w-full rounded-[10px] object-cover" />
+          ) : (
+            <div className="grid aspect-[4/5] place-items-center gap-2 rounded-[10px] border border-dashed border-line bg-background text-center text-[12px] leading-4 text-muted">
+              <Camera size={28} />
+              <span>Toque em Câmera ou Galeria</span>
+            </div>
+          )}
+          {uploading ? <p className="text-[10px] font-medium leading-[13px] text-muted">Enviando a foto...</p> : null}
+          <div className="grid grid-cols-2 gap-2">
+            <label className={`${buttonClass} cursor-pointer bg-primary text-white ${uploading ? "pointer-events-none opacity-50" : ""}`}>
+              <Camera size={16} />
+              Câmera
+              <input className="hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void sendPhoto(file); }} />
+            </label>
+            <label className={`${buttonClass} cursor-pointer border border-line bg-surface text-ink ${uploading ? "pointer-events-none opacity-50" : ""}`}>
+              <ImageIcon size={16} />
+              Galeria
+              <input className="hidden" type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void sendPhoto(file); }} />
+            </label>
+          </div>
+          <p className="text-[10px] font-medium leading-[13px] text-muted">A IA vai analisar a imagem no próximo passo.</p>
+          <Button className="w-full" disabled={!assetId || uploading} onClick={() => setStep(2)}>
+            Avançar
+          </Button>
+        </section>
+      ) : null}
+
+      {!busy && step === 2 ? (
+        <section className="space-y-3 rounded-2xl border border-line bg-surface p-4 shadow-card">
+          <p className="text-[14px] font-bold leading-[18px]">Fatos confirmados</p>
+          <p className="text-[12px] leading-4 text-muted">A IA só usa o que você confirmar. Marca e preço não são inventados.</p>
+          {preview ? <img src={preview} alt="" className="h-28 w-28 rounded-xl object-cover" /> : null}
+          <Field label="Produto">
+            <select
+              className={inputClass}
+              value={productId}
+              onChange={(event) => {
+                setProductId(event.target.value);
+                const found = products.find((item) => item.id === event.target.value);
+                if (found) setFacts({ ...facts, name: found.name });
+              }}
+            >
+              <option value="">Sem vínculo</option>
+              {products.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} · {formatBrl(item.priceCents)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Nome confirmado">
+            <input className={inputClass} value={facts.name} onChange={(event) => setFacts({ ...facts, name: event.target.value })} />
+          </Field>
+          <Field label="Marca, se quiser citar">
+            <input className={inputClass} value={facts.brand} onChange={(event) => setFacts({ ...facts, brand: event.target.value })} />
+          </Field>
+          <Field label="Características confirmadas">
+            <textarea className={areaClass} value={facts.facts} onChange={(event) => setFacts({ ...facts, facts: event.target.value })} />
+          </Field>
+          <Field label="Tom">
+            <select className={inputClass} value={tone} onChange={(event) => setTone(event.target.value)}>
+              {Object.entries(TONE_LABEL).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <div className="grid gap-2">
+            <Button className="w-full" onClick={generate}>
+              Gerar com IA
+            </Button>
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={async () => {
+                const saved = await api<{ id: string }>("/api/ads", {
+                  method: "POST",
+                  body: JSON.stringify({ title: facts.name || "Anúncio", description: facts.facts || "Descrição pendente.", hashtags: [], tone, productId: productId || null, status: "DRAFT" }),
+                });
+                router.push(`/anuncios/${saved.id}`);
+              }}
+            >
+              Escrever manualmente
+            </Button>
+            <button type="button" className="text-[10px] font-medium text-muted" onClick={() => setStep(1)}>
+              Voltar para a foto
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {!busy && step === 3 && draft ? (
+        <section className="space-y-3 rounded-2xl border border-line bg-surface p-4 shadow-card">
+          {preview ? <img src={preview} alt="" className="aspect-square w-full rounded-2xl object-cover" /> : null}
+          <Field label="Título">
+            <input className={inputClass} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
+          </Field>
+          <Field label="Descrição">
+            <textarea className={areaClass} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
+          </Field>
+          <Field label="Hashtags">
+            <input className={inputClass} value={draft.hashtags.join(" ")} onChange={(event) => setDraft({ ...draft, hashtags: event.target.value.split(/[\s,]+/).filter(Boolean) })} />
+          </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="secondary" onClick={() => void generate()}>
+              Regenerar
+            </Button>
+            <Button
+              onClick={async () => {
+                await api(`/api/ads/${draft.id}`, {
+                  method: "PATCH",
+                  body: JSON.stringify({ title: draft.title, description: draft.description, hashtags: draft.hashtags, tone, status: "DRAFT" }),
+                });
+                router.push(`/anuncios/${draft.id}`);
+              }}
+            >
+              Salvar
+            </Button>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -263,18 +384,38 @@ export function AdEditor({ ad }: { ad: { id: string; title: string; description:
   const [description, setDescription] = useState(ad.description);
   const [hashtags, setHashtags] = useState(ad.hashtags.join(" "));
   return (
-    <form className="max-w-2xl space-y-3" onSubmit={async (event) => {
-      event.preventDefault();
-      await api(`/api/ads/${ad.id}`, { method: "PATCH", body: JSON.stringify({ title, description, hashtags: hashtags.split(/[\s,]+/).filter(Boolean), tone: ad.tone, status: "DRAFT" }) });
-      toast("Rascunho salvo.");
-      router.refresh();
-    }}>
-      <Field label="Título"><input className={inputClass} value={title} onChange={(event) => setTitle(event.target.value)} /></Field>
-      <Field label="Descrição"><textarea className={areaClass} value={description} onChange={(event) => setDescription(event.target.value)} /></Field>
-      <Field label="Hashtags"><input className={inputClass} value={hashtags} onChange={(event) => setHashtags(event.target.value)} /></Field>
-      <div className="flex gap-2">
-        <Button type="submit" variant="secondary">Salvar rascunho</Button>
-        <Button type="button" onClick={async () => { await api(`/api/ads/${ad.id}`, { method: "PATCH", body: JSON.stringify({ title, description, hashtags: hashtags.split(/[\s,]+/).filter(Boolean), tone: ad.tone, status: "PUBLISHED" }) }); toast("Anúncio publicado no cadastro."); }}>Publicar</Button>
+    <form
+      className="max-w-2xl space-y-3 rounded-2xl border border-line bg-surface p-4 shadow-card"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        await api(`/api/ads/${ad.id}`, { method: "PATCH", body: JSON.stringify({ title, description, hashtags: hashtags.split(/[\s,]+/).filter(Boolean), tone: ad.tone, status: "DRAFT" }) });
+        toast("Rascunho salvo.");
+        router.refresh();
+      }}
+    >
+      <Field label="Título">
+        <input className={inputClass} value={title} onChange={(event) => setTitle(event.target.value)} />
+      </Field>
+      <Field label="Descrição">
+        <textarea className={areaClass} value={description} onChange={(event) => setDescription(event.target.value)} />
+      </Field>
+      <Field label="Hashtags">
+        <input className={inputClass} value={hashtags} onChange={(event) => setHashtags(event.target.value)} />
+      </Field>
+      <div className="grid grid-cols-2 gap-2">
+        <Button type="submit" variant="secondary">
+          Salvar
+        </Button>
+        <Button
+          type="button"
+          onClick={async () => {
+            await api(`/api/ads/${ad.id}`, { method: "PATCH", body: JSON.stringify({ title, description, hashtags: hashtags.split(/[\s,]+/).filter(Boolean), tone: ad.tone, status: "PUBLISHED" }) });
+            toast("Anúncio publicado no cadastro.");
+            router.refresh();
+          }}
+        >
+          Publicar
+        </Button>
       </div>
     </form>
   );
@@ -288,27 +429,88 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
   const [form, setForm] = useState({ productId: products[0]?.id || "", objective: "SELL", style: "ELEGANT", durationSec: 15, aspectRatio: "R9_16", voiceProfileId: female?.id || male?.id || "" });
   const selected = products.find((item) => item.id === form.productId);
   const styles = [
-    ["ELEGANT", "Vitrine"],
-    ["OFFER", "Promocional"],
-    ["SOCIAL", "Redes"],
+    ["ELEGANT", "Comercial"],
+    ["OFFER", "Oferta"],
+    ["SOCIAL", "Apresentação"],
+  ] as const;
+  const ratios = [
+    ["R9_16", "9:16 Reels"],
+    ["R1_1", "1:1 Feed"],
+    ["R16_9", "16:9 YouTube"],
   ] as const;
   return (
-    <form className="max-w-xl space-y-3" onSubmit={async (event) => {
-      event.preventDefault();
-      try {
-        const project = await api<{ id: string }>("/api/videos", { method: "POST", body: JSON.stringify({ ...form, voiceProfileId: form.voiceProfileId || null, motionMode: "PHOTO" }) });
-        router.push(`/estudio/video/${project.id}`);
-      } catch (cause) { toast(cause instanceof ApiClientError ? cause.message : "Não foi possível criar o vídeo.", "err"); }
-    }}>
-      <div className="overflow-hidden rounded-3xl border border-line bg-surface">
-        {selected?.imageUrl ? <img src={selected.imageUrl} alt="" className="aspect-[4/5] w-full object-cover" /> : <div className="grid aspect-[4/5] place-items-center text-sm text-muted">{selected?.name || "Escolha um produto"}</div>}
-        <div className="p-4"><p className="text-[14px] font-bold leading-[18px]">{selected?.name || "Criar vídeo com IA"}</p><p className="text-[12px] leading-4 text-muted">Fotos com movimento. A narração entra se a voz escolhida tiver provedor.</p></div>
-      </div>
-      <Field label="Produto"><select className={inputClass} value={form.productId} onChange={(event) => setForm({ ...form, productId: event.target.value })}>{products.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
-      <Field label="Escolha o estilo"><div className="flex flex-wrap gap-2">{styles.map(([value, label]) => <button type="button" key={value} className={`${chipClass} ${form.style === value ? "bg-primary text-white" : "border border-line bg-surface text-ink"}`} onClick={() => setForm({ ...form, style: value })}>{label}</button>)}</div></Field>
-      <Field label="Voz do narrador"><div className="grid grid-cols-2 gap-2">{[{ id: female?.id || "", label: "Feminina" }, { id: male?.id || "", label: "Masculina" }].map((voice) => <button type="button" key={voice.label} disabled={!voice.id} className={`${buttonClass} w-full ${form.voiceProfileId === voice.id ? "bg-primary text-white" : "border border-line bg-surface text-ink"}`} onClick={() => setForm({ ...form, voiceProfileId: voice.id })}>{voice.label}</button>)}</div></Field>
-      <Field label="Duração"><div className="flex flex-wrap gap-2">{[10, 15, 30, 45, 60].map((item) => <button type="button" key={item} className={`${chipClass} ${form.durationSec === item ? "bg-primary text-white" : "border border-line bg-surface text-ink"}`} onClick={() => setForm({ ...form, durationSec: item })}>{item}s</button>)}</div></Field>
-      <Button type="submit" className="w-full">Gerar vídeo</Button>
+    <form
+      className="max-w-xl space-y-3"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        try {
+          const project = await api<{ id: string }>("/api/videos", { method: "POST", body: JSON.stringify({ ...form, voiceProfileId: form.voiceProfileId || null, motionMode: "PHOTO" }) });
+          router.push(`/estudio/video/${project.id}`);
+        } catch (cause) {
+          toast(cause instanceof ApiClientError ? cause.message : "Não foi possível criar o vídeo.", "err");
+        }
+      }}
+    >
+      <Field label="Objetivo">
+        <select className={inputClass} value={form.objective} onChange={(event) => setForm({ ...form, objective: event.target.value })}>
+          <option value="SELL">Vender o produto</option>
+          <option value="AWARENESS">Apresentar a marca</option>
+          <option value="OFFER">Destacar oferta</option>
+        </select>
+      </Field>
+      <Field label="Produto">
+        <select className={inputClass} value={form.productId} onChange={(event) => setForm({ ...form, productId: event.target.value })}>
+          {products.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {selected?.imageUrl ? <img src={selected.imageUrl} alt="" className="h-28 w-28 rounded-xl object-cover" /> : null}
+      <Field label="Estilo do vídeo">
+        <div className="flex flex-wrap gap-2">
+          {styles.map(([value, label]) => (
+            <button type="button" key={value} className={`${chipClass} ${form.style === value ? "bg-primary text-white" : "border border-line bg-surface text-ink"}`} onClick={() => setForm({ ...form, style: value })}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </Field>
+      <Field label="Duração">
+        <div className="flex flex-wrap gap-2">
+          {[15, 30, 45, 60].map((item) => (
+            <button type="button" key={item} className={`${chipClass} ${form.durationSec === item ? "bg-primary text-white" : "border border-line bg-surface text-ink"}`} onClick={() => setForm({ ...form, durationSec: item })}>
+              {item}s
+            </button>
+          ))}
+        </div>
+      </Field>
+      <Field label="Formato">
+        <div className="flex flex-wrap gap-2">
+          {ratios.map(([value, label]) => (
+            <button type="button" key={value} className={`${chipClass} ${form.aspectRatio === value ? "bg-primary text-white" : "border border-line bg-surface text-ink"}`} onClick={() => setForm({ ...form, aspectRatio: value })}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </Field>
+      <Field label="Voz do narrador">
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { id: female?.id || "", label: "Feminina" },
+            { id: male?.id || "", label: "Masculina" },
+          ].map((voice) => (
+            <button type="button" key={voice.label} disabled={!voice.id} className={`${buttonClass} w-full ${form.voiceProfileId === voice.id ? "bg-primary text-white" : "border border-line bg-surface text-ink"}`} onClick={() => setForm({ ...form, voiceProfileId: voice.id })}>
+              {voice.label}
+            </button>
+          ))}
+        </div>
+      </Field>
+      <p className="text-[10px] font-medium leading-[13px] text-muted">Sem worker de render neste deploy, o projeto é criado e a exportação completa fica indisponível até o pipeline voltar.</p>
+      <Button type="submit" className="w-full">
+        Gerar vídeo com IA
+      </Button>
     </form>
   );
 }
@@ -341,7 +543,7 @@ export function VideoEditor({ project }: { project: Project }) {
   return (
     <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
       <div>
-        <div className="mx-auto overflow-hidden rounded-2xl bg-[#0C1222]" style={{ aspectRatio: `${ratio.width} / ${ratio.height}`, maxHeight: 520 }}>
+        <div className="mx-auto overflow-hidden rounded-2xl bg-gradient-to-br from-[#2A1B5C] to-[#0F0A24]" style={{ aspectRatio: `${ratio.width} / ${ratio.height}`, maxHeight: 520 }}>
           <div className="flex h-full flex-col justify-between p-4 text-white" style={{ transform: `scale(${scene.zoom}) translate(${scene.panX * 12}px, ${scene.panY * 12}px)` }}>
             <p className="text-lg font-semibold">{scene.headline || draft.title}</p>
             <p className="text-sm">{scene.caption}</p>
@@ -366,26 +568,48 @@ export function VideoEditor({ project }: { project: Project }) {
         <Field label="Roteiro"><textarea className={areaClass} value={draft.script} onChange={(event) => setDraft({ ...draft, script: event.target.value })} /></Field>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.showPrice} onChange={(event) => setDraft({ ...draft, showPrice: event.target.checked })} /> Mostrar preço</label>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.showLogo} onChange={(event) => setDraft({ ...draft, showLogo: event.target.checked })} /> Guardar preferência de logo</label>
+        <div className="rounded-2xl border border-line bg-background p-3">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted">Timeline</p>
+          <div className="flex gap-1 overflow-auto">
+            {draft.scenes.map((item, itemIndex) => (
+              <button
+                key={itemIndex}
+                type="button"
+                className={`h-10 min-w-16 rounded-lg px-2 text-[10px] font-semibold ${itemIndex === index ? "bg-primary text-white" : "bg-surface text-muted"}`}
+                onClick={() => setIndex(itemIndex)}
+              >
+                {Math.round(item.durationMs / 1000)}s
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={save}>Salvar rascunho</Button>
           <Button variant="secondary" onClick={async () => {
             try { const next = await api<Project>(`/api/videos/${draft.id}/storyboard`, { method: "POST", body: JSON.stringify({ mode: "ai" }) }); setDraft(next); toast("Roteiro atualizado."); }
             catch (cause) { toast(cause instanceof ApiClientError ? cause.message : "Roteiro indisponível.", "err"); }
           }}>Gerar roteiro</Button>
-          <Button onClick={async () => {
-            await save();
-            try {
-              const render = await api<{ id: string; status: PipelineStatus; progress: number }>(`/api/videos/${draft.id}/render`, { method: "POST", headers: { "idempotency-key": crypto.randomUUID() } });
-              setStatus(render);
-              const timer = setInterval(async () => {
-                const fresh = await api<Project>(`/api/videos/${draft.id}`);
-                const latest = fresh.renders[0];
-                if (latest) setStatus(latest);
-                if (latest && ["COMPLETED", "FAILED", "CANCELLED"].includes(latest.status)) clearInterval(timer);
-              }, 3000);
-            } catch (cause) { toast(cause instanceof ApiClientError ? cause.message : "Não foi possível exportar.", "err"); }
-          }}>Exportar vídeo</Button>
+          {status?.outputAssetId ? (
+            <a className={buttonClass + " bg-primary text-white"} href={`/api/media/${status.outputAssetId}`} download>
+              Baixar vídeo
+            </a>
+          ) : (
+            <Button onClick={async () => {
+              await save();
+              try {
+                const render = await api<{ id: string; status: PipelineStatus; progress: number }>(`/api/videos/${draft.id}/render`, { method: "POST", headers: { "idempotency-key": crypto.randomUUID() } });
+                setStatus(render);
+                const timer = setInterval(async () => {
+                  const fresh = await api<Project>(`/api/videos/${draft.id}`);
+                  const latest = fresh.renders[0];
+                  if (latest) setStatus(latest);
+                  if (latest && ["COMPLETED", "FAILED", "CANCELLED"].includes(latest.status)) clearInterval(timer);
+                }, 3000);
+              } catch (cause) { toast(cause instanceof ApiClientError ? cause.message : "Exportação indisponível sem o pipeline de render.", "err"); }
+            }}>Tentar exportar</Button>
+          )}
         </div>
+        <p className="text-[10px] font-medium leading-[13px] text-muted">Exportação completa só aparece quando houver arquivo gerado. Sem worker, o pedido pode falhar com mensagem honesta.</p>
       </div>
     </div>
   );

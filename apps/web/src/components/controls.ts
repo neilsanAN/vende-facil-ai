@@ -7,7 +7,7 @@ export const chipClass =
   "inline-flex items-center rounded-full px-3 py-2 text-[10px] font-medium leading-[13px]";
 
 export const inputClass =
-  "h-10 w-full rounded-[8px] border border-line bg-[#0C1222] px-3 text-[12px] font-medium leading-4 text-ink outline-none transition placeholder:text-muted/70 focus:border-primary";
+  "h-10 w-full rounded-[8px] border border-line bg-surface px-3 text-[12px] font-medium leading-4 text-ink outline-none transition placeholder:text-muted/70 focus:border-primary";
 
 export const areaClass =
-  "min-h-24 w-full rounded-[8px] border border-line bg-[#0C1222] px-3 py-2 text-[12px] font-medium leading-4 text-ink outline-none focus:border-primary";
+  "min-h-24 w-full rounded-[8px] border border-line bg-surface px-3 py-2 text-[12px] font-medium leading-4 text-ink outline-none focus:border-primary";
