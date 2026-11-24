@@ -83,6 +83,6 @@ export function requireTenantSession(ctx: RouteContext) {
   const session = ctx.session;
   if (!session) throw new AppError("UNAUTHENTICATED", "Entre para continuar.", 401);
   if (!session.emailVerified) throw new AppError("EMAIL_UNVERIFIED", "Confirme seu e-mail para continuar.", 403);
-  if (!session.organizationId || !session.role) throw new AppError("ONBOARDING_REQUIRED", "Configure sua loja para continuar.", 409);
+  if (!session.organizationId || !session.role) throw new AppError("ONBOARDING_REQUIRED", "Configure seu canal de divulgação para continuar.", 409);
   return { ...session, organizationId: session.organizationId, role: session.role };
 }
