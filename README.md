@@ -12,7 +12,17 @@ Plataforma para o vendedor cadastrar produtos, gerar anúncios e vídeos com IA 
 6. `corepack pnpm db:seed`
 7. `corepack pnpm dev`
 
-A web fica em http://localhost:3000.
+A web/API fica em http://localhost:3000.
+
+### Produção no Render (igual Invento)
+
+| Serviço | URL | Função |
+|---|---|---|
+| `vende-facil-api` | https://vende-facil-api.onrender.com | API + painel Next |
+| `vende-facil-app` | https://vende-facil-app.onrender.com | App Expo (web) |
+| `vende-facil-db` | — | PostgreSQL |
+
+Defina `GEMINI_API_KEY` (e demais secrets) só no serviço **API**. O app usa `EXPO_PUBLIC_API_URL` apontando para a API.
 
 No ambiente local, se o SMTP não estiver configurado, o cadastro mostra o link de verificação. Em produção esse link não volta na API.
 

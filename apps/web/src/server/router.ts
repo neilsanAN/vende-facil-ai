@@ -149,13 +149,28 @@ const routes: Route[] = [
   { method: "GET", pattern: "/metrics", auth: "admin", handle: metrics },
 ];
 
+function allowedOrigins(appUrl: string, extra: string) {
+  const list = new Set(
+    [appUrl, ...extra.split(",")]
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+  return list;
+}
+
+function isAllowedOrigin(origin: string | null, appUrl: string, extra: string) {
+  if (!origin) return false;
+  if (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1")) return true;
+  return allowedOrigins(appUrl, extra).has(origin);
+}
+
 export async function handleApi(req: Request, parts: string[]) {
   const container = getContainer();
-  const cors = corsHeaders(req, container.config.APP_URL);
+  const cors = corsHeaders(req, container.config.APP_URL, container.config.CORS_ORIGINS || "");
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (["POST", "PATCH", "PUT", "DELETE"].includes(req.method) && !req.headers.get("authorization")) {
     const origin = req.headers.get("origin");
-    if (origin && origin !== container.config.APP_URL && !origin.startsWith("http://localhost")) {
+    if (origin && !isAllowedOrigin(origin, container.config.APP_URL, container.config.CORS_ORIGINS || "")) {
       return json({ error: { code: "ORIGIN", message: "Origem recusada." } }, 403);
     }
   }
@@ -177,10 +192,10 @@ export async function handleApi(req: Request, parts: string[]) {
   }
 }
 
-function corsHeaders(req: Request, appUrl: string) {
+function corsHeaders(req: Request, appUrl: string, extra: string) {
   const headers = new Headers();
   const origin = req.headers.get("origin");
-  if (origin && (origin === appUrl || origin.startsWith("http://localhost"))) {
+  if (origin && isAllowedOrigin(origin, appUrl, extra)) {
     headers.set("access-control-allow-origin", origin);
     headers.set("access-control-allow-credentials", "true");
     headers.set("access-control-allow-headers", "content-type, authorization, idempotency-key");

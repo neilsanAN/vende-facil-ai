@@ -2,10 +2,10 @@
 
 ## 1. Arquitetura
 
-Monorepo pnpm e Turborepo.
+Monorepo pnpm e Turborepo. No Render, o deploy segue o padrão Invento: **API** e **App** separados.
 
-- `apps/web`: Next.js App Router. A interface e os Route Handlers.
-- `apps/mobile`: Expo. Consome a mesma API e não compartilha componente de DOM.
+- `apps/web`: Next.js App Router. É a **API** (`vende-facil-api` no Render) e também o painel web SSR.
+- `apps/mobile`: Expo (Android/iOS + export web estático `vende-facil-app`). Consome a API via `EXPO_PUBLIC_API_URL`.
 - `packages/business`: regras, autorização e transações.
 - `packages/database`: Prisma e PostgreSQL.
 - `packages/ai`: provedores substituíveis.

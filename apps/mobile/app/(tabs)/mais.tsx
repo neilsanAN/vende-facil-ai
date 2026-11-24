@@ -1,9 +1,9 @@
 import { Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
-import * as SecureStore from "expo-secure-store";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
+import { deleteItem } from "../../src/storage";
 
 const links = [
   { href: "/pedidos", label: "Pedidos", text: "Pedidos da vitrine", icon: "bag-handle-outline" as const },
@@ -45,8 +45,8 @@ export default function MoreScreen() {
       ))}
       <Pressable
         onPress={async () => {
-          await SecureStore.deleteItemAsync("vf_access");
-          await SecureStore.deleteItemAsync("vf_refresh");
+          await deleteItem("vf_access");
+          await deleteItem("vf_refresh");
           router.replace("/");
         }}
         style={{

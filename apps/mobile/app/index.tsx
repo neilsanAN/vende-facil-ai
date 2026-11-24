@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
-import * as SecureStore from "expo-secure-store";
+import Constants from "expo-constants";
 import { Ionicons } from "@expo/vector-icons";
 import { brand, colors, control, fonts } from "@vendefacil/ui-tokens";
 import { WelcomeCarousel } from "../src/welcome-carousel";
 import { ApiClientError, createApiClient } from "@vendefacil/api-client";
+import { getItem, setItem } from "../src/storage";
 
-const apiBase = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+const apiBase =
+  Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 const api = createApiClient({ baseUrl: apiBase });
 
 function openLegal(path: "/termos" | "/privacidade") {
@@ -32,8 +34,8 @@ export default function AuthGate() {
     let alive = true;
     (async () => {
       try {
-        const access = await SecureStore.getItemAsync("vf_access");
-        const refresh = await SecureStore.getItemAsync("vf_refresh");
+        const access = await getItem("vf_access");
+        const refresh = await getItem("vf_refresh");
         if (access) {
           router.replace("/inicio");
           return;
@@ -47,8 +49,8 @@ export default function AuthGate() {
           if (response.ok) {
             const payload = (await response.json()) as { accessToken?: string; refreshToken?: string };
             if (payload.accessToken && payload.refreshToken) {
-              await SecureStore.setItemAsync("vf_access", payload.accessToken);
-              await SecureStore.setItemAsync("vf_refresh", payload.refreshToken);
+              await setItem("vf_access", payload.accessToken);
+              await setItem("vf_refresh", payload.refreshToken);
               if (alive) router.replace("/inicio");
             }
           }
@@ -75,8 +77,8 @@ export default function AuthGate() {
   );
 
   async function persistSession(accessToken: string, refreshToken: string) {
-    await SecureStore.setItemAsync("vf_access", accessToken);
-    await SecureStore.setItemAsync("vf_refresh", refreshToken);
+    await setItem("vf_access", accessToken);
+    await setItem("vf_refresh", refreshToken);
     router.replace("/inicio");
   }
 

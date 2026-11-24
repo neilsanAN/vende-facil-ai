@@ -1,14 +1,14 @@
-import * as SecureStore from "expo-secure-store";
 import Constants from "expo-constants";
 import { createApiClient } from "@vendefacil/api-client";
+import { getItem, setItem } from "./storage";
 
 const baseUrl = Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
 export const api = createApiClient({
   baseUrl,
-  getAccessToken: () => SecureStore.getItemAsync("vf_access"),
+  getAccessToken: () => getItem("vf_access"),
   refresh: async () => {
-    const refreshToken = await SecureStore.getItemAsync("vf_refresh");
+    const refreshToken = await getItem("vf_refresh");
     if (!refreshToken) return null;
     const response = await fetch(`${baseUrl}/api/auth/refresh`, {
       method: "POST",
@@ -18,8 +18,8 @@ export const api = createApiClient({
     if (!response.ok) return null;
     const payload = (await response.json()) as { accessToken?: string; refreshToken?: string };
     if (!payload.accessToken || !payload.refreshToken) return null;
-    await SecureStore.setItemAsync("vf_access", payload.accessToken);
-    await SecureStore.setItemAsync("vf_refresh", payload.refreshToken);
+    await setItem("vf_access", payload.accessToken);
+    await setItem("vf_refresh", payload.refreshToken);
     return payload.accessToken;
   },
 });

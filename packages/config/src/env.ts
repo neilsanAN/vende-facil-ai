@@ -9,6 +9,8 @@ const INSECURE_KEYS = new Set([
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_URL: z.string().url().default("http://localhost:3000"),
+  /** Origens extras permitidas (app Expo web no Render, etc). Separadas por vírgula. */
+  CORS_ORIGINS: z.string().optional().default(""),
   DATABASE_URL: z.string().min(1),
   ENCRYPTION_KEY: z
     .string()

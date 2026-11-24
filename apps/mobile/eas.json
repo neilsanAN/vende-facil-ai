@@ -9,7 +9,7 @@
       "channel": "preview",
       "android": { "buildType": "apk" },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://vende-facil-ai.onrender.com",
+        "EXPO_PUBLIC_API_URL": "https://vende-facil-api.onrender.com",
         "EXPO_PUBLIC_EAS_PROJECT_ID": "c1e70ad7-c5fe-4c1e-8a4b-3b8269553f5e"
       }
     },
@@ -17,7 +17,7 @@
       "channel": "production",
       "android": { "buildType": "app-bundle" },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://vende-facil-ai.onrender.com",
+        "EXPO_PUBLIC_API_URL": "https://vende-facil-api.onrender.com",
         "EXPO_PUBLIC_EAS_PROJECT_ID": "c1e70ad7-c5fe-4c1e-8a4b-3b8269553f5e"
       }
     }

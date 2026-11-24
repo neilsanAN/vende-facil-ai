@@ -17,6 +17,10 @@ module.exports = {
     orientation: "portrait",
     userInterfaceStyle: "dark",
     newArchEnabled: true,
+    web: {
+      bundler: "metro",
+      output: "single",
+    },
     ios: {
       supportsTablet: false,
       bundleIdentifier: "ai.vendefacil.app",
