@@ -17,7 +17,11 @@ export default async function InicioPage() {
   const session = await tenant();
   const data = await getContainer().commerce.dashboard(session);
   const { stats, recent } = data;
-  const first = data.greeting.name;
+  const first =
+    (data.greeting?.name || "").trim() ||
+    session.name.trim().split(/\s+/)[0] ||
+    session.email.split("@")[0] ||
+    "você";
   const metrics = [
     { label: "Visualizações", value: String(stats.productViews || stats.views), icon: Eye },
     { label: "Cliques", value: String(stats.whatsappClicks), icon: MousePointer2 },

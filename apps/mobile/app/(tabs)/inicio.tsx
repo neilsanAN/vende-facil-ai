@@ -28,7 +28,10 @@ export default function HomeScreen() {
       .then((result) => setData(result as Dash))
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Falha ao carregar."));
   }, []);
-  const first = (data?.greeting?.name || "").split(" ")[0] || "você";
+  const first =
+    (data?.greeting?.name || "").trim().split(/\s+/)[0] ||
+    (data?.greeting?.name || "").trim() ||
+    "você";
   const stats = data?.stats;
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16, paddingBottom: 28 }}>

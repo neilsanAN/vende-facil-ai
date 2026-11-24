@@ -121,7 +121,7 @@ export class CommerceService {
       include: { images: { orderBy: { position: "asc" }, take: 1 } },
     });
     const activity = await this.db.auditLog.findMany({ where: { organizationId: tenant.organizationId }, orderBy: { createdAt: "desc" }, take: 8 });
-    return { stats, recent, activity, greeting: greeting(tenant.name) };
+    return { stats, recent, activity, greeting: greeting(tenant.name, tenant.email) };
   }
 
   async track(input: { slug: string; type: "store_view" | "product_view" | "click"; productSlug?: string; kind?: "WHATSAPP" | "CATALOG" | "PRODUCT" | "SHARE"; visitorHash: string }) {
@@ -245,9 +245,12 @@ export class CommerceService {
   }
 }
 
-function greeting(name: string) {
+function greeting(name: string, email?: string) {
   const hour = new Date().getHours();
-  const first = name.split(" ")[0] || name;
+  const trimmed = (name || "").trim();
+  const fromEmail = (email || "").split("@")[0]?.trim() || "";
+  const source = trimmed || fromEmail || "você";
+  const first = source.split(/\s+/)[0] || source;
   const hello = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
   return { hello, name: first, subtitle: "Pronto para vender hoje?" };
 }
