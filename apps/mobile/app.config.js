@@ -32,7 +32,7 @@ module.exports = {
     android: {
       package: "ai.vendefacil.app",
       versionCode: 1,
-      softwareKeyboardLayoutMode: "pan",
+      softwareKeyboardLayoutMode: "resize",
       permissions: ["CAMERA"],
       blockedPermissions: [
         "android.permission.READ_MEDIA_IMAGES",

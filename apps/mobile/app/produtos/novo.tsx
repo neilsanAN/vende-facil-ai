@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { Image, Pressable, ScrollView, Switch, Text, View } from "react-native";
+import { Image, Pressable, Switch, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { parseBrlToCents } from "@vendefacil/validation";
 import { colors, fonts } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
@@ -12,10 +11,10 @@ import { uploadLocalImage } from "../../src/upload";
 import { BackButton } from "../../src/back-button";
 import { handleTenantError } from "../../src/session";
 import { useFeedback } from "../../src/feedback";
+import { KeyboardScreen } from "../../src/keyboard-screen";
 import { Field, HelperText, PrimaryButton, ScreenTitle } from "../../src/ui";
 
 export default function NewProductScreen() {
-  const insets = useSafeAreaInsets();
   const feedback = useFeedback();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -87,11 +86,7 @@ export default function NewProductScreen() {
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom, 28), gap: 12 }}
-      keyboardShouldPersistTaps="handled"
-    >
+    <KeyboardScreen contentContainerStyle={{ gap: 12 }}>
       <BackButton fallback="/produtos" />
       <ScreenTitle>Novo produto</ScreenTitle>
 
@@ -158,6 +153,6 @@ export default function NewProductScreen() {
 
       {message ? <HelperText error>{message}</HelperText> : null}
       <PrimaryButton label="Salvar produto" onPress={() => void save()} />
-    </ScrollView>
+    </KeyboardScreen>
   );
 }

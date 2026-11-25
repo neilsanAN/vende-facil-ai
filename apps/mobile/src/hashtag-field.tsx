@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { formatHashtag, normalizeHashtags } from "@vendefacil/types";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
+
+function toEditable(tags: string[]) {
+  return tags.map((tag) => formatHashtag(tag)).filter(Boolean).join(" ");
+}
 
 export function HashtagField({
   value,
@@ -13,16 +17,23 @@ export function HashtagField({
   onChange: (next: string[]) => void;
   label?: string;
 }) {
-  const [draft, setDraft] = useState("");
+  const [text, setText] = useState(() => toEditable(value));
+  const [focused, setFocused] = useState(false);
 
-  function addTag(raw: string) {
-    const next = normalizeHashtags([...value, raw]);
+  useEffect(() => {
+    if (!focused) setText(toEditable(value));
+  }, [value, focused]);
+
+  function commit(raw: string) {
+    const next = normalizeHashtags(raw);
     onChange(next);
-    setDraft("");
+    setText(toEditable(next));
   }
 
   function removeTag(tag: string) {
-    onChange(value.filter((item) => item.toLowerCase() !== tag.toLowerCase()));
+    const next = value.filter((item) => item.toLowerCase() !== tag.toLowerCase());
+    onChange(next);
+    setText(toEditable(next));
   }
 
   return (
@@ -30,7 +41,7 @@ export function HashtagField({
       style={{
         borderRadius: control.radiusInput,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: focused ? colors.primary : colors.border,
         backgroundColor: colors.surface,
         paddingHorizontal: control.paddingH,
         paddingVertical: 10,
@@ -38,56 +49,58 @@ export function HashtagField({
       }}
     >
       <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, fontWeight: "600" }}>{label}</Text>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-        {value.map((tag) => (
-          <Pressable
-            key={tag}
-            onPress={() => removeTag(tag)}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 4,
-              borderRadius: control.radiusButton,
-              backgroundColor: colors.primarySoft,
-              paddingHorizontal: 10,
-              paddingVertical: 6,
-            }}
-          >
-            <Text style={{ color: colors.primary, fontSize: fonts.body2, fontWeight: "700" }}>{formatHashtag(tag)}</Text>
-            <Ionicons name="close" size={12} color={colors.primary} />
-          </Pressable>
-        ))}
-        {!value.length ? <Text style={{ color: colors.textSecondary, fontSize: fonts.body }}>Nenhuma ainda. Digite e toque em +</Text> : null}
-      </View>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <TextInput
-          value={draft}
-          onChangeText={setDraft}
-          placeholder="#produto"
-          placeholderTextColor="#9A96AB"
-          autoCapitalize="none"
-          autoCorrect={false}
-          onSubmitEditing={() => {
-            if (draft.trim()) addTag(draft);
-          }}
-          style={{ flex: 1, color: colors.text, fontSize: control.fontSize, fontWeight: "600", minHeight: 28, padding: 0 }}
-        />
-        <Pressable
-          onPress={() => {
-            if (draft.trim()) addTag(draft);
-          }}
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: control.radiusButton,
-            backgroundColor: colors.primary,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Ionicons name="add" size={18} color="#fff" />
-        </Pressable>
-      </View>
+
+      {value.length ? (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+          {value.map((tag) => (
+            <Pressable
+              key={tag}
+              onPress={() => removeTag(tag)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+                borderRadius: control.radiusButton,
+                backgroundColor: colors.primarySoft,
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+              }}
+            >
+              <Text style={{ color: colors.primary, fontSize: fonts.body2, fontWeight: "700" }}>{formatHashtag(tag)}</Text>
+              <Ionicons name="close" size={12} color={colors.primary} />
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
+      <TextInput
+        value={text}
+        onChangeText={setText}
+        onFocus={() => setFocused(true)}
+        onBlur={() => {
+          setFocused(false);
+          commit(text);
+        }}
+        onSubmitEditing={() => commit(text)}
+        placeholder="#produto #oferta #loja"
+        placeholderTextColor="#9A96AB"
+        autoCapitalize="none"
+        autoCorrect={false}
+        multiline
+        textAlignVertical="top"
+        blurOnSubmit
+        style={{
+          color: colors.text,
+          fontSize: control.fontSize,
+          fontWeight: "600",
+          minHeight: 44,
+          padding: 0,
+          margin: 0,
+        }}
+      />
+      <Text style={{ color: colors.textSecondary, fontSize: fonts.tiny, fontWeight: "500" }}>
+        Edite livremente. Separe com espaço. Toque no chip para remover.
+      </Text>
     </View>
   );
 }

@@ -36,7 +36,17 @@ export class StudioService {
     }
   }
 
-  async generateAd(tenant: Tenant, input: { assetIds: string[]; tone: "PROFESSIONAL" | "FRIENDLY" | "URGENT" | "ELEGANT"; facts: ConfirmedFacts & { priceCents?: number | null }; productId?: string | null }, idempotencyKey: string) {
+  async generateAd(
+    tenant: Tenant,
+    input: {
+      assetIds: string[];
+      tone: "PROFESSIONAL" | "FRIENDLY" | "URGENT" | "ELEGANT";
+      facts: ConfirmedFacts & { priceCents?: number | null };
+      productId?: string | null;
+      replaceAdId?: string | null;
+    },
+    idempotencyKey: string,
+  ) {
     assertMinRole(tenant.role, "EDITOR");
     if (!this.ai.text) throw new AppError("PROVIDER_NOT_CONFIGURED", "A geração de texto precisa de um provedor de IA configurado. Você ainda pode escrever o anúncio manualmente.", 503);
     await this.guardHourly(tenant.organizationId);
@@ -44,6 +54,14 @@ export class StudioService {
     if (input.productId) {
       const product = await this.db.product.findFirst({ where: { id: input.productId, organizationId: tenant.organizationId } });
       if (!product) throw new AppError("NOT_FOUND", "Produto não encontrado.", 404);
+    }
+    const replaceId = input.replaceAdId || null;
+    let existing = null as { id: string } | null;
+    if (replaceId) {
+      existing = await this.db.advertisement.findFirst({
+        where: { id: replaceId, organizationId: tenant.organizationId, status: { not: "ARCHIVED" } },
+        select: { id: true },
+      });
     }
     let result;
     try {
@@ -57,20 +75,49 @@ export class StudioService {
     const generation = await this.record(tenant, "TEXT", result.usage, { tone: input.tone });
     await debitKind(this.db, { organizationId: tenant.organizationId, kind: "ANNOUNCEMENT", amount: 1, reason: "ad_generation", idempotencyKey: `ad:${idempotencyKey}`, referenceType: "AiGeneration", referenceId: generation.id });
     await this.billing.recordUsage(tenant.organizationId, "ai.announcement", 1, { generationId: generation.id });
+    const hashtags = normalizeHashtags(result.copy.hashtags, input.facts.name);
+
+    if (existing) {
+      await this.db.advertisement.update({
+        where: { id: existing.id },
+        data: {
+          productId: input.productId ?? null,
+          title: result.copy.title,
+          description: result.copy.description,
+          hashtags,
+          tone: input.tone,
+          status: "DRAFT",
+        },
+      });
+      await this.db.advertisementVersion.create({
+        data: {
+          advertisementId: existing.id,
+          organizationId: tenant.organizationId,
+          title: result.copy.title,
+          description: result.copy.description,
+          hashtags,
+          source: "AI",
+          aiGenerationId: generation.id,
+        },
+      });
+      await audit(this.db, { organizationId: tenant.organizationId, actorUserId: tenant.userId, action: "ad.regenerated", entityType: "Advertisement", entityId: existing.id });
+      return this.presentAd(existing.id, tenant.organizationId);
+    }
+
     const ad = await this.db.advertisement.create({
       data: {
         organizationId: tenant.organizationId,
         productId: input.productId ?? null,
         title: result.copy.title,
         description: result.copy.description,
-        hashtags: normalizeHashtags(result.copy.hashtags, input.facts.name),
+        hashtags,
         tone: input.tone,
         versions: {
           create: {
             organizationId: tenant.organizationId,
             title: result.copy.title,
             description: result.copy.description,
-            hashtags: normalizeHashtags(result.copy.hashtags, input.facts.name),
+            hashtags,
             source: "AI",
             aiGenerationId: generation.id,
           },

@@ -100,7 +100,7 @@ export const PLAN_CATALOG: PlanCatalogItem[] = [
     priceCents: 9990,
     position: 3,
     icon: "building",
-    features: ["Tudo do Profissional", "Vídeos com fair-use* (até 40/mês)", "Equipe (até 5 usuários)", "Suporte prioritário"],
+    features: ["Tudo do Profissional", "Vídeos ilimitados*", "Equipe (até 5 usuários)", "Suporte prioritário"],
     limits: {
       products: -1,
       members: 5,

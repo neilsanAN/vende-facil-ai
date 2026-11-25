@@ -54,12 +54,13 @@ export function Field({
         keyboardType={keyboardType}
         editable={editable}
         textAlignVertical={multiline ? "top" : "center"}
+        scrollEnabled={multiline}
         style={{
           color: colors.text,
           fontSize: control.fontSize,
           fontWeight: "600",
           padding: 0,
-          minHeight: multiline ? 88 : 20,
+          minHeight: multiline ? 88 : 22,
         }}
       />
     </View>

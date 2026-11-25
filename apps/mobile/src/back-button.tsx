@@ -1,15 +1,34 @@
 import { Pressable } from "react-native";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
+import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@vendefacil/ui-tokens";
 
-/** Voltar com fallback — router.back() falha quando não há histórico. */
-export function BackButton({ fallback = "/inicio" }: { fallback?: string }) {
+/** Volta exatamente para a tela anterior; só usa fallback se não houver histórico. */
+export function goBack(fallback: Href = "/inicio") {
+  try {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+  } catch {
+    // ignore e tenta fallback
+  }
+  router.replace(fallback);
+}
+
+/** Botão Voltar — prioriza o histórico real da navegação. */
+export function BackButton({ fallback = "/inicio" }: { fallback?: Href }) {
+  const navigation = useNavigation();
+
   return (
     <Pressable
       onPress={() => {
-        if (router.canGoBack()) router.back();
-        else router.replace(fallback);
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+          return;
+        }
+        goBack(fallback);
       }}
       hitSlop={12}
       accessibilityRole="button"

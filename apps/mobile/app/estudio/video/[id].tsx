@@ -7,6 +7,8 @@ import { ASPECT_DIMENSIONS, PIPELINE_LABEL, type PipelineStatus } from "@vendefa
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
 import { api, apiBase } from "../../../src/api";
+import { goBack as goBackNav } from "../../../src/back-button";
+import { KeyboardScreen } from "../../../src/keyboard-screen";
 import { handleTenantError } from "../../../src/session";
 import { Chip, Field, HelperText } from "../../../src/ui";
 
@@ -143,15 +145,14 @@ export default function VideoEditorScreen() {
     }
   }
 
-  function goBack() {
-    if (router.canGoBack()) router.back();
-    else router.replace("/estudio");
+  function onBack() {
+    goBackNav("/estudio");
   }
 
   if (!draft || !scene) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16 }}>
-        <EditorHeader onBack={goBack} />
+        <EditorHeader onBack={onBack} />
         <ActivityIndicator color={colors.primary} style={{ marginTop: 28 }} />
         {message ? <HelperText>{message}</HelperText> : null}
       </View>
@@ -164,12 +165,13 @@ export default function VideoEditorScreen() {
   const caption = scene.caption || scene.cta || draft.cta;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12) }}>
-      <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom, 24) }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <EditorHeader onBack={goBack} />
+    <KeyboardScreen
+      contentContainerStyle={{
+        paddingTop: Math.max(insets.top, 12),
+        paddingBottom: Math.max(insets.bottom, 24),
+      }}
+    >
+        <EditorHeader onBack={onBack} />
 
         {/* Preview — mock: imagem + overlays + barra de player */}
         <View
@@ -391,8 +393,7 @@ export default function VideoEditorScreen() {
         <Pressable onPress={() => router.push("/estudio/publicar")} style={{ marginTop: 14, alignItems: "center" }}>
           <Text style={{ color: colors.primary, fontSize: fonts.body, fontWeight: "700" }}>Publicar nas redes</Text>
         </Pressable>
-      </ScrollView>
-    </View>
+    </KeyboardScreen>
   );
 }
 

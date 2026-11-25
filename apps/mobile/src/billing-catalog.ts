@@ -48,7 +48,7 @@ export const FALLBACK_PLANS: PlanCard[] = [
     description: "Para equipes com mais volume, usuários e suporte prioritário.",
     priceCents: 9990,
     icon: "building",
-    features: ["Tudo do Profissional", "Vídeos com fair-use* (até 40/mês)", "Equipe (até 5 usuários)", "Suporte prioritário"],
+    features: ["Tudo do Profissional", "Vídeos ilimitados*", "Equipe (até 5 usuários)", "Suporte prioritário"],
     prices: [
       { interval: "MONTH", priceCents: 9990 },
       { interval: "YEAR", priceCents: 95900 },
@@ -63,43 +63,52 @@ export function asFeatures(value: unknown): string[] {
 
 export function normalizePlans(raw: unknown): PlanCard[] {
   if (!Array.isArray(raw) || raw.length === 0) return FALLBACK_PLANS;
-  const mapped = raw
-    .map((item) => {
-      if (!item || typeof item !== "object") return null;
-      const row = item as Record<string, unknown>;
-      const code = String(row.code || "");
-      if (!code || code === "free") return null;
-      const pricesRaw = Array.isArray(row.prices) ? row.prices : [];
-      const prices = pricesRaw
-        .map((price) => {
-          if (!price || typeof price !== "object") return null;
-          const p = price as Record<string, unknown>;
-          const interval = p.interval === "YEAR" ? "YEAR" : "MONTH";
-          return { interval: interval as "MONTH" | "YEAR", priceCents: Number(p.priceCents || 0) };
-        })
-        .filter(Boolean) as PlanCard["prices"];
-      return {
-        id: String(row.id || code),
-        code,
-        name: String(row.name || code),
-        description: String(row.description || ""),
-        priceCents: Number(row.priceCents || 0),
-        features: asFeatures(row.features),
-        badge: (row.badge as string | null | undefined) ?? null,
-        highlighted: Boolean(row.highlighted),
-        icon: String(row.icon || "sparkles"),
-        prices: prices.length
-          ? prices
-          : [
-              { interval: "MONTH" as const, priceCents: Number(row.priceCents || 0) },
-              { interval: "YEAR" as const, priceCents: Number(row.priceCents || 0) },
-            ],
-      } satisfies PlanCard;
-    })
-    .filter(Boolean) as PlanCard[];
-  return mapped.length ? mapped : FALLBACK_PLANS;
+  const byCode = new Map(FALLBACK_PLANS.map((plan) => [plan.code, plan]));
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const code = String(row.code || "");
+    if (!code || code === "free") continue;
+    const fallback = byCode.get(code);
+    const pricesRaw = Array.isArray(row.prices) ? row.prices : [];
+    const prices = pricesRaw
+      .map((price) => {
+        if (!price || typeof price !== "object") return null;
+        const p = price as Record<string, unknown>;
+        const interval = p.interval === "YEAR" ? "YEAR" : "MONTH";
+        return { interval: interval as "MONTH" | "YEAR", priceCents: Number(p.priceCents || 0) };
+      })
+      .filter(Boolean) as PlanCard["prices"];
+    byCode.set(code, {
+      id: String(row.id || fallback?.id || code),
+      code,
+      name: String(row.name || fallback?.name || code),
+      description: String(row.description || fallback?.description || ""),
+      priceCents: Number(row.priceCents || fallback?.priceCents || 0),
+      features: asFeatures(row.features).length ? asFeatures(row.features) : fallback?.features || [],
+      badge: (row.badge as string | null | undefined) ?? fallback?.badge ?? null,
+      highlighted: row.highlighted != null ? Boolean(row.highlighted) : Boolean(fallback?.highlighted),
+      icon: String(row.icon || fallback?.icon || "sparkles"),
+      prices: prices.length ? prices : fallback?.prices || [{ interval: "MONTH", priceCents: Number(row.priceCents || 0) }],
+    });
+  }
+  const order = ["basico", "pro", "business"];
+  const ordered = order.map((code) => byCode.get(code)).filter(Boolean) as PlanCard[];
+  return ordered.length === 3 ? ordered : FALLBACK_PLANS;
 }
 
 export function priceFor(plan: PlanCard, interval: "MONTH" | "YEAR") {
-  return plan.prices.find((item) => item.interval === interval)?.priceCents ?? plan.priceCents;
+  const found = plan.prices.find((item) => item.interval === interval)?.priceCents;
+  if (found != null && found > 0) return found;
+  if (interval === "YEAR") {
+    const month = plan.prices.find((item) => item.interval === "MONTH")?.priceCents ?? plan.priceCents;
+    return Math.round(month * 12 * 0.8);
+  }
+  return plan.priceCents;
+}
+
+/** Preço exibido nos cards: mensal, ou equivalente mensal com ~20% OFF no anual. */
+export function displayMonthlyCents(plan: PlanCard, interval: "MONTH" | "YEAR") {
+  if (interval === "MONTH") return priceFor(plan, "MONTH");
+  return Math.round(priceFor(plan, "YEAR") / 12);
 }

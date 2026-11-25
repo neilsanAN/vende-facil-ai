@@ -1,21 +1,19 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
+import { normalizeHashtags } from "@vendefacil/types";
 import { api } from "../../src/api";
 import { handleTenantError } from "../../src/session";
 import { BackButton } from "../../src/back-button";
 import { Field, HelperText, PrimaryButton, ScreenTitle } from "../../src/ui";
 import { HashtagField } from "../../src/hashtag-field";
-import { normalizeHashtags } from "@vendefacil/types";
+import { KeyboardScreen } from "../../src/keyboard-screen";
 import { useFeedback } from "../../src/feedback";
 
 type Draft = { id: string; title: string; description: string; hashtags: string[]; tone: string };
 
 export default function EditAdScreen() {
-  const insets = useSafeAreaInsets();
   const feedback = useFeedback();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -80,17 +78,13 @@ export default function EditAdScreen() {
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom, 28) }}
-      keyboardShouldPersistTaps="handled"
-    >
+    <KeyboardScreen contentContainerStyle={{ gap: 12 }}>
       <BackButton fallback="/anuncios" />
       <ScreenTitle style={{ marginBottom: 6 }}>Editar anúncio</ScreenTitle>
       <HelperText>{message}</HelperText>
 
       {!draft ? (
-        <ActivityIndicator color={colors.primary} />
+        <ActivityIndicator color="#7C5CFF" />
       ) : (
         <View style={{ gap: 12 }}>
           <Field label="Título" value={draft.title} onChangeText={(title) => setDraft({ ...draft, title })} />
@@ -99,6 +93,6 @@ export default function EditAdScreen() {
           <PrimaryButton label="Salvar" busy={saving} onPress={() => void save()} />
         </View>
       )}
-    </ScrollView>
+    </KeyboardScreen>
   );
 }

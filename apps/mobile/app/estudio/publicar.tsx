@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Linking, Modal, Pressable, ScrollView, Share, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
 import { api, apiBase } from "../../src/api";
 import { BackButton } from "../../src/back-button";
+import { KeyboardScreen } from "../../src/keyboard-screen";
 import { Toggle } from "../../src/toggle";
 import { handleTenantError } from "../../src/session";
 import { Card, Field, HelperText, PrimaryButton, ScreenTitle, SelectRow } from "../../src/ui";
@@ -20,7 +20,6 @@ const SOCIALS: Array<{ key: Channel; label: string; detail: string; icon: keyof 
 ];
 
 export default function PublishScreen() {
-  const insets = useSafeAreaInsets();
   const [products, setProducts] = useState<Product[]>([]);
   const [productId, setProductId] = useState("");
   const [caption, setCaption] = useState("");
@@ -101,11 +100,7 @@ export default function PublishScreen() {
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom, 28) }}
-      keyboardShouldPersistTaps="handled"
-    >
+    <KeyboardScreen>
       <BackButton fallback="/estudio" />
       <ScreenTitle>Publicar nas redes</ScreenTitle>
 
@@ -213,6 +208,6 @@ export default function PublishScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </ScrollView>
+    </KeyboardScreen>
   );
 }

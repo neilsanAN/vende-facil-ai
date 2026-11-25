@@ -121,6 +121,8 @@ export const adGenerateSchema = z.object({
   assetIds: z.array(z.string().uuid()).min(1).max(8),
   tone: z.enum(AD_TONES),
   facts: confirmedFactsSchema,
+  /** Se informado, regenera no mesmo anúncio em vez de criar outro. */
+  replaceAdId: z.string().uuid().nullable().optional(),
 });
 
 export const adUpdateSchema = z.object({

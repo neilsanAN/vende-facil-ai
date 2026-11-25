@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Image, Pressable, Text, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,7 +12,7 @@ import { BackButton } from "../../src/back-button";
 import { ActionMenu } from "../../src/action-menu";
 import { ConfirmSheet, useFeedback } from "../../src/feedback";
 import { ScreenTitle } from "../../src/ui";
-import { getItem } from "../../src/storage";
+import { deleteItem, getItem } from "../../src/storage";
 
 type Ad = {
   id: string;
@@ -34,9 +34,10 @@ export default function AdsListScreen() {
   const [error, setError] = useState("");
   const [menuAd, setMenuAd] = useState<Ad | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Ad | null>(null);
+  const deletingRef = useRef(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (soft = false) => {
+    if (!soft) setLoading(true);
     setError("");
     try {
       const rows = await api.listAds();
@@ -61,33 +62,47 @@ export default function AdsListScreen() {
     }, [load]),
   );
 
-  async function archive(ad: Ad) {
+  async function removeAd(ad: Ad) {
+    if (deletingRef.current) return;
+    deletingRef.current = true;
     setError("");
+    setConfirmDelete(null);
+    setMenuAd(null);
+    const previous = ads;
+    setAds((current) => current.filter((item) => item.id !== ad.id));
     try {
       await feedback.run("Excluindo anúncio…", async () => {
         try {
           await api.archiveAd(ad.id);
         } catch (cause) {
           if (cause instanceof ApiClientError && (cause.status === 404 || cause.status === 405)) {
-            await api.softArchiveAd({
-              id: ad.id,
-              title: ad.title,
-              description: ad.description,
-              hashtags: ad.hashtags?.length ? ad.hashtags : ["loja"],
-              tone: (ad.tone as "PROFESSIONAL" | "FRIENDLY" | "URGENT" | "ELEGANT") || "PROFESSIONAL",
-            });
+            try {
+              await api.deleteAd(ad.id);
+            } catch {
+              await api.softArchiveAd({
+                id: ad.id,
+                title: ad.title,
+                description: ad.description,
+                hashtags: ad.hashtags?.length ? ad.hashtags : ["loja"],
+                tone: (ad.tone as "PROFESSIONAL" | "FRIENDLY" | "URGENT" | "ELEGANT") || "PROFESSIONAL",
+              });
+            }
           } else {
             throw cause;
           }
         }
+        await deleteItem(`ad_cover_${ad.id}`).catch(() => undefined);
       });
-      setAds((current) => current.filter((item) => item.id !== ad.id));
       feedback.showToast("Anúncio excluído.", "success");
+      void load(true);
     } catch (cause) {
+      setAds(previous);
       if (handleTenantError(cause)) return;
       const text = cause instanceof ApiClientError ? cause.message : "Não foi possível excluir.";
       setError(text);
       feedback.showToast(text, "error");
+    } finally {
+      deletingRef.current = false;
     }
   }
 
@@ -204,7 +219,7 @@ export default function AdsListScreen() {
         destructive
         onClose={() => setConfirmDelete(null)}
         onConfirm={() => {
-          if (confirmDelete) void archive(confirmDelete);
+          if (confirmDelete) void removeAd(confirmDelete);
         }}
       />
     </View>

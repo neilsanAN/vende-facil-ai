@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
-import { api } from "../../src/api";
-import { BackButton } from "../../src/back-button";
-import { handleTenantError } from "../../src/session";
+import { api } from "../src/api";
+import { BackButton } from "../src/back-button";
+import { handleTenantError } from "../src/session";
 
 type Stats = { views?: number; whatsappClicks?: number; orders?: number; salesCents?: number; note?: string };
 
@@ -29,7 +29,7 @@ export default function StatsScreen() {
   ];
   return (
     <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16, paddingBottom: 16 }}>
-      <BackButton fallback="/inicio" />
+      <BackButton fallback="/mais" />
       <Text style={{ color: colors.text, fontSize: fonts.heading, fontWeight: "700" }}>Resultados</Text>
       <Text style={{ color: colors.textSecondary, fontSize: fonts.body, marginTop: 4, marginBottom: 12 }}>Últimos 7 dias</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>

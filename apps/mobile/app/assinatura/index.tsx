@@ -102,7 +102,7 @@ export default function MySubscriptionScreen() {
             <HelperText error>{error}</HelperText>
             <PrimaryButton label="Tentar de novo" onPress={() => void load()} />
             <View style={{ height: 8 }} />
-            <PrimaryButton label="Ver planos" onPress={() => router.push("/assinatura/planos")} />
+            <PrimaryButton label="Ver planos" onPress={() => router.push("/planos")} />
           </View>
         ) : null}
 
@@ -209,7 +209,7 @@ export default function MySubscriptionScreen() {
                   Faça upgrade para continuar neste período.
                 </Text>
                 <View style={{ marginTop: 10 }}>
-                  <PrimaryButton label="Ver planos" onPress={() => router.push("/assinatura/planos")} />
+                  <PrimaryButton label="Ver planos" onPress={() => router.push("/planos")} />
                 </View>
               </View>
             ) : null}

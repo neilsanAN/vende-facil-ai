@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { FlatList, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
-import { api } from "../../src/api";
-import { BackButton } from "../../src/back-button";
-import { handleTenantError } from "../../src/session";
+import { api } from "../src/api";
+import { BackButton } from "../src/back-button";
+import { handleTenantError } from "../src/session";
 
 type Order = { id: string; totalCents: number; status: string; customer?: { name?: string }; items?: unknown[] };
 

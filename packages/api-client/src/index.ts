@@ -130,11 +130,16 @@ export function createApiClient(options: {
       assetIds: string[];
       tone: "PROFESSIONAL" | "FRIENDLY" | "URGENT" | "ELEGANT";
       facts: { name: string; priceCents?: number | null; brand?: string; facts?: string; audience?: string };
+      replaceAdId?: string | null;
     }) =>
       request<{ id: string; title: string; description: string; hashtags: string[] }>("/api/ai/ads", {
         method: "POST",
         headers: { "idempotency-key": `${Date.now()}-${Math.random().toString(36).slice(2, 10)}` },
         body: JSON.stringify(body),
+      }),
+    deleteAd: (id: string) =>
+      request<{ ok: boolean }>(`/api/ads/${id}`, {
+        method: "DELETE",
       }),
     updateAd: (
       id: string,

@@ -43,7 +43,7 @@ export default function PaymentScreen() {
         <View style={{ height: 14 }} />
         <PrimaryButton label="Ir para Minha assinatura" onPress={() => router.replace("/assinatura")} />
         <View style={{ height: 10 }} />
-        <SecondaryButton label="Ver planos" onPress={() => router.push("/assinatura/planos")} />
+        <SecondaryButton label="Ver planos" onPress={() => router.push("/planos")} />
       </ScrollView>
     </View>
   );

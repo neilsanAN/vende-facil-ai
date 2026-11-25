@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Dimensions, Easing, Image, Pressable, ScrollView, Text, View } from "react-native";
+import { Animated, Dimensions, Easing, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -8,10 +8,12 @@ import { colors, control, fonts } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
 import { normalizeHashtags } from "@vendefacil/types";
 import { api, apiBase } from "../../src/api";
+import { goBack as goBackNav } from "../../src/back-button";
 import { uploadLocalImage } from "../../src/upload";
 import { handleTenantError } from "../../src/session";
 import { Field, PrimaryButton } from "../../src/ui";
 import { HashtagField } from "../../src/hashtag-field";
+import { useKeyboardBottomInset } from "../../src/keyboard-screen";
 import { useFeedback } from "../../src/feedback";
 import { setItem } from "../../src/storage";
 
@@ -123,6 +125,7 @@ function ScreenHeader({ title, onBack }: { title: string; onBack: () => void }) 
 
 export default function AdScreen() {
   const insets = useSafeAreaInsets();
+  const keyboardInset = useKeyboardBottomInset();
   const feedback = useFeedback();
   const slide = useRef(new Animated.Value(0)).current;
   const spin = useRef(new Animated.Value(0)).current;
@@ -133,6 +136,7 @@ export default function AdScreen() {
   const [coverAssetId, setCoverAssetId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState("");
+  const generatingRef = useRef(false);
 
   useEffect(() => {
     Animated.timing(slide, {
@@ -168,8 +172,7 @@ export default function AdScreen() {
       return;
     }
     if (step === 1) return;
-    if (router.canGoBack()) router.back();
-    else router.replace("/inicio");
+    goBackNav("/inicio");
   }
 
   async function open(camera: boolean) {
@@ -202,33 +205,42 @@ export default function AdScreen() {
       setError("Tire ou escolha uma foto primeiro.");
       return;
     }
+    if (generatingRef.current) return;
+    generatingRef.current = true;
     setError("");
     setStep(1);
     try {
-      const ad = await (async () => {
-        const asset = await uploadLocalImage(uri, mimeType, "produto.jpg");
-        setCoverAssetId(asset.id);
-        const created = await api.generateAd({
-          assetIds: [asset.id],
-          tone: "PROFESSIONAL",
-          productId: null,
-          facts: { name: "Produto", brand: "", facts: "", audience: "", priceCents: null },
-        });
-        await setItem(`ad_cover_${created.id}`, `${apiBase}/api/media/${asset.id}`);
-        return created;
-      })();
+      const previousId = draft?.id || null;
+      const asset = coverAssetId
+        ? { id: coverAssetId }
+        : await uploadLocalImage(uri, mimeType, "produto.jpg");
+      setCoverAssetId(asset.id);
+      const created = await api.generateAd({
+        assetIds: [asset.id],
+        tone: "PROFESSIONAL",
+        productId: null,
+        replaceAdId: previousId,
+        facts: { name: "Produto", brand: "", facts: "", audience: "", priceCents: null },
+      });
+      // Se a API ainda criar outro (deploy antigo), arquiva o rascunho anterior.
+      if (previousId && previousId !== created.id) {
+        await api.archiveAd(previousId).catch(() => undefined);
+      }
+      await setItem(`ad_cover_${created.id}`, `${apiBase}/api/media/${asset.id}`);
       setDraft({
-        ...ad,
-        hashtags: normalizeHashtags(ad.hashtags, ad.title),
+        ...created,
+        hashtags: normalizeHashtags(created.hashtags, created.title),
       });
       setStep(2);
-      feedback.showToast("Anúncio gerado.", "success");
+      feedback.showToast(previousId ? "Anúncio regenerado." : "Anúncio gerado.", "success");
     } catch (cause) {
       if (handleTenantError(cause)) return;
-      setStep(0);
+      setStep(draft ? 2 : 0);
       const text = cause instanceof ApiClientError ? cause.message : "Não foi possível gerar o anúncio.";
       setError(text);
       feedback.showToast(text, "error");
+    } finally {
+      generatingRef.current = false;
     }
   }
 
@@ -264,13 +276,17 @@ export default function AdScreen() {
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12) }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12) }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={8}
+    >
       <View style={{ paddingHorizontal: 16 }}>
         <ScreenHeader title={title} onBack={goBack} />
         <Stepper active={step} />
       </View>
 
-      <View style={{ flex: 1, overflow: "hidden" }}>
+      <View style={{ flex: 1, overflow: "hidden", paddingBottom: keyboardInset }}>
         <Animated.View
           style={{
             flex: 1,
@@ -412,7 +428,13 @@ export default function AdScreen() {
 
           {/* Step 3 — Ajustes */}
           <View style={{ width: PAGE_WIDTH, flex: 1, paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom, 20) }}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12, gap: 12 }} keyboardShouldPersistTaps="handled">
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 24, gap: 12 }}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+            >
               {uri ? (
                 <View>
                   <View style={{ borderRadius: 18, overflow: "hidden", backgroundColor: colors.surface }}>
@@ -502,6 +524,6 @@ export default function AdScreen() {
           </View>
         </Animated.View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

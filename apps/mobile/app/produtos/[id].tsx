@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, Switch, Text, View } from "react-native";
+import { ActivityIndicator, Switch, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { parseBrlToCents } from "@vendefacil/validation";
 import { colors, fonts } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
@@ -9,6 +8,7 @@ import { api } from "../../src/api";
 import { BackButton } from "../../src/back-button";
 import { handleTenantError } from "../../src/session";
 import { useFeedback } from "../../src/feedback";
+import { KeyboardScreen } from "../../src/keyboard-screen";
 import { Field, HelperText, PrimaryButton, ScreenTitle } from "../../src/ui";
 
 function centsToInput(cents?: number | null) {
@@ -17,7 +17,6 @@ function centsToInput(cents?: number | null) {
 }
 
 export default function EditProductScreen() {
-  const insets = useSafeAreaInsets();
   const feedback = useFeedback();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
@@ -77,11 +76,7 @@ export default function EditProductScreen() {
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom, 28), gap: 12 }}
-      keyboardShouldPersistTaps="handled"
-    >
+    <KeyboardScreen contentContainerStyle={{ gap: 12 }}>
       <BackButton fallback="/produtos" />
       <ScreenTitle>Editar produto</ScreenTitle>
       {loading ? (
@@ -112,6 +107,6 @@ export default function EditProductScreen() {
           <PrimaryButton label="Salvar" onPress={() => void save()} />
         </>
       )}
-    </ScrollView>
+    </KeyboardScreen>
   );
 }

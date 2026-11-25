@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Linking, Platform, Pressable, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import Constants from "expo-constants";
 import { Ionicons } from "@expo/vector-icons";
@@ -133,81 +133,87 @@ export default function AuthGate() {
 
   if (screen === "otp") {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background, padding: 24, justifyContent: "center" }}>
-        <Pressable
-          onPress={() => {
-            setError("");
-            setMessage("");
-            setScreen("login");
-          }}
-          style={{ position: "absolute", left: 16, top: 48, flexDirection: "row", alignItems: "center", gap: 4 }}
-        >
-          <Ionicons name="chevron-back" size={22} color={colors.primary} />
-          <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "600" }}>Voltar</Text>
-        </Pressable>
-        <Text style={{ color: colors.text, fontSize: fonts.heading, fontWeight: "700", textAlign: "center" }}>Confirme seu e-mail</Text>
-        <Text style={{ color: colors.textSecondary, fontSize: fonts.body, marginTop: 8, marginBottom: 16, textAlign: "center" }}>Código enviado para {email}</Text>
-        <TextInput
-          keyboardType="number-pad"
-          maxLength={6}
-          value={code}
-          onChangeText={(value) => setCode(value.replace(/\D/g, "").slice(0, 6))}
-          placeholder="000000"
-          placeholderTextColor={colors.textSecondary}
-          style={{ height: control.height, borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.surface, color: colors.text, textAlign: "center", letterSpacing: 8, fontSize: 18, marginBottom: 12 }}
-        />
-        {error ? <Text style={{ color: colors.error, marginBottom: 8 }}>{error}</Text> : null}
-        {message ? <Text style={{ color: colors.primary, marginBottom: 8, textAlign: "center", fontSize: 12 }}>{message}</Text> : null}
-        <Pressable
-          disabled={busy || code.length !== 6}
-          style={{ height: control.height, borderRadius: 999, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}
-          onPress={async () => {
-            setBusy(true);
-            setError("");
-            try {
-              const session = await api.verifyEmail({ email, code });
-              await persistSession(session.accessToken, session.refreshToken);
-            } catch (cause) {
-              setError(cause instanceof Error ? cause.message : "Código inválido.");
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          <Text style={{ color: "#fff", fontWeight: "600" }}>Confirmar e-mail</Text>
-        </Pressable>
-        <Pressable
-          disabled={busy}
-          style={{ marginTop: 12, alignItems: "center" }}
-          onPress={async () => {
-            setBusy(true);
-            setError("");
-            try {
-              const response = await fetch(`${apiBase}/api/auth/resend`, {
-                method: "POST",
-                headers: { "content-type": "application/json", "x-vendefacil-client": "mobile" },
-                body: JSON.stringify({ email }),
-              });
-              if (!response.ok) throw new Error("Falha");
-              const payload = (await response.json()) as { devCode?: string | null };
-              if (payload.devCode) setDevCode(payload.devCode);
-              setMessage("Novo código enviado por e-mail.");
-            } catch {
-              setError("Não foi possível reenviar o código.");
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "600" }}>Reenviar código</Text>
-        </Pressable>
-      </View>
+      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, justifyContent: "center" }} keyboardShouldPersistTaps="handled">
+          <Pressable
+            onPress={() => {
+              setError("");
+              setMessage("");
+              setScreen("login");
+            }}
+            style={{ position: "absolute", left: 0, top: 24, flexDirection: "row", alignItems: "center", gap: 4 }}
+          >
+            <Ionicons name="chevron-back" size={22} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "600" }}>Voltar</Text>
+          </Pressable>
+          <Text style={{ color: colors.text, fontSize: fonts.heading, fontWeight: "700", textAlign: "center" }}>Confirme seu e-mail</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: fonts.body, marginTop: 8, marginBottom: 16, textAlign: "center" }}>Código enviado para {email}</Text>
+          <TextInput
+            keyboardType="number-pad"
+            maxLength={6}
+            value={code}
+            onChangeText={(value) => setCode(value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="000000"
+            placeholderTextColor={colors.textSecondary}
+            style={{ height: control.height, borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.surface, color: colors.text, textAlign: "center", letterSpacing: 8, fontSize: 18, marginBottom: 12 }}
+          />
+          {error ? <Text style={{ color: colors.error, marginBottom: 8 }}>{error}</Text> : null}
+          {message ? <Text style={{ color: colors.primary, marginBottom: 8, textAlign: "center", fontSize: 12 }}>{message}</Text> : null}
+          <Pressable
+            disabled={busy || code.length !== 6}
+            style={{ height: control.height, borderRadius: 999, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}
+            onPress={async () => {
+              setBusy(true);
+              setError("");
+              try {
+                const session = await api.verifyEmail({ email, code });
+                await persistSession(session.accessToken, session.refreshToken);
+              } catch (cause) {
+                setError(cause instanceof Error ? cause.message : "Código inválido.");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <Text style={{ color: "#fff", fontWeight: "600" }}>Confirmar e-mail</Text>
+          </Pressable>
+          <Pressable
+            disabled={busy}
+            style={{ marginTop: 12, alignItems: "center" }}
+            onPress={async () => {
+              setBusy(true);
+              setError("");
+              try {
+                const response = await fetch(`${apiBase}/api/auth/resend`, {
+                  method: "POST",
+                  headers: { "content-type": "application/json", "x-vendefacil-client": "mobile" },
+                  body: JSON.stringify({ email }),
+                });
+                if (!response.ok) throw new Error("Falha");
+                const payload = (await response.json()) as { devCode?: string | null };
+                if (payload.devCode) setDevCode(payload.devCode);
+                setMessage("Novo código enviado por e-mail.");
+              } catch {
+                setError("Não foi possível reenviar o código.");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "600" }}>Reenviar código</Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#2A1760", paddingHorizontal: 24, paddingTop: 48, paddingBottom: 28 }}>
-      <View style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, backgroundColor: "#E9E4F8", opacity: 0 }} />
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: "#2A1760" }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 48, paddingBottom: 28 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
       <Pressable
         onPress={() => {
           setError("");
@@ -391,6 +397,7 @@ export default function AuthGate() {
           </Text>
         </Pressable>
       </View>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
