@@ -1,12 +1,13 @@
 import { useCallback, useMemo, useState } from "react";
-import { FlatList, Image, Linking, Pressable, Text, TextInput, View } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { FlatList, Image, Pressable, Text, TextInput, View } from "react-native";
+import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
 import { api, apiBase } from "../../src/api";
 import { handleTenantError } from "../../src/session";
 import { ActionMenu } from "../../src/action-menu";
+import { ConfirmSheet, useFeedback } from "../../src/feedback";
 
 function mediaUrl(path?: string) {
   if (!path) return null;
@@ -26,11 +27,13 @@ type Product = {
 type Filter = "ALL" | "ACTIVE" | "DRAFT";
 
 export default function ProductsScreen() {
+  const feedback = useFeedback();
   const [products, setProducts] = useState<Product[]>([]);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("ALL");
   const [error, setError] = useState("");
   const [menuProduct, setMenuProduct] = useState<Product | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Product | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -77,21 +80,31 @@ export default function ProductsScreen() {
 
   async function archive(id: string) {
     try {
-      await api.archiveProduct(id);
+      await feedback.run("Excluindo produto…", async () => {
+        await api.archiveProduct(id);
+      });
       setProducts((current) => current.filter((item) => item.id !== id));
+      feedback.showToast("Produto excluído.", "success");
     } catch (cause) {
       if (handleTenantError(cause)) return;
-      setError(cause instanceof ApiClientError ? cause.message : "Não foi possível excluir.");
+      const text = cause instanceof ApiClientError ? cause.message : "Não foi possível excluir.";
+      setError(text);
+      feedback.showToast(text, "error");
     }
   }
 
   async function duplicate(id: string) {
     try {
-      await api.duplicateProduct(id);
-      await load();
+      await feedback.run("Duplicando…", async () => {
+        await api.duplicateProduct(id);
+        await load();
+      });
+      feedback.showToast("Produto duplicado.", "success");
     } catch (cause) {
       if (handleTenantError(cause)) return;
-      setError(cause instanceof ApiClientError ? cause.message : "Não foi possível duplicar.");
+      const text = cause instanceof ApiClientError ? cause.message : "Não foi possível duplicar.";
+      setError(text);
+      feedback.showToast(text, "error");
     }
   }
 
@@ -205,7 +218,7 @@ export default function ProductsScreen() {
       />
 
       <Pressable
-        onPress={() => void Linking.openURL(`${apiBase}/produtos/novo`)}
+        onPress={() => router.push("/produtos/novo")}
         style={{
           position: "absolute",
           right: 16,
@@ -232,30 +245,40 @@ export default function ProductsScreen() {
         open={Boolean(menuProduct)}
         title={menuProduct?.name}
         onClose={() => setMenuProduct(null)}
-        items={[
-          {
-            key: "edit",
-            label: "Editar",
-            onPress: () => {
-              if (menuProduct) void Linking.openURL(`${apiBase}/produtos/${menuProduct.id}`);
-            },
-          },
-          {
-            key: "duplicate",
-            label: "Duplicar",
-            onPress: () => {
-              if (menuProduct) void duplicate(menuProduct.id);
-            },
-          },
-          {
-            key: "delete",
-            label: "Excluir",
-            destructive: true,
-            onPress: () => {
-              if (menuProduct) void archive(menuProduct.id);
-            },
-          },
-        ]}
+        items={
+          menuProduct
+            ? [
+                {
+                  key: "edit",
+                  label: "Editar",
+                  onPress: () => router.push(`/produtos/${menuProduct.id}`),
+                },
+                {
+                  key: "duplicate",
+                  label: "Duplicar",
+                  onPress: () => void duplicate(menuProduct.id),
+                },
+                {
+                  key: "delete",
+                  label: "Excluir",
+                  destructive: true,
+                  onPress: () => setConfirmDelete(menuProduct),
+                },
+              ]
+            : []
+        }
+      />
+
+      <ConfirmSheet
+        open={Boolean(confirmDelete)}
+        title="Excluir este produto?"
+        message="Ele sai da vitrine e da lista de ativos."
+        confirmLabel="Excluir"
+        destructive
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => {
+          if (confirmDelete) void archive(confirmDelete.id);
+        }}
       />
     </View>
   );

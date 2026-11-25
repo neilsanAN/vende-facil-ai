@@ -1,40 +1,41 @@
 import { useState } from "react";
-import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, fonts } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
-import { api } from "../../src/api";
+import { normalizeHashtags } from "@vendefacil/types";
+import { api, apiBase } from "../../src/api";
 import { uploadLocalImage } from "../../src/upload";
 import { handleTenantError } from "../../src/session";
 import { BackButton } from "../../src/back-button";
 import { Field, HelperText, PrimaryButton, ScreenTitle, SecondaryButton } from "../../src/ui";
 import { HashtagField } from "../../src/hashtag-field";
-import { normalizeHashtags } from "@vendefacil/types";
+import { useFeedback } from "../../src/feedback";
+import { setItem } from "../../src/storage";
 
 type Draft = { id: string; title: string; description: string; hashtags: string[] };
 
 export default function AdScreen() {
   const insets = useSafeAreaInsets();
+  const feedback = useFeedback();
   const [message, setMessage] = useState("Tire uma foto ou escolha da galeria para a IA criar o anúncio.");
   const [uri, setUri] = useState<string | null>(null);
   const [mimeType, setMimeType] = useState("image/jpeg");
   const [productName, setProductName] = useState("Produto");
-  const [busy, setBusy] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [phase, setPhase] = useState<"pick" | "generating" | "done">("pick");
+  const [coverAssetId, setCoverAssetId] = useState<string | null>(null);
+  const [phase, setPhase] = useState<"pick" | "done">("pick");
   const [draft, setDraft] = useState<Draft | null>(null);
 
   async function open(camera: boolean) {
-    setBusy(true);
     try {
       const permission = camera
         ? await ImagePicker.requestCameraPermissionsAsync()
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        setMessage(camera ? "Autorize a câmera nas configurações do aparelho." : "Autorize a galeria nas configurações do aparelho.");
+        feedback.showToast(camera ? "Autorize a câmera." : "Autorize a galeria.", "error");
         return;
       }
       const result = camera
@@ -46,12 +47,11 @@ export default function AdScreen() {
       setUri(asset.uri);
       setMimeType(asset.mimeType || "image/jpeg");
       setDraft(null);
+      setCoverAssetId(null);
       setPhase("pick");
       setMessage("Foto pronta. Informe o nome e toque em Gerar com IA.");
     } catch {
-      setMessage("Não foi possível abrir a câmera ou a galeria neste aparelho.");
-    } finally {
-      setBusy(false);
+      feedback.showToast("Não foi possível abrir a câmera/galeria.", "error");
     }
   }
 
@@ -65,29 +65,32 @@ export default function AdScreen() {
       setMessage("Informe o nome do produto (mínimo 2 letras).");
       return;
     }
-    setBusy(true);
-    setPhase("generating");
-    setMessage("Enviando a foto e gerando o anúncio com IA…");
     try {
-      const asset = await uploadLocalImage(uri, mimeType, `${name.slice(0, 40)}.jpg`);
-      const ad = await api.generateAd({
-        assetIds: [asset.id],
-        tone: "PROFESSIONAL",
-        productId: null,
-        facts: { name, brand: "", facts: "", audience: "", priceCents: null },
+      const ad = await feedback.run("Gerando anúncio com IA…", async () => {
+        const asset = await uploadLocalImage(uri, mimeType, `${name.slice(0, 40)}.jpg`);
+        setCoverAssetId(asset.id);
+        const created = await api.generateAd({
+          assetIds: [asset.id],
+          tone: "PROFESSIONAL",
+          productId: null,
+          facts: { name, brand: "", facts: "", audience: "", priceCents: null },
+        });
+        await setItem(`ad_cover_${created.id}`, `${apiBase}/api/media/${asset.id}`);
+        return created;
       });
       setDraft({
         ...ad,
         hashtags: normalizeHashtags(ad.hashtags, name),
       });
       setPhase("done");
-      setMessage("Anúncio gerado. Edite o texto e as hashtags se quiser e salve.");
+      setMessage("Anúncio gerado. Edite e salve.");
+      feedback.showToast("Anúncio gerado.", "success");
     } catch (cause) {
       if (handleTenantError(cause)) return;
       setPhase("pick");
-      setMessage(cause instanceof ApiClientError ? cause.message : "Não foi possível gerar o anúncio.");
-    } finally {
-      setBusy(false);
+      const text = cause instanceof ApiClientError ? cause.message : "Não foi possível gerar o anúncio.";
+      setMessage(text);
+      feedback.showToast(text, "error");
     }
   }
 
@@ -97,23 +100,25 @@ export default function AdScreen() {
       setMessage("Título e descrição precisam ter pelo menos 2 caracteres.");
       return;
     }
-    setSaving(true);
-    setMessage("Salvando anúncio…");
     try {
-      await api.updateAd(draft.id, {
-        title: draft.title.trim(),
-        description: draft.description.trim(),
-        hashtags: normalizeHashtags(draft.hashtags, draft.title),
-        tone: "PROFESSIONAL",
-        status: "DRAFT",
+      await feedback.run("Salvando anúncio…", async () => {
+        await api.updateAd(draft.id, {
+          title: draft.title.trim(),
+          description: draft.description.trim(),
+          hashtags: normalizeHashtags(draft.hashtags, draft.title),
+          tone: "PROFESSIONAL",
+          status: "DRAFT",
+        });
+        if (coverAssetId) await setItem(`ad_cover_${draft.id}`, `${apiBase}/api/media/${coverAssetId}`);
+        else if (uri) await setItem(`ad_cover_${draft.id}`, uri);
       });
-      setMessage("Anúncio salvo.");
+      feedback.showToast("Anúncio salvo.", "success");
       router.replace("/anuncios");
     } catch (cause) {
       if (handleTenantError(cause)) return;
-      setMessage(cause instanceof ApiClientError ? cause.message : "Não foi possível salvar.");
-    } finally {
-      setSaving(false);
+      const text = cause instanceof ApiClientError ? cause.message : "Não foi possível salvar.";
+      setMessage(text);
+      feedback.showToast(text, "error");
     }
   }
 
@@ -124,20 +129,8 @@ export default function AdScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <BackButton fallback="/inicio" />
-
       <ScreenTitle style={{ marginBottom: 6 }}>Criar anúncio com IA</ScreenTitle>
       <HelperText>{message}</HelperText>
-
-      {phase === "generating" ? (
-        <View style={{ borderRadius: 22, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 28, alignItems: "center", marginBottom: 16 }}>
-          {uri ? <Image source={{ uri }} style={{ width: 112, height: 112, borderRadius: 16, marginBottom: 16 }} /> : null}
-          <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={{ marginTop: 14, color: colors.text, fontWeight: "700", fontSize: 15 }}>Gerando seu anúncio…</Text>
-          <Text style={{ marginTop: 8, color: colors.textSecondary, fontSize: 12, textAlign: "center" }}>
-            Analisando a foto e escrevendo título, descrição e hashtags.
-          </Text>
-        </View>
-      ) : null}
 
       {phase === "pick" ? (
         <>
@@ -169,24 +162,13 @@ export default function AdScreen() {
 
           <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
             <Pressable
-              disabled={busy}
               onPress={() => void open(true)}
-              style={{
-                flex: 1,
-                minHeight: 88,
-                borderRadius: 16,
-                backgroundColor: colors.primary,
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                opacity: busy ? 0.7 : 1,
-              }}
+              style={{ flex: 1, minHeight: 88, borderRadius: 16, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center", gap: 8 }}
             >
               <Ionicons name="camera" size={22} color="#fff" />
               <Text style={{ color: "#fff", fontSize: fonts.body, fontWeight: "600" }}>Câmera</Text>
             </Pressable>
             <Pressable
-              disabled={busy}
               onPress={() => void open(false)}
               style={{
                 flex: 1,
@@ -198,7 +180,6 @@ export default function AdScreen() {
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 8,
-                opacity: busy ? 0.7 : 1,
               }}
             >
               <Ionicons name="images-outline" size={22} color={colors.text} />
@@ -209,8 +190,7 @@ export default function AdScreen() {
           <View style={{ marginBottom: 12 }}>
             <Field label="Nome do produto" value={productName} onChangeText={setProductName} placeholder="Ex.: Fone Bluetooth" />
           </View>
-
-          <PrimaryButton label="Gerar com IA" busy={busy} disabled={!uri} onPress={() => void generate()} />
+          <PrimaryButton label="Gerar com IA" disabled={!uri} onPress={() => void generate()} />
         </>
       ) : null}
 
@@ -243,15 +223,14 @@ export default function AdScreen() {
 
           <Field label="Título" value={draft.title} onChangeText={(title) => setDraft({ ...draft, title })} placeholder="Título do anúncio" />
           <Field label="Descrição" value={draft.description} onChangeText={(description) => setDraft({ ...draft, description })} placeholder="Descrição do anúncio" multiline />
-
           <HashtagField value={draft.hashtags} onChange={(hashtags) => setDraft({ ...draft, hashtags })} />
 
           <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
             <View style={{ flex: 1 }}>
-              <SecondaryButton label="Regenerar" disabled={busy || saving} onPress={() => void generate()} />
+              <SecondaryButton label="Regenerar" onPress={() => void generate()} />
             </View>
             <View style={{ flex: 1 }}>
-              <PrimaryButton label="Salvar" busy={saving} onPress={() => void saveDraft()} />
+              <PrimaryButton label="Salvar" onPress={() => void saveDraft()} />
             </View>
           </View>
         </View>

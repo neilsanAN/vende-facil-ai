@@ -55,21 +55,21 @@ export default function TabsLayout() {
             >
               <View
                 style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: 26,
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
                   backgroundColor: colors.primary,
                   alignItems: "center",
                   justifyContent: "center",
-                  marginBottom: 18,
+                  marginTop: -10,
                   shadowColor: "#5B3DF0",
-                  shadowOpacity: 0.28,
-                  shadowRadius: 10,
-                  shadowOffset: { width: 0, height: 6 },
-                  elevation: 6,
+                  shadowOpacity: 0.22,
+                  shadowRadius: 6,
+                  shadowOffset: { width: 0, height: 3 },
+                  elevation: 4,
                 }}
               >
-                <Ionicons name="add" size={28} color="#fff" />
+                <Ionicons name="add" size={22} color="#fff" />
               </View>
             </Pressable>
           ),

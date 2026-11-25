@@ -19,6 +19,7 @@
     "@vendefacil/api-client": "workspace:*",
     "@vendefacil/types": "workspace:*",
     "@vendefacil/ui-tokens": "workspace:*",
+    "@vendefacil/validation": "workspace:*",
     "babel-preset-expo": "~13.0.0",
     "expo": "~53.0.9",
     "expo-constants": "~17.1.6",

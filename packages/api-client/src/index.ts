@@ -74,6 +74,48 @@ export function createApiClient(options: {
     onboard: (body: { storeName: string; description?: string; whatsapp?: string }) =>
       request<{ organizationId: string }>("/api/onboarding", { method: "POST", body: JSON.stringify(body) }),
     products: () => request("/api/products"),
+    createProduct: (body: {
+      name: string;
+      description?: string;
+      priceCents: number;
+      promoPriceCents?: number | null;
+      status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
+      published?: boolean;
+      categoryId?: string | null;
+      sku?: string;
+      trackStock?: boolean;
+      stockQuantity?: number | null;
+      variants?: Array<{ name: string; sku?: string; priceCents?: number | null; stockQuantity?: number | null }>;
+    }) => request<{ id: string }>("/api/products", { method: "POST", body: JSON.stringify(body) }),
+    updateProduct: (
+      id: string,
+      body: {
+        name: string;
+        description?: string;
+        priceCents: number;
+        promoPriceCents?: number | null;
+        status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
+        published?: boolean;
+        categoryId?: string | null;
+        sku?: string;
+        trackStock?: boolean;
+        stockQuantity?: number | null;
+        variants?: Array<{ name: string; sku?: string; priceCents?: number | null; stockQuantity?: number | null }>;
+      },
+    ) => request<{ id: string }>(`/api/products/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    getProduct: (id: string) =>
+      request<{
+        id: string;
+        name: string;
+        description: string;
+        priceCents: number;
+        promoPriceCents?: number | null;
+        status: string;
+        published: boolean;
+        images: Array<{ id: string; url: string }>;
+      }>(`/api/products/${id}`),
+    addProductImage: (id: string, assetId: string) =>
+      request(`/api/products/${id}/images`, { method: "POST", body: JSON.stringify({ assetId }) }),
     dashboard: () => request("/api/dashboard"),
     orders: () => request("/api/orders"),
     stats: (range = "7d") => request(`/api/stats?range=${range}`),

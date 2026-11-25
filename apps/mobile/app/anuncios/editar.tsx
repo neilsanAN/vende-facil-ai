@@ -10,11 +10,13 @@ import { BackButton } from "../../src/back-button";
 import { Field, HelperText, PrimaryButton, ScreenTitle } from "../../src/ui";
 import { HashtagField } from "../../src/hashtag-field";
 import { normalizeHashtags } from "@vendefacil/types";
+import { useFeedback } from "../../src/feedback";
 
 type Draft = { id: string; title: string; description: string; hashtags: string[]; tone: string };
 
 export default function EditAdScreen() {
   const insets = useSafeAreaInsets();
+  const feedback = useFeedback();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [message, setMessage] = useState("Carregando anúncio…");
@@ -56,17 +58,22 @@ export default function EditAdScreen() {
     }
     setSaving(true);
     try {
-      await api.updateAd(draft.id, {
-        title: draft.title.trim(),
-        description: draft.description.trim(),
-        hashtags: normalizeHashtags(draft.hashtags, draft.title),
-        tone: (draft.tone as "PROFESSIONAL" | "FRIENDLY" | "URGENT" | "ELEGANT") || "PROFESSIONAL",
-        status: "DRAFT",
+      await feedback.run("Salvando anúncio…", async () => {
+        await api.updateAd(draft.id, {
+          title: draft.title.trim(),
+          description: draft.description.trim(),
+          hashtags: normalizeHashtags(draft.hashtags, draft.title),
+          tone: (draft.tone as "PROFESSIONAL" | "FRIENDLY" | "URGENT" | "ELEGANT") || "PROFESSIONAL",
+          status: "DRAFT",
+        });
       });
+      feedback.showToast("Anúncio salvo.", "success");
       router.replace("/anuncios");
     } catch (cause) {
       if (handleTenantError(cause)) return;
-      setMessage(cause instanceof ApiClientError ? cause.message : "Não foi possível salvar.");
+      const text = cause instanceof ApiClientError ? cause.message : "Não foi possível salvar.";
+      setMessage(text);
+      feedback.showToast(text, "error");
     } finally {
       setSaving(false);
     }

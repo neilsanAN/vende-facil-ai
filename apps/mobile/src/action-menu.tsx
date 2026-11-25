@@ -1,5 +1,6 @@
 import { Modal, Pressable, Text, View } from "react-native";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
+import { SheetHandle } from "./feedback";
 
 export type ActionMenuItem = {
   key: string;
@@ -8,7 +9,7 @@ export type ActionMenuItem = {
   onPress: () => void;
 };
 
-/** Menu profissional estilo 3 pontinhos. */
+/** Menu profissional estilo 3 pontinhos (bottom sheet). */
 export function ActionMenu({
   open,
   title,
@@ -28,13 +29,29 @@ export function ActionMenu({
           style={{
             marginHorizontal: 12,
             marginBottom: 24,
-            borderRadius: control.radiusSheet,
+            borderRadius: 20,
             backgroundColor: colors.surface,
             overflow: "hidden",
+            shadowColor: "#171827",
+            shadowOpacity: 0.12,
+            shadowRadius: 16,
+            shadowOffset: { width: 0, height: 8 },
+            elevation: 8,
           }}
         >
+          <SheetHandle />
           {title ? (
-            <Text style={{ color: colors.textSecondary, fontSize: fonts.body, fontWeight: "600", textAlign: "center", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <Text
+              style={{
+                color: colors.textSecondary,
+                fontSize: fonts.body,
+                fontWeight: "600",
+                textAlign: "center",
+                paddingHorizontal: 20,
+                paddingBottom: 12,
+              }}
+              numberOfLines={1}
+            >
               {title}
             </Text>
           ) : null}
@@ -42,7 +59,6 @@ export function ActionMenu({
             <Pressable
               key={item.key}
               onPress={() => {
-                // Executa a ação antes de fechar — senão o estado do menu zera e Excluir/Editar falham.
                 item.onPress();
                 onClose();
               }}

@@ -70,6 +70,9 @@ importers:
       '@vendefacil/ui-tokens':
         specifier: workspace:*
         version: link:../../packages/ui-tokens
+      '@vendefacil/validation':
+        specifier: workspace:*
+        version: link:../../packages/validation
       babel-preset-expo:
         specifier: ~13.0.0
         version: 13.0.0(@babel/core@7.29.13)
