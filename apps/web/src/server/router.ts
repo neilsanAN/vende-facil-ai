@@ -94,6 +94,7 @@ const routes: Route[] = [
   { method: "POST", pattern: "/ads", auth: "tenant", handle: saveAd },
   { method: "PATCH", pattern: "/ads/:id", auth: "tenant", handle: saveAd },
   { method: "POST", pattern: "/ads/:id/archive", auth: "tenant", handle: async (ctx) => json(await ctx.container.studio.archiveAd(requireTenantSession(ctx), ctx.params.id || "")) },
+  { method: "DELETE", pattern: "/ads/:id", auth: "tenant", handle: async (ctx) => json(await ctx.container.studio.archiveAd(requireTenantSession(ctx), ctx.params.id || "")) },
   { method: "POST", pattern: "/artwork", auth: "tenant", handle: artwork },
   { method: "GET", pattern: "/studio", auth: "tenant", handle: async (ctx) => json(await ctx.container.studio.history(requireTenantSession(ctx))) },
   { method: "GET", pattern: "/voices", auth: "tenant", handle: async (ctx) => json(await ctx.container.videos.voices()) },

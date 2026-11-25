@@ -1,3 +1,4 @@
+import { normalizeHashtags } from "@vendefacil/types";
 import { ProviderNotConfiguredError, type AdCopy, type ConfirmedFacts, type ImageAnalysis, type Usage, type VideoScript } from "./types";
 
 type OpenAiConfig = {
@@ -128,9 +129,7 @@ export function createOpenAiProviders(config: OpenAiConfig) {
       const copy: AdCopy = {
         title: String(raw.title || input.facts.name).slice(0, 140),
         description: String(raw.description || "").slice(0, 4000),
-        hashtags: Array.isArray(raw.hashtags)
-          ? raw.hashtags.map((tag) => String(tag).replace(/^#/, "").replace(/\s+/g, "")).filter(Boolean).slice(0, 12)
-          : [],
+        hashtags: normalizeHashtags(raw.hashtags, input.facts.name),
       };
       const inputTokens = payload.usage?.prompt_tokens ?? 0;
       const outputTokens = payload.usage?.completion_tokens ?? 0;

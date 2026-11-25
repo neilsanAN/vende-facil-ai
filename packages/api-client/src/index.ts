@@ -124,7 +124,28 @@ export function createApiClient(options: {
           updatedAt: string;
         }>
       >("/api/ads"),
-    archiveAd: (id: string) => request<{ ok: boolean }>(`/api/ads/${id}/archive`, { method: "POST" }),
+    archiveAd: (id: string) =>
+      request<{ ok: boolean }>(`/api/ads/${id}/archive`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      }),
+    softArchiveAd: (ad: {
+      id: string;
+      title: string;
+      description: string;
+      hashtags: string[];
+      tone?: "PROFESSIONAL" | "FRIENDLY" | "URGENT" | "ELEGANT";
+    }) =>
+      request<{ id: string }>(`/api/ads/${ad.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          title: ad.title,
+          description: ad.description,
+          hashtags: ad.hashtags,
+          tone: ad.tone || "PROFESSIONAL",
+          status: "ARCHIVED",
+        }),
+      }).then(() => ({ ok: true as const })),
     archiveProduct: (id: string) => request<{ ok: boolean }>(`/api/products/${id}/archive`, { method: "POST" }),
     duplicateProduct: (id: string) => request(`/api/products/${id}/duplicate`, { method: "POST" }),
     voices: () =>

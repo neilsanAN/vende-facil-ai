@@ -8,6 +8,8 @@ import { api } from "../../src/api";
 import { handleTenantError } from "../../src/session";
 import { BackButton } from "../../src/back-button";
 import { Field, HelperText, PrimaryButton, ScreenTitle } from "../../src/ui";
+import { HashtagField } from "../../src/hashtag-field";
+import { normalizeHashtags } from "@vendefacil/types";
 
 type Draft = { id: string; title: string; description: string; hashtags: string[]; tone: string };
 
@@ -35,10 +37,10 @@ export default function EditAdScreen() {
           id: row.id,
           title: row.title,
           description: row.description,
-          hashtags: row.hashtags,
+          hashtags: normalizeHashtags(row.hashtags, row.title),
           tone: row.tone || "PROFESSIONAL",
         });
-        setMessage("Edite e salve as alterações.");
+        setMessage("Edite o texto e as hashtags, depois salve.");
       })
       .catch((cause) => {
         if (handleTenantError(cause)) return;
@@ -57,7 +59,7 @@ export default function EditAdScreen() {
       await api.updateAd(draft.id, {
         title: draft.title.trim(),
         description: draft.description.trim(),
-        hashtags: draft.hashtags,
+        hashtags: normalizeHashtags(draft.hashtags, draft.title),
         tone: (draft.tone as "PROFESSIONAL" | "FRIENDLY" | "URGENT" | "ELEGANT") || "PROFESSIONAL",
         status: "DRAFT",
       });
@@ -86,6 +88,7 @@ export default function EditAdScreen() {
         <View style={{ gap: 12 }}>
           <Field label="Título" value={draft.title} onChangeText={(title) => setDraft({ ...draft, title })} />
           <Field label="Descrição" value={draft.description} onChangeText={(description) => setDraft({ ...draft, description })} multiline />
+          <HashtagField value={draft.hashtags} onChange={(hashtags) => setDraft({ ...draft, hashtags })} />
           <PrimaryButton label="Salvar" busy={saving} onPress={() => void save()} />
         </View>
       )}

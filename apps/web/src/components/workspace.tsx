@@ -370,16 +370,22 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
           <Field label="Descrição" section>
             <textarea className={areaSoftClass} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
           </Field>
-          <div>
-            <p className="text-[12px] font-semibold leading-4 text-ink">Hashtags (sugeridas)</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {draft.hashtags.map((tag) => (
-                <span key={tag} className="rounded-full bg-[#F3EEFF] px-3 py-1.5 text-[11px] font-semibold text-primary">
-                  {tag.startsWith("#") ? tag : `#${tag}`}
-                </span>
-              ))}
-            </div>
-          </div>
+          <Field label="Hashtags" section>
+            <input
+              className={inputSoftClass}
+              value={draft.hashtags.map((tag) => (tag.startsWith("#") ? tag : `#${tag}`)).join(" ")}
+              onChange={(event) =>
+                setDraft({
+                  ...draft,
+                  hashtags: event.target.value
+                    .split(/\s+/)
+                    .map((tag) => tag.replace(/^#/, "").trim())
+                    .filter((tag) => tag.length >= 2),
+                })
+              }
+              placeholder="#produto #oferta"
+            />
+          </Field>
           <div className="grid grid-cols-2 gap-2 pt-1">
             <Button variant="secondary" className="border border-line" onClick={() => void generate()}>
               <RefreshCw size={14} className="text-primary" />

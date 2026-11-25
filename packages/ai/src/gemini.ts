@@ -1,3 +1,4 @@
+import { normalizeHashtags } from "@vendefacil/types";
 import { type AdCopy, type ConfirmedFacts, type ImageAnalysis, type Usage, type VideoScript } from "./types";
 
 type GeminiConfig = {
@@ -139,9 +140,7 @@ export function createGeminiProviders(config: GeminiConfig) {
       const copy: AdCopy = {
         title: String(raw.title || input.facts.name).slice(0, 140),
         description: String(raw.description || "").slice(0, 4000),
-        hashtags: Array.isArray(raw.hashtags)
-          ? raw.hashtags.map((tag) => String(tag).replace(/^#/, "").replace(/\s+/g, "")).filter(Boolean).slice(0, 12)
-          : [],
+        hashtags: normalizeHashtags(raw.hashtags, input.facts.name),
       };
       return {
         copy,

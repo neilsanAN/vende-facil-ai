@@ -163,6 +163,8 @@ export function formatBrl(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+export { normalizeHashtags, formatHashtag } from "./hashtags";
+
 export function isPlanLimits(value: unknown): value is PlanLimits {
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;

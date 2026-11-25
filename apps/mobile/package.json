@@ -17,6 +17,7 @@
     "@expo/vector-icons": "14.0.0",
     "@tanstack/react-query": "^5.69.0",
     "@vendefacil/api-client": "workspace:*",
+    "@vendefacil/types": "workspace:*",
     "@vendefacil/ui-tokens": "workspace:*",
     "babel-preset-expo": "~13.0.0",
     "expo": "~53.0.9",

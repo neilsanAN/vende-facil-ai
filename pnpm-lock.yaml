@@ -64,6 +64,9 @@ importers:
       '@vendefacil/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@vendefacil/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       '@vendefacil/ui-tokens':
         specifier: workspace:*
         version: link:../../packages/ui-tokens
@@ -203,6 +206,10 @@ importers:
         version: 5.9.3
 
   packages/ai:
+    dependencies:
+      '@vendefacil/types':
+        specifier: workspace:*
+        version: link:../types
     devDependencies:
       typescript:
         specifier: ^5.8.2

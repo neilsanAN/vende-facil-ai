@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { ProviderNotConfiguredError, type AiRegistry, type ConfirmedFacts } from "@vendefacil/ai";
 import { composeArtwork, type StorageService } from "@vendefacil/media";
-import { formatBrl } from "@vendefacil/types";
+import { formatBrl, normalizeHashtags } from "@vendefacil/types";
 import { AppError } from "./errors";
 import { assertGroundedCopy, debitKind } from "./ledger";
 import { assertMinRole } from "./permissions";
@@ -60,10 +60,17 @@ export class StudioService {
         productId: input.productId ?? null,
         title: result.copy.title,
         description: result.copy.description,
-        hashtags: result.copy.hashtags,
+        hashtags: normalizeHashtags(result.copy.hashtags, input.facts.name),
         tone: input.tone,
         versions: {
-          create: { organizationId: tenant.organizationId, title: result.copy.title, description: result.copy.description, hashtags: result.copy.hashtags, source: "AI", aiGenerationId: generation.id },
+          create: {
+            organizationId: tenant.organizationId,
+            title: result.copy.title,
+            description: result.copy.description,
+            hashtags: normalizeHashtags(result.copy.hashtags, input.facts.name),
+            source: "AI",
+            aiGenerationId: generation.id,
+          },
         },
       },
     });
@@ -73,7 +80,7 @@ export class StudioService {
 
   async saveAd(tenant: Tenant, input: { id?: string; title: string; description: string; hashtags: string[]; tone: "PROFESSIONAL" | "FRIENDLY" | "URGENT" | "ELEGANT"; status?: "DRAFT" | "PUBLISHED" | "ARCHIVED"; productId?: string | null }) {
     assertMinRole(tenant.role, "EDITOR");
-    const hashtags = input.hashtags.map((tag) => tag.replace(/^#/, "")).filter(Boolean);
+    const hashtags = normalizeHashtags(input.hashtags);
     if (input.id) {
       const current = await this.db.advertisement.findFirst({ where: { id: input.id, organizationId: tenant.organizationId } });
       if (!current) throw new AppError("NOT_FOUND", "Anúncio não encontrado.", 404);

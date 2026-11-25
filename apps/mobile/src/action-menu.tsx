@@ -42,8 +42,9 @@ export function ActionMenu({
             <Pressable
               key={item.key}
               onPress={() => {
-                onClose();
+                // Executa a ação antes de fechar — senão o estado do menu zera e Excluir/Editar falham.
                 item.onPress();
+                onClose();
               }}
               style={{
                 paddingVertical: 16,

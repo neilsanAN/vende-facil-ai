@@ -4,13 +4,15 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, control, fonts } from "@vendefacil/ui-tokens";
+import { colors, fonts } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
 import { api } from "../../src/api";
 import { uploadLocalImage } from "../../src/upload";
 import { handleTenantError } from "../../src/session";
 import { BackButton } from "../../src/back-button";
 import { Field, HelperText, PrimaryButton, ScreenTitle, SecondaryButton } from "../../src/ui";
+import { HashtagField } from "../../src/hashtag-field";
+import { normalizeHashtags } from "@vendefacil/types";
 
 type Draft = { id: string; title: string; description: string; hashtags: string[] };
 
@@ -74,9 +76,12 @@ export default function AdScreen() {
         productId: null,
         facts: { name, brand: "", facts: "", audience: "", priceCents: null },
       });
-      setDraft(ad);
+      setDraft({
+        ...ad,
+        hashtags: normalizeHashtags(ad.hashtags, name),
+      });
       setPhase("done");
-      setMessage("Anúncio gerado. Edite o texto se quiser e salve.");
+      setMessage("Anúncio gerado. Edite o texto e as hashtags se quiser e salve.");
     } catch (cause) {
       if (handleTenantError(cause)) return;
       setPhase("pick");
@@ -98,7 +103,7 @@ export default function AdScreen() {
       await api.updateAd(draft.id, {
         title: draft.title.trim(),
         description: draft.description.trim(),
-        hashtags: draft.hashtags,
+        hashtags: normalizeHashtags(draft.hashtags, draft.title),
         tone: "PROFESSIONAL",
         status: "DRAFT",
       });
@@ -239,27 +244,7 @@ export default function AdScreen() {
           <Field label="Título" value={draft.title} onChangeText={(title) => setDraft({ ...draft, title })} placeholder="Título do anúncio" />
           <Field label="Descrição" value={draft.description} onChangeText={(description) => setDraft({ ...draft, description })} placeholder="Descrição do anúncio" multiline />
 
-          {draft.hashtags.length ? (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-              {draft.hashtags.map((tag) => (
-                <Text
-                  key={tag}
-                  style={{
-                    color: colors.primary,
-                    backgroundColor: colors.primarySoft,
-                    overflow: "hidden",
-                    borderRadius: control.radiusButton,
-                    paddingHorizontal: 10,
-                    paddingVertical: 6,
-                    fontSize: fonts.body2,
-                    fontWeight: "600",
-                  }}
-                >
-                  {tag.startsWith("#") ? tag : `#${tag}`}
-                </Text>
-              ))}
-            </View>
-          ) : null}
+          <HashtagField value={draft.hashtags} onChange={(hashtags) => setDraft({ ...draft, hashtags })} />
 
           <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
             <View style={{ flex: 1 }}>

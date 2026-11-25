@@ -12,6 +12,7 @@ import {
   VIDEO_OBJECTIVES,
   VIDEO_STYLES,
   VOICE_STYLES,
+  normalizeHashtags,
 } from "@vendefacil/types";
 
 export const emailSchema = z.string().trim().email("Informe um e-mail válido.").max(180).transform((value) => value.toLowerCase());
@@ -125,16 +126,7 @@ export const adGenerateSchema = z.object({
 export const adUpdateSchema = z.object({
   title: z.string().trim().min(2).max(140),
   description: z.string().trim().min(2).max(4000),
-  hashtags: z.preprocess(
-    (value) =>
-      Array.isArray(value)
-        ? value
-            .map((tag) => String(tag).replace(/^#/, "").trim())
-            .filter((tag) => tag.length >= 2 && tag.length <= 30)
-            .slice(0, 12)
-        : [],
-    z.array(z.string().min(2).max(30)).max(12),
-  ),
+  hashtags: z.preprocess((value) => normalizeHashtags(value), z.array(z.string().min(2).max(30)).max(12)),
   tone: z.enum(AD_TONES),
   status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional(),
   productId: z.string().uuid().nullable().optional(),
