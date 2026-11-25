@@ -136,6 +136,7 @@ export default function AdScreen() {
   const [coverAssetId, setCoverAssetId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState("");
+  const [status, setStatus] = useState("Gerando com IA…");
   const generatingRef = useRef(false);
 
   useEffect(() => {
@@ -171,8 +172,30 @@ export default function AdScreen() {
       setError("");
       return;
     }
-    if (step === 1) return;
+    if (step === 1) {
+      // Permite cancelar se travar na geração.
+      generatingRef.current = false;
+      setStep(0);
+      setError("Geração cancelada.");
+      return;
+    }
     goBackNav("/inicio");
+  }
+
+  function withTimeout<T>(promise: Promise<T>, ms: number, message: string) {
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(message)), ms);
+      promise.then(
+        (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        (cause) => {
+          clearTimeout(timer);
+          reject(cause);
+        },
+      );
+    });
   }
 
   async function open(camera: boolean) {
@@ -208,21 +231,53 @@ export default function AdScreen() {
     if (generatingRef.current) return;
     generatingRef.current = true;
     setError("");
+    setStatus("Enviando foto…");
     setStep(1);
+    const previousId = draft?.id || null;
     try {
-      const previousId = draft?.id || null;
       const asset = coverAssetId
         ? { id: coverAssetId }
-        : await uploadLocalImage(uri, mimeType, "produto.jpg");
+        : await withTimeout(uploadLocalImage(uri, mimeType, "produto.jpg"), 60_000, "O envio da foto demorou demais. Tente de novo.");
+      if (!generatingRef.current) return;
       setCoverAssetId(asset.id);
-      const created = await api.generateAd({
-        assetIds: [asset.id],
-        tone: "PROFESSIONAL",
-        productId: null,
-        replaceAdId: previousId,
-        facts: { name: "Produto", brand: "", facts: "", audience: "", priceCents: null },
-      });
-      // Se a API ainda criar outro (deploy antigo), arquiva o rascunho anterior.
+      setStatus("Gerando título e descrição…");
+      let created: { id: string; title: string; description: string; hashtags: string[] };
+      try {
+        created = await withTimeout(
+          api.generateAd({
+            assetIds: [asset.id],
+            tone: "PROFESSIONAL",
+            productId: null,
+            replaceAdId: previousId,
+            facts: { name: "Produto", brand: "", facts: "", audience: "", priceCents: null },
+          }),
+          75_000,
+          "A IA demorou demais. Abrimos um rascunho para você editar.",
+        );
+      } catch (aiCause) {
+        // Fallback: não deixa a tela travada — cria rascunho editável.
+        setStatus("Preparando rascunho…");
+        if (previousId) {
+          created = await api.updateAd(previousId, {
+            title: "Seu produto em destaque",
+            description: "Edite o título, a descrição e as hashtags do seu anúncio. Inclua benefícios e como comprar.",
+            hashtags: ["produto", "oferta", "loja"],
+            tone: "PROFESSIONAL",
+            status: "DRAFT",
+          });
+        } else {
+          created = await api.createAd({
+            title: "Seu produto em destaque",
+            description: "Edite o título, a descrição e as hashtags do seu anúncio. Inclua benefícios e como comprar.",
+            hashtags: ["produto", "oferta", "loja"],
+            tone: "PROFESSIONAL",
+            status: "DRAFT",
+          });
+        }
+        const hint = aiCause instanceof ApiClientError || aiCause instanceof Error ? aiCause.message : "A IA não respondeu.";
+        feedback.showToast(hint.includes("demorou") || hint.includes("rascunho") ? "Rascunho pronto para editar." : hint, "info");
+      }
+      if (!generatingRef.current) return;
       if (previousId && previousId !== created.id) {
         await api.archiveAd(previousId).catch(() => undefined);
       }
@@ -232,15 +287,19 @@ export default function AdScreen() {
         hashtags: normalizeHashtags(created.hashtags, created.title),
       });
       setStep(2);
-      feedback.showToast(previousId ? "Anúncio regenerado." : "Anúncio gerado.", "success");
+      feedback.showToast(previousId ? "Anúncio atualizado." : "Anúncio pronto.", "success");
     } catch (cause) {
-      if (handleTenantError(cause)) return;
-      setStep(draft ? 2 : 0);
-      const text = cause instanceof ApiClientError ? cause.message : "Não foi possível gerar o anúncio.";
+      if (handleTenantError(cause)) {
+        setStep(0);
+        return;
+      }
+      setStep(0);
+      const text = cause instanceof ApiClientError ? cause.message : cause instanceof Error ? cause.message : "Não foi possível gerar o anúncio.";
       setError(text);
       feedback.showToast(text, "error");
     } finally {
       generatingRef.current = false;
+      setStatus("Gerando com IA…");
     }
   }
 
@@ -420,9 +479,9 @@ export default function AdScreen() {
                 }}
               />
             </Animated.View>
-            <Text style={{ marginTop: 20, color: colors.text, fontSize: fonts.title, fontWeight: "700" }}>Gerando com IA…</Text>
+            <Text style={{ marginTop: 20, color: colors.text, fontSize: fonts.title, fontWeight: "700" }}>{status}</Text>
             <Text style={{ marginTop: 8, color: colors.textSecondary, fontSize: fonts.body, fontWeight: "500", textAlign: "center", maxWidth: 260, lineHeight: 18 }}>
-              Analisando a foto e montando título, descrição e hashtags para o seu anúncio.
+              Montando título, descrição e hashtags. Se demorar, toque em Voltar e tente de novo.
             </Text>
           </View>
 

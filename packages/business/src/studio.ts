@@ -68,12 +68,31 @@ export class StudioService {
       result = await this.ai.text.adCopy({ facts: { ...input.facts, priceLabel: input.facts.priceCents != null ? formatBrl(input.facts.priceCents) : undefined }, tone: input.tone });
     } catch (error) {
       if (error instanceof ProviderNotConfiguredError) throw new AppError("PROVIDER_NOT_CONFIGURED", error.message, 503);
+      if (error instanceof AppError) throw error;
       await this.recordFailure(tenant, "TEXT", this.ai.text?.id || "ai", error);
-      throw new AppError("AI_FAILED", "Não foi possível gerar o anúncio.", 502);
+      const detail = error instanceof Error ? error.message : "";
+      throw new AppError("AI_FAILED", detail.includes("demorou") ? detail : "Não foi possível gerar o anúncio. Tente de novo.", 502);
     }
-    assertGroundedCopy(`${result.copy.title}\n${result.copy.description}`, input.facts.priceCents != null);
+    try {
+      assertGroundedCopy(`${result.copy.title}\n${result.copy.description}`, input.facts.priceCents != null);
+    } catch {
+      // Remove menção a preço inventado em vez de travar o fluxo.
+      result = {
+        ...result,
+        copy: {
+          ...result.copy,
+          title: result.copy.title.replace(/R\$\s?\d[\d.,]*/gi, "").replace(/\s{2,}/g, " ").trim() || input.facts.name,
+          description: result.copy.description.replace(/R\$\s?\d[\d.,]*/gi, "").replace(/\d+[\.,]?\d*\s?reais/gi, "").replace(/\s{2,}/g, " ").trim(),
+        },
+      };
+    }
     const generation = await this.record(tenant, "TEXT", result.usage, { tone: input.tone });
-    await debitKind(this.db, { organizationId: tenant.organizationId, kind: "ANNOUNCEMENT", amount: 1, reason: "ad_generation", idempotencyKey: `ad:${idempotencyKey}`, referenceType: "AiGeneration", referenceId: generation.id });
+    try {
+      await debitKind(this.db, { organizationId: tenant.organizationId, kind: "ANNOUNCEMENT", amount: 1, reason: "ad_generation", idempotencyKey: `ad:${idempotencyKey}`, referenceType: "AiGeneration", referenceId: generation.id });
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError("INSUFFICIENT_CREDITS", "Não há créditos de anúncio disponíveis neste plano.", 402);
+    }
     await this.billing.recordUsage(tenant.organizationId, "ai.announcement", 1, { generationId: generation.id });
     const hashtags = normalizeHashtags(result.copy.hashtags, input.facts.name);
 

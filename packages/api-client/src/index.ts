@@ -141,6 +141,23 @@ export function createApiClient(options: {
       request<{ ok: boolean }>(`/api/ads/${id}`, {
         method: "DELETE",
       }),
+    createAd: (body: {
+      title: string;
+      description: string;
+      hashtags: string[];
+      tone?: "PROFESSIONAL" | "FRIENDLY" | "URGENT" | "ELEGANT";
+      status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+    }) =>
+      request<{ id: string; title: string; description: string; hashtags: string[] }>("/api/ads", {
+        method: "POST",
+        body: JSON.stringify({
+          title: body.title,
+          description: body.description,
+          hashtags: body.hashtags.map((tag) => tag.replace(/^#/, "").trim()).filter((tag) => tag.length >= 2).slice(0, 12),
+          tone: body.tone || "PROFESSIONAL",
+          status: body.status || "DRAFT",
+        }),
+      }),
     updateAd: (
       id: string,
       body: {

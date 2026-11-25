@@ -50,23 +50,36 @@ async function generateContent(
   },
 ) {
   const started = Date.now();
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        ...(body.systemInstruction
-          ? { system_instruction: { parts: [{ text: body.systemInstruction }] } }
-          : {}),
-        contents: [{ role: "user", parts: body.parts }],
-        generationConfig: {
-          temperature: body.temperature,
-          responseMimeType: "application/json",
-        },
-      }),
-    },
-  );
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 45_000);
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...(body.systemInstruction
+            ? { system_instruction: { parts: [{ text: body.systemInstruction }] } }
+            : {}),
+          contents: [{ role: "user", parts: body.parts }],
+          generationConfig: {
+            temperature: body.temperature,
+            responseMimeType: "application/json",
+          },
+        }),
+        signal: controller.signal,
+      },
+    );
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("A IA demorou demais para responder. Tente de novo.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
   const payload = (await response.json()) as {
     error?: { message?: string };
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;

@@ -36,14 +36,27 @@ function estimateTextCost(model: string, inputTokens: number, outputTokens: numb
 
 async function postJson(apiKey: string, body: unknown) {
   const started = Date.now();
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${apiKey}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 45_000);
+  let response: Response;
+  try {
+    response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("A IA demorou demais para responder. Tente de novo.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
   const payload = (await response.json()) as {
     error?: { message?: string };
     model?: string;

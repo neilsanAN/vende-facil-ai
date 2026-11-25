@@ -19,8 +19,8 @@ export function createAiRegistry(env: {
 }): AiRegistry {
   const gemini = createGeminiProviders({
     apiKey: env.GEMINI_API_KEY || "",
-    textModel: env.GEMINI_TEXT_MODEL || "gemini-3.6-flash",
-    visionModel: env.GEMINI_VISION_MODEL || "gemini-3.6-flash",
+    textModel: env.GEMINI_TEXT_MODEL || "gemini-2.0-flash",
+    visionModel: env.GEMINI_VISION_MODEL || "gemini-2.0-flash",
   });
   const openai = createOpenAiProviders({
     apiKey: env.OPENAI_API_KEY || "",
