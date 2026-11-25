@@ -2,15 +2,15 @@ import Constants from "expo-constants";
 import { createApiClient } from "@vendefacil/api-client";
 import { getItem, setItem } from "./storage";
 
-const baseUrl = Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+export const apiBase = Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
 export const api = createApiClient({
-  baseUrl,
+  baseUrl: apiBase,
   getAccessToken: () => getItem("vf_access"),
   refresh: async () => {
     const refreshToken = await getItem("vf_refresh");
     if (!refreshToken) return null;
-    const response = await fetch(`${baseUrl}/api/auth/refresh`, {
+    const response = await fetch(`${apiBase}/api/auth/refresh`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-vendefacil-client": "mobile" },
       body: JSON.stringify({ refreshToken }),

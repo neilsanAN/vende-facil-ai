@@ -15,9 +15,9 @@ type Dash = {
 
 const actions = [
   { href: "/anuncios/novo", label: "Anúncio com IA", icon: "sparkles-outline" as const },
-  { href: "/estudio", label: "Vídeo com voz", icon: "videocam-outline" as const },
+  { href: "/estudio/video/novo", label: "Vídeo com voz", icon: "videocam-outline" as const },
   { href: "/estudio", label: "Arte para redes", icon: "image-outline" as const },
-  { href: "/mais", label: "Publicar nas redes", icon: "share-social-outline" as const },
+  { href: "/estudio/publicar", label: "Publicar nas redes", icon: "share-social-outline" as const },
 ] as const;
 
 export default function HomeScreen() {

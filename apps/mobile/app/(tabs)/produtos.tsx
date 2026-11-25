@@ -2,14 +2,11 @@ import { useCallback, useMemo, useState } from "react";
 import { FlatList, Image, Linking, Pressable, Text, TextInput, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import Constants from "expo-constants";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
-import { api } from "../../src/api";
+import { api, apiBase } from "../../src/api";
 import { handleTenantError } from "../../src/session";
 import { ActionMenu } from "../../src/action-menu";
-
-const apiBase = Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
 function mediaUrl(path?: string) {
   if (!path) return null;

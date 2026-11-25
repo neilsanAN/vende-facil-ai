@@ -66,6 +66,11 @@ export function createApiClient(options: {
           role: string | null;
         };
       }>("/api/auth/me"),
+    shell: () =>
+      request<{
+        store: { name: string; slug: string; published: boolean } | null;
+        plan: string;
+      }>("/api/shell"),
     onboard: (body: { storeName: string; description?: string; whatsapp?: string }) =>
       request<{ organizationId: string }>("/api/onboarding", { method: "POST", body: JSON.stringify(body) }),
     products: () => request("/api/products"),
@@ -122,5 +127,102 @@ export function createApiClient(options: {
     archiveAd: (id: string) => request<{ ok: boolean }>(`/api/ads/${id}/archive`, { method: "POST" }),
     archiveProduct: (id: string) => request<{ ok: boolean }>(`/api/products/${id}/archive`, { method: "POST" }),
     duplicateProduct: (id: string) => request(`/api/products/${id}/duplicate`, { method: "POST" }),
+    voices: () =>
+      request<Array<{ id: string; name: string; gender: string }>>("/api/voices"),
+    listVideos: () =>
+      request<
+        Array<{
+          id: string;
+          title: string;
+          durationSec: number;
+          aspectRatio: string;
+          updatedAt: string;
+          render: { id: string; status: string; progress: number } | null;
+        }>
+      >("/api/videos"),
+    createVideo: (body: {
+      productId: string;
+      objective: "SELL" | "OFFER" | "PRESENT" | "SOCIAL";
+      style: "PREMIUM" | "OFFER" | "SHOWCASE" | "ELEGANT" | "SOCIAL" | "MINIMAL";
+      durationSec: 10 | 15 | 30 | 45 | 60;
+      aspectRatio: "R9_16" | "R1_1" | "R4_5" | "R16_9";
+      motionMode?: "PHOTO" | "GENERATIVE";
+      voiceProfileId?: string | null;
+    }) =>
+      request<{ id: string }>("/api/videos", {
+        method: "POST",
+        body: JSON.stringify({ ...body, motionMode: body.motionMode || "PHOTO" }),
+      }),
+    getVideo: (id: string) =>
+      request<{
+        id: string;
+        title: string;
+        script: string;
+        durationSec: number;
+        aspectRatio: "R9_16" | "R1_1" | "R4_5" | "R16_9";
+        showPrice: boolean;
+        showLogo: boolean;
+        cta: string;
+        narrationVolume: number;
+        musicVolume: number;
+        scenes: Array<{
+          mediaAssetId?: string | null;
+          durationMs: number;
+          transition: "CUT" | "FADE" | "SLIDE" | "WIPE";
+          zoom: number;
+          panX: number;
+          panY: number;
+          headline: string;
+          caption: string;
+          cta: string;
+        }>;
+        renders: Array<{ id: string; status: string; progress: number; errorMessage?: string | null; outputAssetId?: string | null }>;
+        product?: { id: string; name: string } | null;
+      }>(`/api/videos/${id}`),
+    updateVideo: (
+      id: string,
+      body: {
+        title?: string;
+        script?: string;
+        cta?: string;
+        showPrice?: boolean;
+        showLogo?: boolean;
+        narrationVolume?: number;
+        musicVolume?: number;
+        scenes?: Array<{
+          mediaAssetId?: string | null;
+          durationMs: number;
+          transition: "CUT" | "FADE" | "SLIDE" | "WIPE";
+          zoom: number;
+          panX: number;
+          panY: number;
+          headline?: string;
+          caption?: string;
+          cta?: string;
+        }>;
+      },
+    ) => request(`/api/videos/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    renderVideo: (id: string) =>
+      request<{ id: string; status: string; progress: number }>(`/api/videos/${id}/render`, {
+        method: "POST",
+        headers: { "idempotency-key": `${Date.now()}-${Math.random().toString(36).slice(2, 10)}` },
+      }),
+    publications: () =>
+      request<{
+        items: unknown[];
+        channels: Array<{ provider: string; status: string; detail: string }>;
+      }>("/api/publications"),
+    publish: (body: {
+      channel: "WHATSAPP" | "INSTAGRAM" | "FACEBOOK";
+      targetType: "PRODUCT" | "ADVERTISEMENT" | "VIDEO" | "CATALOG";
+      targetId: string;
+      caption?: string;
+      scheduledAt?: string | null;
+      confirmManual?: boolean;
+    }) =>
+      request<{ share: { whatsappUrl?: string; link?: string; caption?: string } | null }>("/api/publications", {
+        method: "POST",
+        body: JSON.stringify({ ...body, confirmManual: body.confirmManual ?? true }),
+      }),
   };
 }

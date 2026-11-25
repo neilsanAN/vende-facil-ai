@@ -477,8 +477,10 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
   const styles = [
     ["ELEGANT", "Comercial"],
     ["OFFER", "Oferta"],
-    ["SOCIAL", "Apresentação"],
-    ["PREMIUM", "Redes sociais"],
+    ["SHOWCASE", "Apresentação"],
+    ["PREMIUM", "Vitrine"],
+    ["MINIMAL", "Minimalista"],
+    ["SOCIAL", "Redes sociais"],
   ] as const;
   const ratios = [
     ["R9_16", "9:16", "Reels/Stories"],
@@ -528,8 +530,9 @@ export function VideoCreator({ products, voices = [] }: { products: Array<{ id: 
       <Field label="Objetivo do vídeo" section>
         <select className={inputClass} value={form.objective} onChange={(event) => setForm({ ...form, objective: event.target.value })}>
           <option value="SELL">Vender o produto</option>
-          <option value="AWARENESS">Apresentar a marca</option>
           <option value="OFFER">Destacar oferta</option>
+          <option value="PRESENT">Apresentar o produto</option>
+          <option value="SOCIAL">Redes sociais</option>
         </select>
       </Field>
 

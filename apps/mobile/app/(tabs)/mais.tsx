@@ -9,6 +9,7 @@ const links = [
   { href: "/pedidos", label: "Pedidos", text: "Pedidos da vitrine", icon: "bag-handle-outline" as const },
   { href: "/estatisticas", label: "Estatísticas", text: "Visualizações e vendas", icon: "bar-chart-outline" as const },
   { href: "/estudio", label: "Estúdio", text: "Vídeo, arte e anúncios", icon: "sparkles-outline" as const },
+  { href: "/estudio/publicar", label: "Publicar", text: "WhatsApp, Instagram e Facebook", icon: "share-social-outline" as const },
 ] as const;
 
 export default function MoreScreen() {
