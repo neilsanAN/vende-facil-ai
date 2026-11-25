@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Linking, Platform, Pressable, Text, TextInput, View } from "react-native";
+import { Linking, Platform, Pressable, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import Constants from "expo-constants";
 import { Ionicons } from "@expo/vector-icons";
 import { brand, colors, control, fonts } from "@vendefacil/ui-tokens";
 import { WelcomeCarousel } from "../src/welcome-carousel";
 import { ApiClientError, createApiClient } from "@vendefacil/api-client";
+import { BootScreen } from "../src/boot-screen";
 import { getItem, setItem } from "../src/storage";
 import { routeAfterAuth } from "../src/session";
 
@@ -30,18 +31,30 @@ export default function AuthGate() {
   const [message, setMessage] = useState("");
   const [devCode, setDevCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [bootMessage, setBootMessage] = useState("Preparando o app…");
+  const [bootDetail, setBootDetail] = useState("Isso leva só alguns segundos");
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
+        setBootMessage("Verificando sessão…");
+        setBootDetail("Confirmando se você já está conectado");
         const access = await getItem("vf_access");
         const refresh = await getItem("vf_refresh");
         if (access) {
-          if (alive) await routeAfterAuth();
+          if (alive) {
+            setBootMessage("Entrando…");
+            setBootDetail("Abrindo seu painel");
+            await routeAfterAuth();
+          }
           return;
         }
         if (refresh) {
+          if (alive) {
+            setBootMessage("Renovando acesso…");
+            setBootDetail("Atualizando sua sessão com segurança");
+          }
           const response = await fetch(`${apiBase}/api/auth/refresh`, {
             method: "POST",
             headers: { "content-type": "application/json", "x-vendefacil-client": "mobile" },
@@ -52,7 +65,11 @@ export default function AuthGate() {
             if (payload.accessToken && payload.refreshToken) {
               await setItem("vf_access", payload.accessToken);
               await setItem("vf_refresh", payload.refreshToken);
-              if (alive) await routeAfterAuth();
+              if (alive) {
+                setBootMessage("Entrando…");
+                setBootDetail("Abrindo seu painel");
+                await routeAfterAuth();
+              }
             }
           }
         }
@@ -84,11 +101,7 @@ export default function AuthGate() {
   }
 
   if (booting) {
-    return (
-      <View style={{ flex: 1, backgroundColor: "#070617", alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator color={colors.primary} />
-      </View>
-    );
+    return <BootScreen message={bootMessage} detail={bootDetail} />;
   }
 
   if (screen === "welcome") {

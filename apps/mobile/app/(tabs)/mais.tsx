@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Link, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
+import { ConfirmSheet } from "../../src/feedback";
 import { deleteItem } from "../../src/storage";
 
 const links = [
@@ -10,16 +12,24 @@ const links = [
   { href: "/estatisticas", label: "Estatísticas", text: "Visualizações e vendas", icon: "bar-chart-outline" as const },
   { href: "/estudio", label: "Estúdio", text: "Vídeo, arte e anúncios", icon: "sparkles-outline" as const },
   { href: "/estudio/publicar", label: "Publicar", text: "WhatsApp, Instagram e Facebook", icon: "share-social-outline" as const },
-  { href: "/assinatura", label: "Assinatura", text: "Plano, uso e cobranças", icon: "card-outline" as const },
   { href: "/assinatura/planos", label: "Planos e preços", text: "Básico, Profissional e Business", icon: "diamond-outline" as const },
 ] as const;
 
 export default function MoreScreen() {
   const insets = useSafeAreaInsets();
+  const [confirmLogout, setConfirmLogout] = useState(false);
+
+  async function logout() {
+    await deleteItem("vf_access");
+    await deleteItem("vf_refresh");
+    router.replace("/");
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16, paddingBottom: 16 }}>
       <Text style={{ color: colors.text, fontSize: fonts.heading, fontWeight: "700" }}>Mais</Text>
       <Text style={{ color: colors.textSecondary, fontSize: fonts.body, marginTop: 4, marginBottom: 14 }}>Loja, pedidos, resultados e ajustes.</Text>
+
       {links.map((item) => (
         <Link key={item.href} href={item.href} asChild>
           <Pressable
@@ -46,25 +56,39 @@ export default function MoreScreen() {
           </Pressable>
         </Link>
       ))}
+
       <Pressable
-        onPress={async () => {
-          await deleteItem("vf_access");
-          await deleteItem("vf_refresh");
-          router.replace("/");
-        }}
+        onPress={() => setConfirmLogout(true)}
         style={{
           marginTop: 16,
-          height: control.height,
-          borderRadius: 999,
-          borderWidth: 1,
-          borderColor: colors.border,
+          flexDirection: "row",
           alignItems: "center",
-          justifyContent: "center",
+          gap: 12,
           backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: "#FECACA",
+          borderRadius: 14,
+          padding: 14,
         }}
       >
-        <Text style={{ color: colors.text, fontSize: fonts.body, fontWeight: "600" }}>Sair</Text>
+        <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: "#FEF2F2", alignItems: "center", justifyContent: "center" }}>
+          <Ionicons name="log-out-outline" size={18} color={colors.error} />
+        </View>
+        <Text style={{ flex: 1, color: colors.error, fontSize: fonts.subtitle, fontWeight: "700" }}>Sair</Text>
+        <Ionicons name="chevron-forward" size={16} color="#FECACA" />
       </Pressable>
+
+      <ConfirmSheet
+        open={confirmLogout}
+        title="Sair da conta?"
+        message="Você precisará entrar de novo para acessar produtos, anúncios e a loja."
+        confirmLabel="Sair"
+        destructive
+        onClose={() => setConfirmLogout(false)}
+        onConfirm={() => {
+          void logout();
+        }}
+      />
     </View>
   );
 }

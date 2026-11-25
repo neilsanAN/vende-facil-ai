@@ -1,17 +1,28 @@
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
-import { router } from "expo-router";
+import { useCallback, useState } from "react";
+import { Image, Pressable, ScrollView, Text, View } from "react-native";
+import { Link, router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, fonts } from "@vendefacil/ui-tokens";
-import { api } from "../../src/api";
+import { colors, control, fonts } from "@vendefacil/ui-tokens";
+import { api, apiBase } from "../../src/api";
 import { handleTenantError } from "../../src/session";
 
 type Dash = {
   greeting?: { name?: string };
   stats?: { views?: number; whatsappClicks?: number; orders?: number; salesCents?: number };
-  recent?: Array<{ id: string; name: string; priceCents: number; promoPriceCents?: number | null }>;
+  recent?: Array<{
+    id: string;
+    name: string;
+    priceCents: number;
+    promoPriceCents?: number | null;
+    images?: Array<{ url?: string }>;
+  }>;
 };
+
+function mediaUrl(path?: string) {
+  if (!path) return null;
+  return path.startsWith("http") ? path : `${apiBase}${path}`;
+}
 
 const actions = [
   { href: "/anuncios/novo", label: "Anúncio com IA", icon: "sparkles-outline" as const },
@@ -24,15 +35,25 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [data, setData] = useState<Dash | null>(null);
   const [error, setError] = useState("");
-  useEffect(() => {
+
+  const load = useCallback(() => {
     api
       .dashboard()
-      .then((result) => setData(result as Dash))
+      .then((result) => {
+        setData(result as Dash);
+        setError("");
+      })
       .catch((cause: unknown) => {
         if (handleTenantError(cause)) return;
         setError(cause instanceof Error ? cause.message : "Falha ao carregar.");
       });
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
   const first =
     (data?.greeting?.name || "").trim().split(/\s+/)[0] ||
     (data?.greeting?.name || "").trim() ||
@@ -109,9 +130,11 @@ export default function HomeScreen() {
 
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginTop: 16 }}>
         <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700" }}>Resultados (7 dias)</Text>
-        <Pressable onPress={() => router.push("/estatisticas")}>
-          <Text style={{ color: colors.primary, fontSize: fonts.caption, fontWeight: "600" }}>Ver tudo</Text>
-        </Pressable>
+        <Link href="/estatisticas" asChild>
+          <Pressable hitSlop={12}>
+            <Text style={{ color: colors.primary, fontSize: fonts.caption, fontWeight: "700" }}>Ver tudo</Text>
+          </Pressable>
+        </Link>
       </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
         {[
@@ -135,26 +158,66 @@ export default function HomeScreen() {
       </View>
       {error ? <Text style={{ color: colors.error, fontSize: fonts.caption, marginTop: 8 }}>{error}</Text> : null}
 
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginTop: 16, marginBottom: 6 }}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 16, marginBottom: 8 }}>
         <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700" }}>Produtos recentes</Text>
-        <Pressable onPress={() => router.push("/produtos")}>
-          <Text style={{ color: colors.primary, fontSize: fonts.caption, fontWeight: "600" }}>Ver todos</Text>
-        </Pressable>
+        <Link href="/produtos" asChild>
+          <Pressable hitSlop={12} accessibilityRole="button" accessibilityLabel="Ver todos os produtos">
+            <Text style={{ color: colors.primary, fontSize: fonts.caption, fontWeight: "700" }}>Ver todos</Text>
+          </Pressable>
+        </Link>
       </View>
       {(data?.recent || []).length === 0 ? (
-        <Text style={{ color: colors.textSecondary, fontSize: fonts.body }}>Cadastre o primeiro produto para aparecer aqui.</Text>
+        <Pressable
+          onPress={() => router.push("/produtos/novo")}
+          style={{
+            borderRadius: control.radiusSheet,
+            borderWidth: 1,
+            borderStyle: "dashed",
+            borderColor: colors.border,
+            backgroundColor: colors.surface,
+            paddingVertical: 18,
+            paddingHorizontal: 14,
+            alignItems: "center",
+          }}
+        >
+          <Ionicons name="cube-outline" size={22} color={colors.primary} />
+          <Text style={{ color: colors.text, fontSize: fonts.body, fontWeight: "700", marginTop: 8 }}>Nenhum produto ainda</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, marginTop: 4, textAlign: "center" }}>
+            Cadastre o primeiro para aparecer aqui.
+          </Text>
+        </Pressable>
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {(data?.recent || []).map((product) => (
-            <View key={product.id} style={{ width: 100, marginRight: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 8 }}>
-              <Text style={{ color: colors.text, fontSize: fonts.caption, fontWeight: "600" }} numberOfLines={1}>
-                {product.name}
-              </Text>
-              <Text style={{ color: colors.primary, fontSize: fonts.caption, marginTop: 4 }}>
-                {((product.promoPriceCents ?? product.priceCents) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-              </Text>
-            </View>
-          ))}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 8 }}>
+          {(data?.recent || []).map((product) => {
+            const imageUrl = mediaUrl(product.images?.[0]?.url);
+            return (
+              <Pressable
+                key={product.id}
+                onPress={() => router.push(`/produtos/${product.id}`)}
+                style={{
+                  width: 108,
+                  height: 108,
+                  marginRight: 10,
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  backgroundColor: colors.primarySoft,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                {imageUrl ? (
+                  <Image source={{ uri: imageUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                ) : (
+                  <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 8 }}>
+                    <Ionicons name="image-outline" size={22} color={colors.primary} />
+                    <Text style={{ color: colors.textSecondary, fontSize: fonts.tiny, fontWeight: "600", marginTop: 6, textAlign: "center" }} numberOfLines={2}>
+                      {product.name}
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            );
+          })}
         </ScrollView>
       )}
     </ScrollView>

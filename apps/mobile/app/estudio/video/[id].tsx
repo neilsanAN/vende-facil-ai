@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Image, Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -7,9 +7,8 @@ import { ASPECT_DIMENSIONS, PIPELINE_LABEL, type PipelineStatus } from "@vendefa
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
 import { api, apiBase } from "../../../src/api";
-import { BackButton } from "../../../src/back-button";
 import { handleTenantError } from "../../../src/session";
-import { Chip, Field, HelperText, PrimaryButton, ScreenTitle } from "../../../src/ui";
+import { Chip, Field, HelperText } from "../../../src/ui";
 
 type Scene = {
   mediaAssetId?: string | null;
@@ -36,17 +35,30 @@ type Project = {
   musicVolume: number;
   scenes: Scene[];
   renders: Array<{ id: string; status: string; progress: number; errorMessage?: string | null; outputAssetId?: string | null }>;
+  product?: { id: string; name: string } | null;
 };
 
 type Tab = "cenas" | "texto" | "audio" | "transicao" | "velocidade";
 
 const TABS: Array<{ key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
-  { key: "cenas", label: "Cenas", icon: "layers-outline" },
+  { key: "cenas", label: "Cenas", icon: "copy-outline" },
   { key: "texto", label: "Texto", icon: "text-outline" },
-  { key: "audio", label: "Áudio", icon: "mic-outline" },
-  { key: "transicao", label: "Transição", icon: "film-outline" },
-  { key: "velocidade", label: "Velocidade", icon: "speedometer-outline" },
+  { key: "audio", label: "Áudio", icon: "musical-notes-outline" },
+  { key: "transicao", label: "Transição", icon: "swap-horizontal-outline" },
+  { key: "velocidade", label: "Velocidade", icon: "timer-outline" },
 ];
+
+function mediaUrl(assetId?: string | null) {
+  if (!assetId) return null;
+  return `${apiBase}/api/media/${assetId}`;
+}
+
+function formatClock(totalSec: number) {
+  const safe = Math.max(0, Math.floor(totalSec));
+  const m = Math.floor(safe / 60);
+  const s = safe % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
 
 export default function VideoEditorScreen() {
   const insets = useSafeAreaInsets();
@@ -78,6 +90,7 @@ export default function VideoEditorScreen() {
   const scene = draft?.scenes[index];
   const ratio = draft ? ASPECT_DIMENSIONS[draft.aspectRatio] : ASPECT_DIMENSIONS.R9_16;
   const previewAspect = useMemo(() => ratio.width / ratio.height, [ratio.height, ratio.width]);
+  const previewImage = mediaUrl(scene?.mediaAssetId);
 
   function updateScene(patch: Partial<Scene>) {
     if (!draft || !scene) return;
@@ -130,12 +143,16 @@ export default function VideoEditorScreen() {
     }
   }
 
+  function goBack() {
+    if (router.canGoBack()) router.back();
+    else router.replace("/estudio");
+  }
+
   if (!draft || !scene) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16 }}>
-        <BackButton fallback="/estudio" />
-        <ScreenTitle>Editor de vídeo</ScreenTitle>
-        <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
+        <EditorHeader onBack={goBack} />
+        <ActivityIndicator color={colors.primary} style={{ marginTop: 28 }} />
         {message ? <HelperText>{message}</HelperText> : null}
       </View>
     );
@@ -143,185 +160,276 @@ export default function VideoEditorScreen() {
 
   const outputUrl = status?.outputAssetId ? `${apiBase}/api/media/${status.outputAssetId}` : null;
   const pipelineLabel = status?.status ? PIPELINE_LABEL[status.status as PipelineStatus] || status.status : null;
+  const headline = scene.headline || draft.title || draft.product?.name || "Seu produto";
+  const caption = scene.caption || scene.cta || draft.cta;
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom, 28) }}
-      keyboardShouldPersistTaps="handled"
-    >
-      <BackButton fallback="/estudio" />
-      <ScreenTitle>Editor de vídeo</ScreenTitle>
-
-      <View
-        style={{
-          alignSelf: "center",
-          width: "100%",
-          maxWidth: 360,
-          aspectRatio: previewAspect,
-          maxHeight: 420,
-          borderRadius: 20,
-          overflow: "hidden",
-          backgroundColor: "#1A1240",
-          marginBottom: 12,
-        }}
+    <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12) }}>
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom, 24) }}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={{ flex: 1, padding: 18, justifyContent: "space-between" }}>
-          <View>
-            <Text style={{ color: "#fff", fontSize: fonts.hero, fontWeight: "700" }}>{scene.headline || draft.title}</Text>
-            {scene.caption ? <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: fonts.body, marginTop: 6 }}>{scene.caption}</Text> : null}
-          </View>
-          <View>
-            <View style={{ height: 4, borderRadius: control.radiusButton, backgroundColor: "rgba(255,255,255,0.25)", marginBottom: 10 }}>
-              <View style={{ width: "33%", height: "100%", borderRadius: control.radiusButton, backgroundColor: "#fff" }} />
-            </View>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-              <View style={{ width: 28, height: 28, borderRadius: control.radiusButton, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" }}>
-                <Ionicons name="play" size={14} color="#fff" />
+        <EditorHeader onBack={goBack} />
+
+        {/* Preview — mock: imagem + overlays + barra de player */}
+        <View
+          style={{
+            alignSelf: "center",
+            width: "100%",
+            maxWidth: 360,
+            aspectRatio: Math.min(previewAspect, 4 / 5),
+            maxHeight: 360,
+            borderRadius: 18,
+            overflow: "hidden",
+            backgroundColor: "#111827",
+            marginTop: 8,
+            marginBottom: 12,
+          }}
+        >
+          {previewImage ? (
+            <Image source={{ uri: previewImage }} style={{ position: "absolute", width: "100%", height: "100%" }} resizeMode="cover" />
+          ) : null}
+          <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(10,8,24,0.28)" }} />
+
+          <View style={{ flex: 1, padding: 16, justifyContent: "flex-end" }}>
+            <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700", textShadowColor: "rgba(0,0,0,0.35)", textShadowRadius: 6 }}>
+              {headline}
+            </Text>
+            {caption ? (
+              <View
+                style={{
+                  alignSelf: "flex-start",
+                  marginTop: 10,
+                  borderRadius: 999,
+                  backgroundColor: "#EC4899",
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                }}
+              >
+                <Text style={{ color: "#fff", fontSize: fonts.body2, fontWeight: "700" }} numberOfLines={2}>
+                  {caption}
+                </Text>
               </View>
-              <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: fonts.body2, fontWeight: "600" }}>
-                0:00 / 0:{String(draft.durationSec).padStart(2, "0")}
-              </Text>
-              <View style={{ flex: 1 }} />
-              <Ionicons name="volume-medium-outline" size={control.icon} color="rgba(255,255,255,0.85)" />
-              <Ionicons name="expand-outline" size={control.icon} color="rgba(255,255,255,0.85)" />
+            ) : null}
+
+            <View
+              style={{
+                marginTop: 16,
+                borderRadius: 12,
+                backgroundColor: "rgba(0,0,0,0.45)",
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+              }}
+            >
+              <View style={{ height: 3, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.25)", marginBottom: 10 }}>
+                <View style={{ width: "18%", height: "100%", borderRadius: 999, backgroundColor: "#fff" }} />
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <Ionicons name="play" size={16} color="#fff" />
+                <Text style={{ color: "rgba(255,255,255,0.92)", fontSize: fonts.caption, fontWeight: "600" }}>
+                  0:00 / {formatClock(draft.durationSec)}
+                </Text>
+                <View style={{ flex: 1 }} />
+                <Ionicons name="volume-medium-outline" size={16} color="rgba(255,255,255,0.9)" />
+                <Ionicons name="expand-outline" size={16} color="rgba(255,255,255,0.9)" />
+              </View>
             </View>
           </View>
         </View>
-      </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8 }}>
-        {draft.scenes.map((item, itemIndex) => (
-          <Pressable
-            key={`${item.headline}-${itemIndex}`}
-            onPress={() => setIndex(itemIndex)}
-            style={{
-              width: 64,
-              height: 56,
-              borderRadius: control.radiusCard,
-              backgroundColor: "#1A1240",
-              alignItems: "center",
-              justifyContent: "center",
-              borderWidth: itemIndex === index ? 2 : 1,
-              borderColor: itemIndex === index ? colors.primary : colors.border,
-            }}
-          >
-            <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: fonts.tiny, fontWeight: "700" }}>Cena {itemIndex + 1}</Text>
-          </Pressable>
-        ))}
+        {/* Thumbnails das cenas */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }} style={{ marginBottom: 14 }}>
+          {draft.scenes.map((item, itemIndex) => {
+            const thumb = mediaUrl(item.mediaAssetId);
+            const active = itemIndex === index;
+            return (
+              <Pressable
+                key={`${item.mediaAssetId || "scene"}-${itemIndex}`}
+                onPress={() => setIndex(itemIndex)}
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  backgroundColor: "#1F2937",
+                  borderWidth: active ? 2.5 : 1,
+                  borderColor: active ? colors.primary : colors.border,
+                }}
+              >
+                {thumb ? (
+                  <Image source={{ uri: thumb }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                ) : (
+                  <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                    <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: fonts.tiny, fontWeight: "700" }}>{itemIndex + 1}</Text>
+                  </View>
+                )}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        {/* Toolbar */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 14, paddingHorizontal: 2 }}>
+          {TABS.map((item) => {
+            const active = tab === item.key;
+            return (
+              <Pressable key={item.key} onPress={() => setTab(item.key)} style={{ width: "18%", alignItems: "center", gap: 6 }}>
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    backgroundColor: active ? colors.primarySoft : colors.surface,
+                    borderWidth: 1,
+                    borderColor: active ? colors.primary : colors.border,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Ionicons name={item.icon} size={18} color={active ? colors.primary : colors.textSecondary} />
+                </View>
+                <Text style={{ color: active ? colors.primary : colors.textSecondary, fontSize: fonts.tiny, fontWeight: "700" }}>{item.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {pipelineLabel ? (
+          <Text style={{ color: colors.textSecondary, fontSize: fonts.body2, fontWeight: "600", marginBottom: 10 }}>
+            {pipelineLabel} · {status?.progress ?? 0}% {status?.errorMessage || ""}
+          </Text>
+        ) : null}
+
+        {tab === "cenas" ? (
+          <View style={{ gap: 10, marginBottom: 14 }}>
+            <Field label="Título da cena" value={scene.headline} onChangeText={(headlineValue) => updateScene({ headline: headlineValue })} />
+            <Field label="Legenda" value={scene.caption} onChangeText={(captionValue) => updateScene({ caption: captionValue })} />
+          </View>
+        ) : null}
+
+        {tab === "texto" ? (
+          <View style={{ gap: 10, marginBottom: 14 }}>
+            <Field label="Roteiro" value={draft.script} onChangeText={(script) => setDraft({ ...draft, script })} multiline />
+            <CheckRow label="Mostrar preço" value={draft.showPrice} onChange={(showPrice) => setDraft({ ...draft, showPrice })} />
+            <CheckRow label="Logo da loja" value={draft.showLogo} onChange={(showLogo) => setDraft({ ...draft, showLogo })} />
+          </View>
+        ) : null}
+
+        {tab === "audio" ? (
+          <View style={{ gap: 10, marginBottom: 14 }}>
+            <Field
+              label={`Volume narração (${Math.round(draft.narrationVolume)})`}
+              value={String(draft.narrationVolume)}
+              onChangeText={(value) => setDraft({ ...draft, narrationVolume: Math.min(100, Math.max(0, Number(value) || 0)) })}
+              keyboardType="numeric"
+            />
+            <Field
+              label={`Volume música (${Math.round(draft.musicVolume)})`}
+              value={String(draft.musicVolume)}
+              onChangeText={(value) => setDraft({ ...draft, musicVolume: Math.min(100, Math.max(0, Number(value) || 0)) })}
+              keyboardType="numeric"
+            />
+          </View>
+        ) : null}
+
+        {tab === "transicao" ? (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+            {(["CUT", "FADE", "SLIDE", "WIPE"] as const).map((item) => (
+              <Chip key={item} label={item} active={scene.transition === item} onPress={() => updateScene({ transition: item })} />
+            ))}
+          </View>
+        ) : null}
+
+        {tab === "velocidade" ? (
+          <View style={{ gap: 10, marginBottom: 14 }}>
+            <Field
+              label="Zoom"
+              value={String(scene.zoom)}
+              onChangeText={(value) => updateScene({ zoom: Math.min(1.4, Math.max(1, Number(value) || 1)) })}
+              keyboardType="decimal-pad"
+            />
+            <Field
+              label="Pan horizontal"
+              value={String(scene.panX)}
+              onChangeText={(value) => updateScene({ panX: Math.min(1, Math.max(-1, Number(value) || 0)) })}
+              keyboardType="decimal-pad"
+            />
+          </View>
+        ) : null}
+
+        {message ? <HelperText>{message}</HelperText> : null}
+
+        <Pressable
+          disabled={busy}
+          onPress={() => {
+            if (outputUrl) void Linking.openURL(outputUrl);
+            else void exportVideo();
+          }}
+          style={{
+            height: control.buttonHeight,
+            borderRadius: control.radiusButton,
+            backgroundColor: colors.primary,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            opacity: busy ? 0.7 : 1,
+          }}
+        >
+          {busy ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Ionicons name={outputUrl ? "download-outline" : "download-outline"} size={18} color="#fff" />
+              <Text style={{ color: "#fff", fontSize: control.buttonFontSize, fontWeight: "700" }}>
+                {outputUrl ? "Baixar vídeo" : "Exportar vídeo"}
+              </Text>
+            </>
+          )}
+        </Pressable>
+
+        <Pressable onPress={() => router.push("/estudio/publicar")} style={{ marginTop: 14, alignItems: "center" }}>
+          <Text style={{ color: colors.primary, fontSize: fonts.body, fontWeight: "700" }}>Publicar nas redes</Text>
+        </Pressable>
       </ScrollView>
+    </View>
+  );
+}
 
-      {pipelineLabel ? (
-        <Text style={{ color: colors.textSecondary, fontSize: fonts.body2, fontWeight: "600", marginBottom: 10 }}>
-          {pipelineLabel} · {status?.progress ?? 0}% {status?.errorMessage || ""}
-        </Text>
-      ) : null}
-
-      <View
+function EditorHeader({ onBack }: { onBack: () => void }) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", minHeight: 44, marginBottom: 4 }}>
+      <Pressable
+        onPress={onBack}
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel="Voltar"
         style={{
-          flexDirection: "row",
-          borderRadius: 18,
+          height: 44,
+          width: 44,
+          borderRadius: 999,
           borderWidth: 1,
           borderColor: colors.border,
           backgroundColor: colors.surface,
-          padding: 6,
-          marginBottom: 12,
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        {TABS.map((item) => {
-          const active = tab === item.key;
-          return (
-            <Pressable
-              key={item.key}
-              onPress={() => setTab(item.key)}
-              style={{
-                flex: 1,
-                alignItems: "center",
-                gap: 2,
-                paddingVertical: 8,
-                borderRadius: control.radiusCard,
-                backgroundColor: active ? colors.primarySoft : "transparent",
-              }}
-            >
-              <Ionicons name={item.icon} size={control.icon} color={active ? colors.primary : colors.textSecondary} />
-              <Text style={{ color: active ? colors.primary : colors.textSecondary, fontSize: fonts.tiny, fontWeight: "700" }}>{item.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {tab === "cenas" ? (
-        <View style={{ gap: 10, marginBottom: 14 }}>
-          <Field label="Título da cena" value={scene.headline} onChangeText={(headline) => updateScene({ headline })} />
-          <Field label="Legenda" value={scene.caption} onChangeText={(caption) => updateScene({ caption })} />
-        </View>
-      ) : null}
-
-      {tab === "texto" ? (
-        <View style={{ gap: 10, marginBottom: 14 }}>
-          <Field label="Roteiro" value={draft.script} onChangeText={(script) => setDraft({ ...draft, script })} multiline />
-          <CheckRow label="Mostrar preço" value={draft.showPrice} onChange={(showPrice) => setDraft({ ...draft, showPrice })} />
-          <CheckRow label="Logo da loja" value={draft.showLogo} onChange={(showLogo) => setDraft({ ...draft, showLogo })} />
-        </View>
-      ) : null}
-
-      {tab === "audio" ? (
-        <View style={{ gap: 10, marginBottom: 14 }}>
-          <Field
-            label={`Volume narração (${Math.round(draft.narrationVolume)})`}
-            value={String(draft.narrationVolume)}
-            onChangeText={(value) => setDraft({ ...draft, narrationVolume: Math.min(100, Math.max(0, Number(value) || 0)) })}
-            keyboardType="numeric"
-          />
-          <Field
-            label={`Volume música (${Math.round(draft.musicVolume)})`}
-            value={String(draft.musicVolume)}
-            onChangeText={(value) => setDraft({ ...draft, musicVolume: Math.min(100, Math.max(0, Number(value) || 0)) })}
-            keyboardType="numeric"
-          />
-        </View>
-      ) : null}
-
-      {tab === "transicao" ? (
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
-          {(["CUT", "FADE", "SLIDE", "WIPE"] as const).map((item) => (
-            <Chip key={item} label={item} active={scene.transition === item} onPress={() => updateScene({ transition: item })} />
-          ))}
-        </View>
-      ) : null}
-
-      {tab === "velocidade" ? (
-        <View style={{ gap: 10, marginBottom: 14 }}>
-          <Field
-            label="Zoom"
-            value={String(scene.zoom)}
-            onChangeText={(value) => updateScene({ zoom: Math.min(1.4, Math.max(1, Number(value) || 1)) })}
-            keyboardType="decimal-pad"
-          />
-          <Field
-            label="Pan horizontal"
-            value={String(scene.panX)}
-            onChangeText={(value) => updateScene({ panX: Math.min(1, Math.max(-1, Number(value) || 0)) })}
-            keyboardType="decimal-pad"
-          />
-        </View>
-      ) : null}
-
-      {message ? <HelperText>{message}</HelperText> : null}
-
-      <PrimaryButton
-        label={outputUrl ? "Baixar vídeo" : "Exportar vídeo"}
-        busy={busy}
-        onPress={() => {
-          if (outputUrl) void Linking.openURL(outputUrl);
-          else void exportVideo();
-        }}
-      />
-
-      <Pressable onPress={() => router.push("/estudio/publicar")} style={{ marginTop: 12, alignItems: "center" }}>
-        <Text style={{ color: colors.primary, fontSize: fonts.body, fontWeight: "700" }}>Publicar nas redes</Text>
+        <Ionicons name="chevron-back" size={22} color={colors.text} />
       </Pressable>
-    </ScrollView>
+      <Text
+        style={{
+          flex: 1,
+          textAlign: "center",
+          color: colors.text,
+          fontSize: fonts.title,
+          fontWeight: "700",
+          marginRight: 44,
+        }}
+      >
+        Editor de vídeo
+      </Text>
+    </View>
   );
 }
 

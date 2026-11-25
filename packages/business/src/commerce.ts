@@ -114,12 +114,22 @@ export class CommerceService {
 
   async dashboard(tenant: Tenant) {
     const stats = await this.stats(tenant, 7);
-    const recent = await this.db.product.findMany({
+    const recentRows = await this.db.product.findMany({
       where: { organizationId: tenant.organizationId, status: { not: "ARCHIVED" } },
       orderBy: { updatedAt: "desc" },
-      take: 4,
+      take: 8,
       include: { images: { orderBy: { position: "asc" }, take: 1 } },
     });
+    const recent = recentRows.map((product) => ({
+      id: product.id,
+      name: product.name,
+      priceCents: product.priceCents,
+      promoPriceCents: product.promoPriceCents,
+      images: product.images.map((image) => ({
+        id: image.id,
+        url: `/api/media/${image.mediaAssetId}`,
+      })),
+    }));
     const activity = await this.db.auditLog.findMany({ where: { organizationId: tenant.organizationId }, orderBy: { createdAt: "desc" }, take: 8 });
     return { stats, recent, activity, greeting: greeting(tenant.name, tenant.email) };
   }

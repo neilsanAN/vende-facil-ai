@@ -7,9 +7,11 @@ import { colors, control, fonts } from "@vendefacil/ui-tokens";
 export function HashtagField({
   value,
   onChange,
+  label = "Hashtags",
 }: {
   value: string[];
   onChange: (next: string[]) => void;
+  label?: string;
 }) {
   const [draft, setDraft] = useState("");
 
@@ -35,7 +37,7 @@ export function HashtagField({
         gap: 8,
       }}
     >
-      <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, fontWeight: "600" }}>Hashtags</Text>
+      <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, fontWeight: "600" }}>{label}</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
         {value.map((tag) => (
           <Pressable
