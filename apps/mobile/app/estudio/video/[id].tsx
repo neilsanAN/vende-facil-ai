@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,6 +9,7 @@ import { ApiClientError } from "@vendefacil/api-client";
 import { api, apiBase } from "../../../src/api";
 import { BackButton } from "../../../src/back-button";
 import { handleTenantError } from "../../../src/session";
+import { Chip, Field, HelperText, PrimaryButton, ScreenTitle } from "../../../src/ui";
 
 type Scene = {
   mediaAssetId?: string | null;
@@ -133,9 +134,9 @@ export default function VideoEditorScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16 }}>
         <BackButton fallback="/estudio" />
-        <Text style={{ color: colors.text, fontSize: fonts.heading, fontWeight: "700" }}>Editor de vídeo</Text>
+        <ScreenTitle>Editor de vídeo</ScreenTitle>
         <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
-        {message ? <Text style={{ color: colors.textSecondary, marginTop: 12 }}>{message}</Text> : null}
+        {message ? <HelperText>{message}</HelperText> : null}
       </View>
     );
   }
@@ -150,7 +151,7 @@ export default function VideoEditorScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <BackButton fallback="/estudio" />
-      <Text style={{ color: colors.text, fontSize: fonts.heading, fontWeight: "700", marginBottom: 14 }}>Editor de vídeo</Text>
+      <ScreenTitle>Editor de vídeo</ScreenTitle>
 
       <View
         style={{
@@ -167,23 +168,23 @@ export default function VideoEditorScreen() {
       >
         <View style={{ flex: 1, padding: 18, justifyContent: "space-between" }}>
           <View>
-            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>{scene.headline || draft.title}</Text>
-            {scene.caption ? <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 12, marginTop: 6 }}>{scene.caption}</Text> : null}
+            <Text style={{ color: "#fff", fontSize: fonts.hero, fontWeight: "700" }}>{scene.headline || draft.title}</Text>
+            {scene.caption ? <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: fonts.body, marginTop: 6 }}>{scene.caption}</Text> : null}
           </View>
           <View>
-            <View style={{ height: 4, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.25)", marginBottom: 10 }}>
-              <View style={{ width: "33%", height: "100%", borderRadius: 999, backgroundColor: "#fff" }} />
+            <View style={{ height: 4, borderRadius: control.radiusButton, backgroundColor: "rgba(255,255,255,0.25)", marginBottom: 10 }}>
+              <View style={{ width: "33%", height: "100%", borderRadius: control.radiusButton, backgroundColor: "#fff" }} />
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-              <View style={{ width: 28, height: 28, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" }}>
+              <View style={{ width: 28, height: 28, borderRadius: control.radiusButton, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" }}>
                 <Ionicons name="play" size={14} color="#fff" />
               </View>
-              <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 11, fontWeight: "600" }}>
+              <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: fonts.body2, fontWeight: "600" }}>
                 0:00 / 0:{String(draft.durationSec).padStart(2, "0")}
               </Text>
               <View style={{ flex: 1 }} />
-              <Ionicons name="volume-medium-outline" size={16} color="rgba(255,255,255,0.85)" />
-              <Ionicons name="expand-outline" size={16} color="rgba(255,255,255,0.85)" />
+              <Ionicons name="volume-medium-outline" size={control.icon} color="rgba(255,255,255,0.85)" />
+              <Ionicons name="expand-outline" size={control.icon} color="rgba(255,255,255,0.85)" />
             </View>
           </View>
         </View>
@@ -197,7 +198,7 @@ export default function VideoEditorScreen() {
             style={{
               width: 64,
               height: 56,
-              borderRadius: 12,
+              borderRadius: control.radiusCard,
               backgroundColor: "#1A1240",
               alignItems: "center",
               justifyContent: "center",
@@ -205,13 +206,13 @@ export default function VideoEditorScreen() {
               borderColor: itemIndex === index ? colors.primary : colors.border,
             }}
           >
-            <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 9, fontWeight: "700" }}>Cena {itemIndex + 1}</Text>
+            <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: fonts.tiny, fontWeight: "700" }}>Cena {itemIndex + 1}</Text>
           </Pressable>
         ))}
       </ScrollView>
 
       {pipelineLabel ? (
-        <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "600", marginBottom: 10 }}>
+        <Text style={{ color: colors.textSecondary, fontSize: fonts.body2, fontWeight: "600", marginBottom: 10 }}>
           {pipelineLabel} · {status?.progress ?? 0}% {status?.errorMessage || ""}
         </Text>
       ) : null}
@@ -238,12 +239,12 @@ export default function VideoEditorScreen() {
                 alignItems: "center",
                 gap: 2,
                 paddingVertical: 8,
-                borderRadius: 12,
+                borderRadius: control.radiusCard,
                 backgroundColor: active ? colors.primarySoft : "transparent",
               }}
             >
-              <Ionicons name={item.icon} size={16} color={active ? colors.primary : colors.textSecondary} />
-              <Text style={{ color: active ? colors.primary : colors.textSecondary, fontSize: 9, fontWeight: "700" }}>{item.label}</Text>
+              <Ionicons name={item.icon} size={control.icon} color={active ? colors.primary : colors.textSecondary} />
+              <Text style={{ color: active ? colors.primary : colors.textSecondary, fontSize: fonts.tiny, fontWeight: "700" }}>{item.label}</Text>
             </Pressable>
           );
         })}
@@ -283,25 +284,9 @@ export default function VideoEditorScreen() {
 
       {tab === "transicao" ? (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
-          {(["CUT", "FADE", "SLIDE", "WIPE"] as const).map((item) => {
-            const active = scene.transition === item;
-            return (
-              <Pressable
-                key={item}
-                onPress={() => updateScene({ transition: item })}
-                style={{
-                  borderRadius: 999,
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  backgroundColor: active ? colors.primary : colors.surface,
-                  borderWidth: active ? 0 : 1,
-                  borderColor: colors.border,
-                }}
-              >
-                <Text style={{ color: active ? "#fff" : colors.text, fontSize: 12, fontWeight: "600" }}>{item}</Text>
-              </Pressable>
-            );
-          })}
+          {(["CUT", "FADE", "SLIDE", "WIPE"] as const).map((item) => (
+            <Chip key={item} label={item} active={scene.transition === item} onPress={() => updateScene({ transition: item })} />
+          ))}
         </View>
       ) : null}
 
@@ -322,67 +307,21 @@ export default function VideoEditorScreen() {
         </View>
       ) : null}
 
-      {message ? <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 10 }}>{message}</Text> : null}
+      {message ? <HelperText>{message}</HelperText> : null}
 
-      <Pressable
-        disabled={busy}
+      <PrimaryButton
+        label={outputUrl ? "Baixar vídeo" : "Exportar vídeo"}
+        busy={busy}
         onPress={() => {
           if (outputUrl) void Linking.openURL(outputUrl);
           else void exportVideo();
         }}
-        style={{
-          height: control.height,
-          borderRadius: 999,
-          backgroundColor: colors.primary,
-          alignItems: "center",
-          justifyContent: "center",
-          flexDirection: "row",
-          gap: 8,
-          opacity: busy ? 0.7 : 1,
-        }}
-      >
-        {busy ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <>
-            <Ionicons name="download-outline" size={18} color="#fff" />
-            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700" }}>{outputUrl ? "Baixar vídeo" : "Exportar vídeo"}</Text>
-          </>
-        )}
-      </Pressable>
+      />
 
       <Pressable onPress={() => router.push("/estudio/publicar")} style={{ marginTop: 12, alignItems: "center" }}>
-        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "700" }}>Publicar nas redes</Text>
+        <Text style={{ color: colors.primary, fontSize: fonts.body, fontWeight: "700" }}>Publicar nas redes</Text>
       </Pressable>
     </ScrollView>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChangeText,
-  multiline,
-  keyboardType,
-}: {
-  label: string;
-  value: string;
-  onChangeText: (value: string) => void;
-  multiline?: boolean;
-  keyboardType?: "default" | "numeric" | "decimal-pad";
-}) {
-  return (
-    <View style={{ borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 12, paddingVertical: 10 }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 }}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        multiline={multiline}
-        keyboardType={keyboardType}
-        textAlignVertical={multiline ? "top" : "center"}
-        style={{ color: colors.text, fontSize: 13, fontWeight: "600", minHeight: multiline ? 88 : 24, padding: 0 }}
-      />
-    </View>
   );
 }
 
@@ -394,16 +333,16 @@ function CheckRow({ label, value, onChange }: { label: string; value: boolean; o
         flexDirection: "row",
         alignItems: "center",
         gap: 10,
-        borderRadius: 12,
+        minHeight: control.height,
+        borderRadius: control.radiusInput,
         borderWidth: 1,
         borderColor: colors.border,
         backgroundColor: colors.surface,
-        paddingHorizontal: 12,
-        paddingVertical: 12,
+        paddingHorizontal: control.paddingH,
       }}
     >
-      <Ionicons name={value ? "checkbox" : "square-outline"} size={18} color={value ? colors.primary : colors.textSecondary} />
-      <Text style={{ color: colors.text, fontSize: 13, fontWeight: "600" }}>{label}</Text>
+      <Ionicons name={value ? "checkbox" : "square-outline"} size={control.icon} color={value ? colors.primary : colors.textSecondary} />
+      <Text style={{ color: colors.text, fontSize: control.fontSize, fontWeight: "600" }}>{label}</Text>
     </Pressable>
   );
 }

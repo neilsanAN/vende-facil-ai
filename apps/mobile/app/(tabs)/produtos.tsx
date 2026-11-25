@@ -109,11 +109,11 @@ export default function ProductsScreen() {
             height: control.height,
             borderWidth: 1,
             borderColor: colors.border,
-            borderRadius: 999,
+            borderRadius: control.radiusInput,
             backgroundColor: "#F3F4F8",
             color: colors.text,
-            paddingHorizontal: 14,
-            fontSize: fonts.body,
+            paddingHorizontal: control.paddingH,
+            fontSize: control.fontSize,
           }}
         />
         <View style={{ width: 40, height: 40, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" }}>
@@ -176,23 +176,23 @@ export default function ProductsScreen() {
                 )}
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }} numberOfLines={1}>
+                <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700" }} numberOfLines={1}>
                   {item.name}
                 </Text>
-                <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700", marginTop: 2 }}>{price}</Text>
+                <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700", marginTop: 2 }}>{price}</Text>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
-                  <View style={{ borderRadius: 999, backgroundColor: item.status === "ACTIVE" ? "#DCFCE7" : "#FFF4E5", paddingHorizontal: 8, paddingVertical: 3 }}>
-                    <Text style={{ color: item.status === "ACTIVE" ? "#166534" : "#B45309", fontSize: 10, fontWeight: "700" }}>
+                  <View style={{ borderRadius: control.radiusButton, backgroundColor: item.status === "ACTIVE" ? "#DCFCE7" : "#FFF4E5", paddingHorizontal: 8, paddingVertical: 3 }}>
+                    <Text style={{ color: item.status === "ACTIVE" ? "#166534" : "#B45309", fontSize: fonts.caption, fontWeight: "700" }}>
                       {item.status === "ACTIVE" ? "Ativo" : item.status === "DRAFT" ? "Rascunho" : "Arquivo"}
                     </Text>
                   </View>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
                     <Ionicons name="eye-outline" size={12} color={colors.textSecondary} />
-                    <Text style={{ color: colors.textSecondary, fontSize: 10 }}>0</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: fonts.caption }}>0</Text>
                   </View>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
                     <Ionicons name="cart-outline" size={12} color={colors.textSecondary} />
-                    <Text style={{ color: colors.textSecondary, fontSize: 10 }}>0</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: fonts.caption }}>0</Text>
                   </View>
                 </View>
               </View>
@@ -210,8 +210,8 @@ export default function ProductsScreen() {
           position: "absolute",
           right: 16,
           bottom: 16,
-          height: 44,
-          borderRadius: 999,
+          height: control.buttonHeight,
+          borderRadius: control.radiusButton,
           backgroundColor: colors.primary,
           paddingHorizontal: 16,
           flexDirection: "row",
@@ -224,8 +224,8 @@ export default function ProductsScreen() {
           elevation: 5,
         }}
       >
-        <Ionicons name="add" size={18} color="#fff" />
-        <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>Novo produto</Text>
+        <Ionicons name="add" size={control.icon} color="#fff" />
+        <Text style={{ color: "#fff", fontSize: control.buttonFontSize, fontWeight: "700" }}>Novo produto</Text>
       </Pressable>
 
       <ActionMenu

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, Image, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -10,6 +10,7 @@ import { api } from "../../src/api";
 import { uploadLocalImage } from "../../src/upload";
 import { handleTenantError } from "../../src/session";
 import { BackButton } from "../../src/back-button";
+import { Field, HelperText, PrimaryButton, ScreenTitle, SecondaryButton } from "../../src/ui";
 
 type Draft = { id: string; title: string; description: string; hashtags: string[] };
 
@@ -119,8 +120,8 @@ export default function AdScreen() {
     >
       <BackButton fallback="/inicio" />
 
-      <Text style={{ color: colors.text, fontSize: fonts.heading, fontWeight: "700" }}>Criar anúncio com IA</Text>
-      <Text style={{ color: colors.textSecondary, fontSize: fonts.body, marginTop: 6, marginBottom: 16 }}>{message}</Text>
+      <ScreenTitle style={{ marginBottom: 6 }}>Criar anúncio com IA</ScreenTitle>
+      <HelperText>{message}</HelperText>
 
       {phase === "generating" ? (
         <View style={{ borderRadius: 22, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 28, alignItems: "center", marginBottom: 16 }}>
@@ -200,30 +201,11 @@ export default function AdScreen() {
             </Pressable>
           </View>
 
-          <View style={{ borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 12 }}>
-            <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 }}>Nome do produto</Text>
-            <TextInput
-              value={productName}
-              onChangeText={setProductName}
-              placeholder="Ex.: Fone Bluetooth"
-              placeholderTextColor="#9A96AB"
-              style={{ color: colors.text, fontSize: 14, paddingVertical: 4, minHeight: 28 }}
-            />
+          <View style={{ marginBottom: 12 }}>
+            <Field label="Nome do produto" value={productName} onChangeText={setProductName} placeholder="Ex.: Fone Bluetooth" />
           </View>
 
-          <Pressable
-            disabled={!uri || busy}
-            onPress={() => void generate()}
-            style={{
-              height: control.height,
-              borderRadius: 999,
-              backgroundColor: uri ? colors.primary : "#E8EAF0",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Text style={{ color: uri ? "#fff" : colors.textSecondary, fontSize: fonts.body, fontWeight: "600" }}>Gerar com IA</Text>
-          </Pressable>
+          <PrimaryButton label="Gerar com IA" busy={busy} disabled={!uri} onPress={() => void generate()} />
         </>
       ) : null}
 
@@ -254,29 +236,8 @@ export default function AdScreen() {
             </View>
           ) : null}
 
-          <View style={{ borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 14, paddingVertical: 10 }}>
-            <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 }}>Título</Text>
-            <TextInput
-              value={draft.title}
-              onChangeText={(title) => setDraft({ ...draft, title })}
-              placeholder="Título do anúncio"
-              placeholderTextColor="#9A96AB"
-              style={{ color: colors.text, fontSize: 15, fontWeight: "600", paddingVertical: 4, minHeight: 32 }}
-            />
-          </View>
-
-          <View style={{ borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 14, paddingVertical: 10 }}>
-            <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 }}>Descrição</Text>
-            <TextInput
-              value={draft.description}
-              onChangeText={(description) => setDraft({ ...draft, description })}
-              placeholder="Descrição do anúncio"
-              placeholderTextColor="#9A96AB"
-              multiline
-              textAlignVertical="top"
-              style={{ color: colors.text, fontSize: 14, lineHeight: 20, paddingVertical: 4, minHeight: 120 }}
-            />
-          </View>
+          <Field label="Título" value={draft.title} onChangeText={(title) => setDraft({ ...draft, title })} placeholder="Título do anúncio" />
+          <Field label="Descrição" value={draft.description} onChangeText={(description) => setDraft({ ...draft, description })} placeholder="Descrição do anúncio" multiline />
 
           {draft.hashtags.length ? (
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
@@ -285,12 +246,12 @@ export default function AdScreen() {
                   key={tag}
                   style={{
                     color: colors.primary,
-                    backgroundColor: "#F3EEFF",
+                    backgroundColor: colors.primarySoft,
                     overflow: "hidden",
-                    borderRadius: 999,
+                    borderRadius: control.radiusButton,
                     paddingHorizontal: 10,
                     paddingVertical: 6,
-                    fontSize: 11,
+                    fontSize: fonts.body2,
                     fontWeight: "600",
                   }}
                 >
@@ -301,40 +262,12 @@ export default function AdScreen() {
           ) : null}
 
           <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
-            <Pressable
-              disabled={busy || saving}
-              onPress={() => void generate()}
-              style={{
-                flex: 1,
-                height: control.height,
-                borderRadius: 999,
-                borderWidth: 1,
-                borderColor: colors.border,
-                backgroundColor: colors.surface,
-                alignItems: "center",
-                justifyContent: "center",
-                flexDirection: "row",
-                gap: 6,
-              }}
-            >
-              <Ionicons name="refresh" size={16} color={colors.primary} />
-              <Text style={{ color: colors.text, fontWeight: "600", fontSize: 13 }}>Regenerar</Text>
-            </Pressable>
-            <Pressable
-              disabled={saving}
-              onPress={() => void saveDraft()}
-              style={{
-                flex: 1,
-                height: control.height,
-                borderRadius: 999,
-                backgroundColor: colors.primary,
-                alignItems: "center",
-                justifyContent: "center",
-                opacity: saving ? 0.7 : 1,
-              }}
-            >
-              {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}>Salvar</Text>}
-            </Pressable>
+            <View style={{ flex: 1 }}>
+              <SecondaryButton label="Regenerar" disabled={busy || saving} onPress={() => void generate()} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <PrimaryButton label="Salvar" busy={saving} onPress={() => void saveDraft()} />
+            </View>
           </View>
         </View>
       ) : null}

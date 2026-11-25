@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, control, fonts } from "@vendefacil/ui-tokens";
+import { colors } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
 import { api } from "../../src/api";
 import { handleTenantError } from "../../src/session";
 import { BackButton } from "../../src/back-button";
+import { Field, HelperText, PrimaryButton, ScreenTitle } from "../../src/ui";
 
 type Draft = { id: string; title: string; description: string; hashtags: string[]; tone: string };
 
@@ -76,45 +77,16 @@ export default function EditAdScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <BackButton fallback="/anuncios" />
-      <Text style={{ color: colors.text, fontSize: fonts.heading, fontWeight: "700" }}>Editar anúncio</Text>
-      <Text style={{ color: colors.textSecondary, fontSize: fonts.body, marginTop: 6, marginBottom: 16 }}>{message}</Text>
+      <ScreenTitle style={{ marginBottom: 6 }}>Editar anúncio</ScreenTitle>
+      <HelperText>{message}</HelperText>
 
       {!draft ? (
         <ActivityIndicator color={colors.primary} />
       ) : (
         <View style={{ gap: 12 }}>
-          <View style={{ borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 14, paddingVertical: 10 }}>
-            <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 }}>Título</Text>
-            <TextInput
-              value={draft.title}
-              onChangeText={(title) => setDraft({ ...draft, title })}
-              style={{ color: colors.text, fontSize: 15, fontWeight: "600", paddingVertical: 4, minHeight: 32 }}
-            />
-          </View>
-          <View style={{ borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 14, paddingVertical: 10 }}>
-            <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 }}>Descrição</Text>
-            <TextInput
-              value={draft.description}
-              onChangeText={(description) => setDraft({ ...draft, description })}
-              multiline
-              textAlignVertical="top"
-              style={{ color: colors.text, fontSize: 14, lineHeight: 20, paddingVertical: 4, minHeight: 120 }}
-            />
-          </View>
-          <Pressable
-            disabled={saving}
-            onPress={() => void save()}
-            style={{
-              height: control.height,
-              borderRadius: 999,
-              backgroundColor: colors.primary,
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: saving ? 0.7 : 1,
-            }}
-          >
-            {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}>Salvar</Text>}
-          </Pressable>
+          <Field label="Título" value={draft.title} onChangeText={(title) => setDraft({ ...draft, title })} />
+          <Field label="Descrição" value={draft.description} onChangeText={(description) => setDraft({ ...draft, description })} multiline />
+          <PrimaryButton label="Salvar" busy={saving} onPress={() => void save()} />
         </View>
       )}
     </ScrollView>

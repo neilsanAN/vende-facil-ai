@@ -1,5 +1,5 @@
 import { Modal, Pressable, Text, View } from "react-native";
-import { colors, fonts } from "@vendefacil/ui-tokens";
+import { colors, control, fonts } from "@vendefacil/ui-tokens";
 
 export type ActionMenuItem = {
   key: string;
@@ -28,13 +28,13 @@ export function ActionMenu({
           style={{
             marginHorizontal: 12,
             marginBottom: 24,
-            borderRadius: 18,
+            borderRadius: control.radiusSheet,
             backgroundColor: colors.surface,
             overflow: "hidden",
           }}
         >
           {title ? (
-            <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: "600", textAlign: "center", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <Text style={{ color: colors.textSecondary, fontSize: fonts.body, fontWeight: "600", textAlign: "center", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
               {title}
             </Text>
           ) : null}
@@ -52,7 +52,7 @@ export function ActionMenu({
                 borderTopColor: colors.border,
               }}
             >
-              <Text style={{ color: item.destructive ? colors.error : colors.text, fontSize: 15, fontWeight: "600", textAlign: "center" }}>{item.label}</Text>
+              <Text style={{ color: item.destructive ? colors.error : colors.text, fontSize: fonts.title, fontWeight: "600", textAlign: "center" }}>{item.label}</Text>
             </Pressable>
           ))}
           <Pressable onPress={onClose} style={{ paddingVertical: 16, borderTopWidth: 8, borderTopColor: "#F3F4F8" }}>
