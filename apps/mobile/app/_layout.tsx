@@ -16,8 +16,8 @@ export default function RootLayout() {
   }, []);
   return (
     <FeedbackProvider>
-      <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }} />
+      <StatusBar style="dark" />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background }, animation: "slide_from_right" }} />
     </FeedbackProvider>
   );
 }

@@ -117,7 +117,9 @@ const routes: Route[] = [
   { method: "GET", pattern: "/stats", auth: "tenant", handle: stats },
   { method: "GET", pattern: "/billing", auth: "tenant", handle: async (ctx) => json(await ctx.container.billing.overview(requireTenantSession(ctx))) },
   { method: "POST", pattern: "/billing/checkout", auth: "tenant", handle: checkout },
-  { method: "POST", pattern: "/billing/cancel", auth: "tenant", handle: async (ctx) => { await ctx.container.billing.cancel(requireTenantSession(ctx)); return json({ ok: true }); } },
+  { method: "POST", pattern: "/billing/change", auth: "tenant", handle: changePlan },
+  { method: "POST", pattern: "/billing/cancel", auth: "tenant", handle: async (ctx) => json(await ctx.container.billing.cancel(requireTenantSession(ctx))) },
+  { method: "POST", pattern: "/billing/reactivate", auth: "tenant", handle: async (ctx) => json(await ctx.container.billing.reactivate(requireTenantSession(ctx))) },
   { method: "POST", pattern: "/webhooks/mercadopago", auth: "public", handle: webhook },
   { method: "GET", pattern: "/publications", auth: "tenant", handle: async (ctx) => json({ items: await ctx.container.publications.list(requireTenantSession(ctx)), channels: await ctx.container.publications.channels(requireTenantSession(ctx)) }) },
   { method: "POST", pattern: "/publications", auth: "tenant", handle: publish },
@@ -148,6 +150,8 @@ const routes: Route[] = [
   { method: "POST", pattern: "/admin/tickets/:id", auth: "admin", handle: replyTicket },
   { method: "GET", pattern: "/admin/settings", auth: "admin", handle: async (ctx) => json(await ctx.container.admin.settings(ctx.session!)) },
   { method: "PUT", pattern: "/admin/settings/:key", auth: "admin", handle: updateSetting },
+  { method: "GET", pattern: "/admin/plans", auth: "admin", handle: async (ctx) => json(await ctx.container.admin.listPlans(ctx.session!)) },
+  { method: "PUT", pattern: "/admin/plans/:code", auth: "admin", handle: updateAdminPlan },
   { method: "GET", pattern: "/metrics", auth: "admin", handle: metrics },
 ];
 
@@ -461,9 +465,34 @@ async function stats(ctx: RouteContext) {
 }
 
 async function checkout(ctx: RouteContext) {
-  const payload = (await ctx.req.json()) as { planCode?: string };
+  const payload = (await ctx.req.json()) as { planCode?: string; interval?: "MONTH" | "YEAR" };
   if (!payload.planCode) throw new AppError("VALIDATION", "Informe o plano.", 422);
-  return json(await ctx.container.billing.checkout(requireTenantSession(ctx), payload.planCode, ctx.container.config.APP_URL));
+  const interval = payload.interval === "YEAR" ? "YEAR" : "MONTH";
+  return json(await ctx.container.billing.checkout(requireTenantSession(ctx), payload.planCode, ctx.container.config.APP_URL, interval));
+}
+
+async function changePlan(ctx: RouteContext) {
+  const payload = (await ctx.req.json()) as { planCode?: string; interval?: "MONTH" | "YEAR" };
+  if (!payload.planCode) throw new AppError("VALIDATION", "Informe o plano.", 422);
+  const interval = payload.interval === "YEAR" ? "YEAR" : "MONTH";
+  return json(await ctx.container.billing.changePlan(requireTenantSession(ctx), payload.planCode, interval, ctx.container.config.APP_URL));
+}
+
+async function updateAdminPlan(ctx: RouteContext) {
+  const payload = (await ctx.req.json()) as {
+    name?: string;
+    description?: string;
+    priceCents?: number;
+    active?: boolean;
+    limits?: unknown;
+    features?: string[];
+    badge?: string | null;
+    highlighted?: boolean;
+    icon?: string;
+    position?: number;
+    prices?: Array<{ interval: "MONTH" | "YEAR"; priceCents: number; active?: boolean }>;
+  };
+  return json(await ctx.container.admin.updatePlan(ctx.session!, ctx.params.code || "", payload));
 }
 
 async function webhook(ctx: RouteContext) {

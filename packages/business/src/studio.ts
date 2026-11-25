@@ -8,6 +8,7 @@ import { assertGroundedCopy, debitKind } from "./ledger";
 import { assertMinRole } from "./permissions";
 import { audit, type Tenant, type TenantService } from "./tenant";
 import { CatalogService } from "./catalog";
+import type { BillingService } from "./billing";
 
 export class StudioService {
   constructor(
@@ -16,6 +17,7 @@ export class StudioService {
     private storage: StorageService,
     private tenants: TenantService,
     private catalog: CatalogService,
+    private billing: BillingService,
   ) {}
 
   async analyze(tenant: Tenant, assetId: string) {
@@ -54,6 +56,7 @@ export class StudioService {
     assertGroundedCopy(`${result.copy.title}\n${result.copy.description}`, input.facts.priceCents != null);
     const generation = await this.record(tenant, "TEXT", result.usage, { tone: input.tone });
     await debitKind(this.db, { organizationId: tenant.organizationId, kind: "ANNOUNCEMENT", amount: 1, reason: "ad_generation", idempotencyKey: `ad:${idempotencyKey}`, referenceType: "AiGeneration", referenceId: generation.id });
+    await this.billing.recordUsage(tenant.organizationId, "ai.announcement", 1, { generationId: generation.id });
     const ad = await this.db.advertisement.create({
       data: {
         organizationId: tenant.organizationId,

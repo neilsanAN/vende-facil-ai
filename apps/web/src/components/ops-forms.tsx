@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { ImageIcon } from "lucide-react";
-import { formatBrl, CREDIT_LABEL, type CreditKind } from "@vendefacil/types";
 import { Button, Field, inputClass, areaClass, buttonClass, useToast } from "@/components/ui";
 import { api, ApiClientError } from "@/lib/http";
 import { uploadFile } from "@/components/workspace";
@@ -51,21 +50,6 @@ export function StoreForm({ store }: { store: { name: string; description: strin
         }} />
       </label>
     </form>
-  );
-}
-
-export function BillingPanel({ data }: { data: { paymentsConfigured: boolean; policy: string; plans: Array<{ code: string; name: string; description: string; priceCents: number }>; subscription: { status: string; cancelAtPeriodEnd: boolean; plan: { name: string; code: string } } | null; wallets: Array<{ kind: CreditKind; balance: number }>; invoices: Array<{ id: string; description: string; amountCents: number; status: string }> } }) {
-  const toast = useToast();
-  return (
-    <div className="space-y-4">
-      <p className="text-sm">Plano atual: <strong>{data.subscription?.plan.name || "Gratuito"}</strong> · {data.subscription?.status} {data.subscription?.cancelAtPeriodEnd ? "· cancelamento ao fim do período" : ""}</p>
-      <p className="text-xs text-muted">{data.policy}</p>
-      {!data.paymentsConfigured ? <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">A cobrança online não está configurada. Os limites do plano gratuito continuam valendo.</p> : null}
-      <div className="grid gap-3 md:grid-cols-3">{data.plans.map((plan) => <article key={plan.code} className="rounded-2xl border border-line bg-surface p-4"><h2 className="font-medium">{plan.name}</h2><p className="mt-1 text-lg">{formatBrl(plan.priceCents)}<span className="text-xs text-muted">/mês</span></p><p className="mt-2 text-sm text-muted">{plan.description}</p><Button className="mt-3" variant={plan.code === data.subscription?.plan.code ? "secondary" : "primary"} onClick={async () => { try { const result = await api<{ url: string | null }>("/api/billing/checkout", { method: "POST", body: JSON.stringify({ planCode: plan.code }) }); if (result.url) window.location.href = result.url; else toast("Plano atualizado."); } catch (cause) { toast(cause instanceof ApiClientError ? cause.message : "Não foi possível alterar o plano.", "err"); } }}>{plan.priceCents === 0 ? "Usar gratuito" : "Assinar"}</Button></article>)}</div>
-      <div className="grid grid-cols-2 gap-2">{data.wallets.map((wallet) => <div key={wallet.kind} className="rounded-xl border border-line bg-surface p-3 text-sm">{CREDIT_LABEL[wallet.kind]}<strong className="block text-lg">{wallet.balance}</strong></div>)}</div>
-      <Button variant="secondary" onClick={async () => { await api("/api/billing/cancel", { method: "POST" }); toast("Cancelamento agendado para o fim do período."); }}>Cancelar ao fim do período</Button>
-      <ul className="text-sm">{data.invoices.map((invoice) => <li key={invoice.id}>{invoice.description} · {formatBrl(invoice.amountCents)} · {invoice.status}</li>)}</ul>
-    </div>
   );
 }
 

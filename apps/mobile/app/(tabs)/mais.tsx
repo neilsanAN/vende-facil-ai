@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from "react-native";
-import { router } from "expo-router";
+import { Link, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
@@ -10,6 +10,8 @@ const links = [
   { href: "/estatisticas", label: "Estatísticas", text: "Visualizações e vendas", icon: "bar-chart-outline" as const },
   { href: "/estudio", label: "Estúdio", text: "Vídeo, arte e anúncios", icon: "sparkles-outline" as const },
   { href: "/estudio/publicar", label: "Publicar", text: "WhatsApp, Instagram e Facebook", icon: "share-social-outline" as const },
+  { href: "/assinatura", label: "Assinatura", text: "Plano, uso e cobranças", icon: "card-outline" as const },
+  { href: "/assinatura/planos", label: "Planos e preços", text: "Básico, Profissional e Business", icon: "diamond-outline" as const },
 ] as const;
 
 export default function MoreScreen() {
@@ -19,30 +21,30 @@ export default function MoreScreen() {
       <Text style={{ color: colors.text, fontSize: fonts.heading, fontWeight: "700" }}>Mais</Text>
       <Text style={{ color: colors.textSecondary, fontSize: fonts.body, marginTop: 4, marginBottom: 14 }}>Loja, pedidos, resultados e ajustes.</Text>
       {links.map((item) => (
-        <Pressable
-          key={item.href}
-          onPress={() => router.push(item.href)}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 12,
-            backgroundColor: colors.surface,
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: 14,
-            padding: 14,
-            marginBottom: 8,
-          }}
-        >
-          <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" }}>
-            <Ionicons name={item.icon} size={18} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "600" }}>{item.label}</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, marginTop: 2 }}>{item.text}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.border} />
-        </Pressable>
+        <Link key={item.href} href={item.href} asChild>
+          <Pressable
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: 14,
+              padding: 14,
+              marginBottom: 8,
+            }}
+          >
+            <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" }}>
+              <Ionicons name={item.icon} size={18} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "600" }}>{item.label}</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, marginTop: 2 }}>{item.text}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.border} />
+          </Pressable>
+        </Link>
       ))}
       <Pressable
         onPress={async () => {

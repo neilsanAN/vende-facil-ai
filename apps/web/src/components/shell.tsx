@@ -24,7 +24,6 @@ const side = [
   { href: "/pedidos", label: "Pedidos" },
   { href: "/estatisticas", label: "Estatísticas" },
   { href: "/loja", label: "Minha loja" },
-  { href: "/assinatura", label: "Assinatura" },
   { href: "/equipe", label: "Equipe" },
   { href: "/configuracoes", label: "Configurações" },
 ];

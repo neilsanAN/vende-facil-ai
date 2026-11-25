@@ -18,7 +18,7 @@ export default async function AdminHome() {
       <h2 className="mt-6 text-sm font-semibold">Provedores configurados</h2>
       <ul className="mt-2 text-sm">{Object.entries(data.providers).map(([key, enabled]) => <li key={key}>{key}: {enabled ? "configurado" : "ausente"}</li>)}</ul>
       <nav className="mt-6 flex flex-wrap gap-3 text-sm text-primary">
-        <a href="/admin/usuarios">Usuários</a><a href="/admin/lojas">Lojas</a><a href="/admin/jobs">Jobs</a><a href="/admin/auditoria">Auditoria</a><a href="/admin/suporte">Suporte</a>
+        <a href="/admin/usuarios">Usuários</a><a href="/admin/lojas">Lojas</a><a href="/admin/planos">Planos</a><a href="/admin/jobs">Jobs</a><a href="/admin/auditoria">Auditoria</a><a href="/admin/suporte">Suporte</a>
       </nav>
     </main>
   );

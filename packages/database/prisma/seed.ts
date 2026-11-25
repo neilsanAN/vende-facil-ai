@@ -1,17 +1,12 @@
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../../business/src/ledger";
-import { PLAN_CATALOG, VOICE_CATALOG } from "../../business/src/plans";
+import { VOICE_CATALOG } from "../../business/src/plans";
+import { syncPlanCatalog } from "../../business/src/plan-sync";
 
 const db = new PrismaClient();
 
 async function main() {
-  for (const plan of PLAN_CATALOG) {
-    await db.plan.upsert({
-      where: { code: plan.code },
-      create: plan,
-      update: { name: plan.name, description: plan.description, priceCents: plan.priceCents, limits: plan.limits, position: plan.position },
-    });
-  }
+  await syncPlanCatalog(db);
   for (const voice of VOICE_CATALOG) {
     await db.voiceProfile.upsert({
       where: { provider_providerVoiceId_style: { provider: voice.provider, providerVoiceId: voice.providerVoiceId, style: voice.style } },

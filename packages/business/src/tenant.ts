@@ -4,6 +4,7 @@ import { AppError } from "./errors";
 import { allowanceFor, parseLimits, slugify, uniqueSlug, assertPublicSlug } from "./ledger";
 import { assertMinRole } from "./permissions";
 import { PLAN_CATALOG, DEFAULT_CATEGORIES } from "./plans";
+import { syncPlanCatalog } from "./plan-sync";
 import type { SessionContext } from "./auth";
 
 export type Tenant = SessionContext & { organizationId: string; role: NonNullable<SessionContext["role"]> };
@@ -45,19 +46,7 @@ export class TenantService {
   }
 
   async ensurePlans() {
-    for (const plan of PLAN_CATALOG) {
-      await this.db.plan.upsert({
-        where: { code: plan.code },
-        create: plan,
-        update: {
-          name: plan.name,
-          description: plan.description,
-          priceCents: plan.priceCents,
-          limits: plan.limits,
-          position: plan.position,
-        },
-      });
-    }
+    await syncPlanCatalog(this.db);
   }
 
   async onboard(session: SessionContext, input: { storeName: string; description?: string; whatsapp?: string }, ip?: string) {

@@ -139,7 +139,13 @@ export type PlanLimits = {
   generativeVideoCredits: number;
   aiPerHour: number;
   scheduledPosts: boolean;
+  /** GB inclusos; -1 = ilimitado com política de uso */
+  storageGb: number;
+  /** Teto soft de vídeos/mês (-1 só com fair-use; nunca sem política) */
+  videoSoftCap: number;
 };
+
+export type PlanFeature = string;
 
 export type ApiErrorBody = {
   error: {
@@ -168,5 +174,8 @@ export { normalizeHashtags, formatHashtag } from "./hashtags";
 export function isPlanLimits(value: unknown): value is PlanLimits {
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
-  return typeof record.products === "number" && typeof record.announcementCredits === "number";
+  if (typeof record.products !== "number" || typeof record.announcementCredits !== "number") return false;
+  if (record.storageGb == null) record.storageGb = 5;
+  if (record.videoSoftCap == null) record.videoSoftCap = record.renderCredits ?? 5;
+  return true;
 }

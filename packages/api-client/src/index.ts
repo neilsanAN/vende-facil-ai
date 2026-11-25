@@ -287,5 +287,59 @@ export function createApiClient(options: {
         method: "POST",
         body: JSON.stringify({ ...body, confirmManual: body.confirmManual ?? true }),
       }),
+    billing: () =>
+      request<{
+        plans: Array<{
+          id: string;
+          code: string;
+          name: string;
+          description: string;
+          priceCents: number;
+          features: string[];
+          badge?: string | null;
+          highlighted?: boolean;
+          icon?: string;
+          prices: Array<{ interval: "MONTH" | "YEAR"; priceCents: number }>;
+        }>;
+        subscription: {
+          status: string;
+          cancelAtPeriodEnd: boolean;
+          billingInterval: "MONTH" | "YEAR";
+          currentPeriodEnd: string;
+          plan: { code: string; name: string; priceCents: number };
+        } | null;
+        wallets: Array<{ kind: string; balance: number }>;
+        invoices: Array<{ id: string; description: string; amountCents: number; status: string; createdAt: string; paidAt?: string | null }>;
+        payments: Array<{ id: string; amountCents: number; status: string; method?: string | null; createdAt: string }>;
+        usage: {
+          videos: { used: number; cap: number };
+          announcements: { used: number; cap: number };
+          products: { used: number; cap: number };
+          storage: { usedGb: number; capGb: number };
+          periodEnd: string | null;
+        };
+        paymentsConfigured: boolean;
+        policy: string;
+        states: {
+          expired: boolean;
+          pendingPayment: boolean;
+          cancelScheduled: boolean;
+          upgradeAvailable: boolean;
+          paymentsOffline: boolean;
+        };
+      }>("/api/billing"),
+    checkout: (body: { planCode: string; interval?: "MONTH" | "YEAR" }) =>
+      request<{ url: string | null; methods: string[]; status: string; prorationNote?: string }>("/api/billing/checkout", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    changePlan: (body: { planCode: string; interval?: "MONTH" | "YEAR" }) =>
+      request<{ url: string | null; methods: string[]; status: string; prorationNote?: string }>("/api/billing/change", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    cancelSubscription: () =>
+      request<{ endsAt: string; retention: string }>("/api/billing/cancel", { method: "POST", body: JSON.stringify({}) }),
+    reactivateSubscription: () => request<{ ok: boolean }>("/api/billing/reactivate", { method: "POST", body: JSON.stringify({}) }),
   };
 }

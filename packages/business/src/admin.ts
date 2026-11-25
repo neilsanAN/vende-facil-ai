@@ -94,10 +94,62 @@ export class AdminService {
     await this.db.platformSetting.upsert({ where: { key }, create: { key, value }, update: { value } });
   }
 
-  async updatePlan(session: SessionContext, code: string, input: { priceCents?: number; active?: boolean; limits?: unknown }) {
+  async listPlans(session: SessionContext) {
+    assertAdmin(session);
+    return this.db.plan.findMany({
+      orderBy: { position: "asc" },
+      include: { prices: { orderBy: { interval: "asc" } } },
+    });
+  }
+
+  async updatePlan(
+    session: SessionContext,
+    code: string,
+    input: {
+      name?: string;
+      description?: string;
+      priceCents?: number;
+      active?: boolean;
+      limits?: unknown;
+      features?: string[];
+      badge?: string | null;
+      highlighted?: boolean;
+      icon?: string;
+      position?: number;
+      prices?: Array<{ interval: "MONTH" | "YEAR"; priceCents: number; active?: boolean }>;
+    },
+  ) {
     assertAdmin(session);
     if (input.limits) parseLimits(input.limits);
-    await this.db.plan.update({ where: { code }, data: { priceCents: input.priceCents, active: input.active, limits: input.limits as Prisma.InputJsonValue | undefined } });
+    const plan = await this.db.plan.update({
+      where: { code },
+      data: {
+        name: input.name,
+        description: input.description,
+        priceCents: input.priceCents,
+        active: input.active,
+        limits: input.limits as Prisma.InputJsonValue | undefined,
+        features: input.features as Prisma.InputJsonValue | undefined,
+        badge: input.badge === undefined ? undefined : input.badge,
+        highlighted: input.highlighted,
+        icon: input.icon,
+        position: input.position,
+      },
+    });
+    if (input.prices) {
+      for (const price of input.prices) {
+        await this.db.planPrice.upsert({
+          where: { planId_interval_currency: { planId: plan.id, interval: price.interval, currency: "BRL" } },
+          create: { planId: plan.id, interval: price.interval, priceCents: price.priceCents, currency: "BRL", active: price.active ?? true },
+          update: { priceCents: price.priceCents, active: price.active ?? true },
+        });
+      }
+      const monthly = input.prices.find((item) => item.interval === "MONTH");
+      if (monthly && input.priceCents == null) {
+        await this.db.plan.update({ where: { id: plan.id }, data: { priceCents: monthly.priceCents } });
+      }
+    }
+    return this.db.plan.findUnique({ where: { id: plan.id }, include: { prices: true } });
   }
 
   async metrics(session: SessionContext) {

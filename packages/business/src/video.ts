@@ -12,6 +12,7 @@ import { debitKind, creditKind, assertGroundedCopy } from "./ledger";
 import { isRetryable, isTerminal, nextRetryDelayMs, progressFor } from "./pipeline";
 import { assertMinRole } from "./permissions";
 import { audit, type Tenant } from "./tenant";
+import type { BillingService } from "./billing";
 
 const projectInclude = {
   scenes: { orderBy: { position: "asc" as const } },
@@ -21,7 +22,7 @@ const projectInclude = {
 } satisfies Prisma.VideoProjectInclude;
 
 export class VideoService {
-  constructor(private db: PrismaClient, private ai: AiRegistry, private storage: StorageService) {}
+  constructor(private db: PrismaClient, private ai: AiRegistry, private storage: StorageService, private billing: BillingService) {}
 
   async list(tenant: Tenant) {
     const rows = await this.db.videoProject.findMany({
@@ -232,6 +233,7 @@ export class VideoService {
       throw new AppError("PROVIDER_UNSUPPORTED", "O modo generativo está reservado para um provedor que entregue o arquivo final. Use o modo com fotos para renderizar agora.", 422);
     }
     if (!project.scenes.length) throw new AppError("SCENES_REQUIRED", "O projeto precisa de cenas.", 422);
+    await this.billing.assertVideoCap(tenant.organizationId);
     const render = await this.db.$transaction(async (tx) => {
       const wallet = await tx.creditWallet.findUnique({ where: { organizationId_kind: { organizationId: tenant.organizationId, kind: "RENDER" } } });
       if (!wallet) throw new AppError("NOT_FOUND", "Carteira de vídeo não encontrada.", 404);
@@ -245,6 +247,7 @@ export class VideoService {
       });
       return created;
     });
+    await this.billing.recordUsage(tenant.organizationId, "video.render", 1, { projectId, renderId: render.id });
     await wakeJob(render.id, "VIDEO_RENDER");
     return render;
   }

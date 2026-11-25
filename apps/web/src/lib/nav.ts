@@ -14,7 +14,6 @@ export function panelBackHref(pathname: string): string | null {
     path === "/estatisticas" ||
     path === "/pedidos" ||
     path === "/contatos" ||
-    path === "/assinatura" ||
     path === "/equipe" ||
     path === "/configuracoes" ||
     path === "/criar"

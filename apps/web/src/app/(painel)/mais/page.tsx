@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   BarChart3,
   ChevronRight,
-  CreditCard,
   Link2,
   MessageSquare,
   Settings,
@@ -18,7 +17,6 @@ const links = [
   { href: "/estatisticas", label: "Estatísticas", text: "Visualizações, cliques e vendas", icon: BarChart3 },
   { href: "/contatos", label: "Contatos", text: "Mensagens recebidas na vitrine", icon: MessageSquare },
   { href: "/publicar", label: "Publicar", text: "WhatsApp, Instagram e Facebook", icon: Link2 },
-  { href: "/assinatura", label: "Assinatura", text: "Plano e créditos", icon: CreditCard },
   { href: "/equipe", label: "Equipe", text: "Convites e permissões", icon: Users },
   { href: "/configuracoes", label: "Configurações", text: "Perfil, senha e conta", icon: Settings },
   { href: "/admin", label: "Administração", text: "Painel da plataforma", icon: Shield },

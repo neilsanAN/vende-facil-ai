@@ -4,9 +4,16 @@ import { imageMetadata, signPayload, verifyPayload, detectMime, assertAllowedUpl
 import { AppError } from "./errors";
 import { assertMinRole } from "./permissions";
 import type { Tenant } from "./tenant";
+import type { BillingService } from "./billing";
 
 export class MediaService {
-  constructor(private db: PrismaClient, private storage: StorageService, private encryptionKey: string, private appUrl: string) {}
+  constructor(
+    private db: PrismaClient,
+    private storage: StorageService,
+    private encryptionKey: string,
+    private appUrl: string,
+    private billing: BillingService,
+  ) {}
 
   async request(tenant: Tenant, input: { mimeType: string; sizeBytes: number; kind: "IMAGE" | "VIDEO" | "AUDIO"; originalName?: string }) {
     assertMinRole(tenant.role, "EDITOR");
@@ -14,6 +21,7 @@ export class MediaService {
     const limits = this.limits();
     const max = input.kind === "IMAGE" ? limits.image : input.kind === "AUDIO" ? limits.audio : limits.video;
     if (input.sizeBytes > max) throw new AppError("FILE_TOO_LARGE", "O arquivo excede o tamanho permitido.", 413);
+    await this.billing.assertStorage(tenant.organizationId, input.sizeBytes);
     const id = randomUUID();
     const objectKey = `org/${tenant.organizationId}/originals/${id}.${extensionForMime(declared)}`;
     const asset = await this.db.mediaAsset.create({

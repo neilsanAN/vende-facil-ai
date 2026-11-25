@@ -42,11 +42,11 @@ export function createContainer() {
   const auth = new AuthService(db);
   const tenants = new TenantService(db);
   const catalog = new CatalogService(db, storage, tenants);
-  const media = new MediaService(db, storage, config.ENCRYPTION_KEY, config.APP_URL);
-  const studio = new StudioService(db, ai, storage, tenants, catalog);
-  const videos = new VideoService(db, ai, storage);
-  const commerce = new CommerceService(db);
   const billing = new BillingService(db);
+  const media = new MediaService(db, storage, config.ENCRYPTION_KEY, config.APP_URL, billing);
+  const studio = new StudioService(db, ai, storage, tenants, catalog, billing);
+  const videos = new VideoService(db, ai, storage, billing);
+  const commerce = new CommerceService(db);
   const publications = new PublicationService(db, tenants, config.ENCRYPTION_KEY, config.APP_URL);
   const account = new AccountService(db, storage);
   const admin = new AdminService(db);
