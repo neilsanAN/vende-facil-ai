@@ -38,33 +38,30 @@ export class PublicationService {
     const byProvider = new Map(connections.map((item) => [item.provider, item]));
     const facebook = byProvider.get("FACEBOOK");
     const instagram = byProvider.get("INSTAGRAM");
-    const metaConfigured = Boolean(process.env.FACEBOOK_APP_ID);
     return [
       {
         provider: "WHATSAPP" as const,
         status: "READY",
-        detail: "Abre o WhatsApp com o produto pronto (nome, preço, descrição e link).",
+        detail: "Compartilha o anúncio pronto: nome, preço e descrição (sem link).",
         connectUrl: null as string | null,
       },
       {
         provider: "INSTAGRAM" as const,
-        status: !metaConfigured ? "REQUIRES_AUTH" : instagram?.status === "CONNECTED" ? "CONNECTED" : "DISCONNECTED",
-        detail: !metaConfigured
-          ? "Configure o aplicativo Meta no servidor para conectar o Instagram."
-          : instagram?.status === "CONNECTED"
-            ? `Conectado: ${instagram.externalAccountName || "Instagram Business"}`
-            : "Autorize sua conta Instagram Business para publicar direto.",
-        connectUrl: metaConfigured ? "/api/integrations/facebook/start" : null,
+        status: instagram?.status === "CONNECTED" ? "CONNECTED" : "READY",
+        detail:
+          instagram?.status === "CONNECTED"
+            ? `Conectado: ${instagram.externalAccountName || "Instagram"} — publica direto`
+            : "Abre o Instagram com o anúncio pronto para você publicar.",
+        connectUrl: null as string | null,
       },
       {
         provider: "FACEBOOK" as const,
-        status: !metaConfigured ? "REQUIRES_AUTH" : facebook?.status === "CONNECTED" ? "CONNECTED" : "DISCONNECTED",
-        detail: !metaConfigured
-          ? "Configure o aplicativo Meta no servidor para conectar o Facebook."
-          : facebook?.status === "CONNECTED"
-            ? `Conectado: ${facebook.externalAccountName || "Página"}`
-            : "Autorize uma Página do Facebook para publicar direto.",
-        connectUrl: metaConfigured ? "/api/integrations/facebook/start" : null,
+        status: facebook?.status === "CONNECTED" ? "CONNECTED" : "READY",
+        detail:
+          facebook?.status === "CONNECTED"
+            ? `Conectado: ${facebook.externalAccountName || "Página"} — publica direto`
+            : "Abre o Facebook com o anúncio pronto para você publicar.",
+        connectUrl: null as string | null,
       },
     ];
   }
@@ -201,11 +198,22 @@ export class PublicationService {
     const built = await this.buildShareContent(tenant, input.targetType, input.targetId, input.caption);
     const caption = built.caption;
 
+    // Publicação direta via API Meta só se a conta já estiver conectada.
     if (!input.scheduledAt && input.channel === "FACEBOOK") {
-      return this.publishFacebook(tenant, input.targetType, input.targetId, caption, built.imageUrl);
+      const fb = await this.db.socialConnection.findUnique({
+        where: { organizationId_provider: { organizationId: tenant.organizationId, provider: "FACEBOOK" } },
+      });
+      if (fb?.status === "CONNECTED") {
+        return this.publishFacebook(tenant, input.targetType, input.targetId, caption, built.imageUrl);
+      }
     }
     if (!input.scheduledAt && input.channel === "INSTAGRAM") {
-      return this.publishInstagram(tenant, input.targetType, input.targetId, caption, built.imageUrl);
+      const ig = await this.db.socialConnection.findUnique({
+        where: { organizationId_provider: { organizationId: tenant.organizationId, provider: "INSTAGRAM" } },
+      });
+      if (ig?.status === "CONNECTED") {
+        return this.publishInstagram(tenant, input.targetType, input.targetId, caption, built.imageUrl);
+      }
     }
 
     const status = input.scheduledAt ? "SCHEDULED" : input.confirmManual ? "PUBLISHED" : "MANUAL_REQUIRED";
@@ -219,7 +227,7 @@ export class PublicationService {
         caption,
         scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,
         publishedAt: status === "PUBLISHED" ? new Date() : null,
-        manual: input.channel === "WHATSAPP" || input.channel === "INSTAGRAM",
+        manual: true,
       },
     });
     return {
@@ -431,7 +439,8 @@ export class PublicationService {
       const ad = await this.db.advertisement.findFirst({ where: { id: targetId, organizationId: tenant.organizationId } });
       if (!ad) throw new AppError("NOT_FOUND", "Anúncio não encontrado.", 404);
       productName = ad.title;
-      autoCaption = `${ad.title}\n\n${ad.description}\n\n${ad.hashtags.map((tag) => `#${tag}`).join(" ")}`.trim();
+      const tags = ad.hashtags.length ? `\n\n${ad.hashtags.map((tag) => `#${tag}`).join(" ")}` : "";
+      autoCaption = `${ad.title}\n\n${ad.description.trim()}${tags}`.trim();
       if (ad.productId) {
         const product = await this.db.product.findFirst({
           where: { id: ad.productId, organizationId: tenant.organizationId },
@@ -439,6 +448,10 @@ export class PublicationService {
         });
         productSlug = product?.slug || null;
         imageAssetId = product?.images[0]?.mediaAssetId || null;
+        if (product && !/R\$\s?\d/i.test(autoCaption)) {
+          const price = product.promoPriceCents ?? product.priceCents;
+          autoCaption = `${ad.title}\n${formatBrl(price)}\n\n${ad.description.trim()}${tags}`.trim();
+        }
       }
     } else if (targetType === "PRODUCT") {
       const product = await this.db.product.findFirst({
@@ -449,13 +462,12 @@ export class PublicationService {
       productName = product.name;
       productSlug = product.slug;
       imageAssetId = product.images[0]?.mediaAssetId || null;
-      const price = product.promoPriceCents ?? product.priceCents;
-      const priceLine = formatBrl(price);
       const promoLine =
         product.promoPriceCents != null && product.promoPriceCents < product.priceCents
           ? `De ${formatBrl(product.priceCents)} por ${formatBrl(product.promoPriceCents)}`
-          : priceLine;
-      autoCaption = [`*${product.name}*`, promoLine, "", product.description?.trim() || "Confira este produto na nossa loja."].filter(Boolean).join("\n").trim();
+          : formatBrl(product.promoPriceCents ?? product.priceCents);
+      const description = product.description?.trim();
+      autoCaption = [product.name, promoLine, "", description || null, "", "Chame no WhatsApp e garanta o seu!"].filter((line) => line !== null).join("\n").trim();
     } else if (targetType === "VIDEO") {
       const video = await this.db.videoProject.findFirst({ where: { id: targetId, organizationId: tenant.organizationId } });
       if (!video) throw new AppError("NOT_FOUND", "Vídeo não encontrado.", 404);
@@ -465,9 +477,9 @@ export class PublicationService {
 
     const storeLink = store ? `${this.appUrl}/v/${store.slug}` : this.appUrl;
     const productLink = store && productSlug ? `${this.appUrl}/v/${store.slug}/${productSlug}` : storeLink;
-    const userCaption = (customCaption || "").trim();
-    const body = userCaption || autoCaption;
-    const caption = `${body}\n\n🔗 ${productLink}`.trim();
+    // Anúncio profissional: sem URL. Se o usuário colar link na legenda, removemos.
+    const userCaption = (customCaption || "").trim().replace(/https?:\/\/\S+/gi, "").replace(/\n{3,}/g, "\n\n").trim();
+    const caption = (userCaption || autoCaption).trim();
 
     let imageUrl: string | null = null;
     if (imageAssetId) {
