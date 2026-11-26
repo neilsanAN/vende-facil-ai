@@ -38,30 +38,33 @@ export class PublicationService {
     const byProvider = new Map(connections.map((item) => [item.provider, item]));
     const facebook = byProvider.get("FACEBOOK");
     const instagram = byProvider.get("INSTAGRAM");
+    const metaConfigured = Boolean(process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET);
     return [
       {
         provider: "WHATSAPP" as const,
         status: "READY",
-        detail: "Compartilha o anúncio pronto: nome, preço e descrição (sem link).",
+        detail: "Envia o anúncio gerado (texto + imagem) no WhatsApp.",
         connectUrl: null as string | null,
       },
       {
         provider: "INSTAGRAM" as const,
-        status: instagram?.status === "CONNECTED" ? "CONNECTED" : "READY",
-        detail:
-          instagram?.status === "CONNECTED"
-            ? `Conectado: ${instagram.externalAccountName || "Instagram"} — publica direto`
-            : "Abre o Instagram com o anúncio pronto para você publicar.",
-        connectUrl: null as string | null,
+        status: !metaConfigured ? "REQUIRES_AUTH" : instagram?.status === "CONNECTED" ? "CONNECTED" : "DISCONNECTED",
+        detail: !metaConfigured
+          ? "Configure FACEBOOK_APP_ID e FACEBOOK_APP_SECRET no servidor."
+          : instagram?.status === "CONNECTED"
+            ? `Conectado: ${instagram.externalAccountName || "Instagram"}`
+            : "Autorize o Instagram Business para publicar direto.",
+        connectUrl: metaConfigured ? "/api/integrations/facebook/start" : null,
       },
       {
         provider: "FACEBOOK" as const,
-        status: facebook?.status === "CONNECTED" ? "CONNECTED" : "READY",
-        detail:
-          facebook?.status === "CONNECTED"
-            ? `Conectado: ${facebook.externalAccountName || "Página"} — publica direto`
-            : "Abre o Facebook com o anúncio pronto para você publicar.",
-        connectUrl: null as string | null,
+        status: !metaConfigured ? "REQUIRES_AUTH" : facebook?.status === "CONNECTED" ? "CONNECTED" : "DISCONNECTED",
+        detail: !metaConfigured
+          ? "Configure FACEBOOK_APP_ID e FACEBOOK_APP_SECRET no servidor."
+          : facebook?.status === "CONNECTED"
+            ? `Conectado: ${facebook.externalAccountName || "Página"}`
+            : "Autorize a Página do Facebook para publicar direto.",
+        connectUrl: metaConfigured ? "/api/integrations/facebook/start" : null,
       },
     ];
   }

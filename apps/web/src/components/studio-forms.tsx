@@ -117,7 +117,7 @@ export function PublishDesk({
   storeLink?: string;
 }) {
   const toast = useToast();
-  const [channels] = useState(initialChannels);
+  const [channels, setChannels] = useState(initialChannels);
   const [share, setShare] = useState<{ whatsappUrl?: string; link?: string; caption?: string } | null>(null);
   const [enabled, setEnabled] = useState({
     WHATSAPP: true,
@@ -148,16 +148,32 @@ export function PublishDesk({
   const channelMap = useMemo(() => new Map(channels.map((item) => [item.provider, item])), [channels]);
 
   const socials = [
-    { key: "WHATSAPP" as const, label: "WhatsApp", Icon: MessageCircle, iconClass: "text-emerald-600 bg-emerald-50", detail: "Anúncio com nome, preço e descrição" },
-    { key: "INSTAGRAM" as const, label: "Instagram", Icon: Instagram, iconClass: "text-pink-600 bg-pink-50", detail: "Compartilha o anúncio no Instagram" },
-    { key: "FACEBOOK" as const, label: "Facebook", Icon: Facebook, iconClass: "text-blue-600 bg-blue-50", detail: "Compartilha o anúncio no Facebook" },
+    { key: "WHATSAPP" as const, label: "WhatsApp", Icon: MessageCircle, iconClass: "text-emerald-600 bg-emerald-50", detail: "Anúncio gerado com texto e imagem" },
+    { key: "INSTAGRAM" as const, label: "Instagram", Icon: Instagram, iconClass: "text-pink-600 bg-pink-50", detail: "Conecte para publicar direto" },
+    { key: "FACEBOOK" as const, label: "Facebook", Icon: Facebook, iconClass: "text-blue-600 bg-blue-50", detail: "Conecte a Página para publicar direto" },
   ];
+
+  async function connectMeta() {
+    try {
+      const result = await api<{ url: string }>("/api/integrations/facebook/start");
+      window.location.href = result.url;
+    } catch (cause) {
+      toast(cause instanceof ApiClientError ? cause.message : "Não foi possível conectar. Confira as chaves e se o app Meta está ativo.", "err");
+    }
+  }
+
+  async function refreshChannels() {
+    const result = await api<{ channels: ChannelInfo[] }>("/api/publications");
+    setChannels(result.channels);
+  }
 
   return (
     <div className="space-y-4">
       <ul className="space-y-2.5">
         {socials.map((item) => {
           const info = channelMap.get(item.key);
+          const connected = item.key === "WHATSAPP" || info?.status === "CONNECTED";
+          const needsConnect = item.key !== "WHATSAPP" && !connected;
           return (
             <li key={item.key} className="flex items-center gap-3 rounded-[18px] border border-line bg-surface px-4 py-3.5 shadow-card">
               <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${item.iconClass}`}>
@@ -167,18 +183,30 @@ export function PublishDesk({
                 <strong className="block text-[13px] font-semibold leading-4 text-ink">{item.label}</strong>
                 <span className="text-[11px] font-medium text-muted">{info?.detail || item.detail}</span>
               </span>
-              <button
-                type="button"
-                className={`relative h-7 w-12 shrink-0 rounded-full transition ${enabled[item.key] ? "bg-primary" : "bg-[#E0E3EA]"}`}
-                onClick={() => setEnabled((current) => ({ ...current, [item.key]: !current[item.key] }))}
-                aria-label={`Alternar ${item.label}`}
-              >
-                <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-card transition ${enabled[item.key] ? "left-[22px]" : "left-0.5"}`} />
-              </button>
+              {needsConnect ? (
+                <button type="button" className="h-8 rounded-full bg-primary px-3 text-[11px] font-bold text-white" onClick={() => void connectMeta()}>
+                  Conectar
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={`relative h-7 w-12 shrink-0 rounded-full transition ${enabled[item.key] ? "bg-primary" : "bg-[#E0E3EA]"}`}
+                  onClick={() => setEnabled((current) => ({ ...current, [item.key]: !current[item.key] }))}
+                  aria-label={`Alternar ${item.label}`}
+                >
+                  <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-card transition ${enabled[item.key] ? "left-[22px]" : "left-0.5"}`} />
+                </button>
+              )}
             </li>
           );
         })}
       </ul>
+
+      {channels.some((item) => item.provider !== "WHATSAPP" && item.status !== "CONNECTED") ? (
+        <button type="button" className="mx-auto block text-[12px] font-semibold text-primary" onClick={() => void refreshChannels()}>
+          Atualizar conexão
+        </button>
+      ) : null}
 
       <div className="flex items-center justify-between rounded-[18px] border border-line bg-surface px-4 py-3.5 shadow-card">
         <span className="flex items-center gap-3">
