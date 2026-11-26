@@ -559,8 +559,13 @@ export class PublicationService {
     const storeLink = store ? `${this.appUrl}/v/${store.slug}` : this.appUrl;
     const productLink = store && productSlug ? `${this.appUrl}/v/${store.slug}/${productSlug}` : storeLink;
     // Anúncio profissional: sem URL. Se o usuário colar link na legenda, removemos.
-    const userCaption = (customCaption || "").trim().replace(/https?:\/\/\S+/gi, "").replace(/\n{3,}/g, "\n\n").trim();
-    const caption = (userCaption || autoCaption).trim();
+    const userCaption = (customCaption || "")
+      .trim()
+      .replace(/🔗\s*/g, "")
+      .replace(/https?:\/\/\S+/gi, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    const caption = (userCaption || autoCaption).replace(/🔗\s*/g, "").replace(/https?:\/\/\S+/gi, "").trim();
 
     const imageUrls: string[] = [];
     for (const assetId of imageAssetIds.slice(0, 30)) {

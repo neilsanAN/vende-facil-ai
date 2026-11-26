@@ -1,4 +1,5 @@
 import { normalizeHashtags } from "@vendefacil/types";
+import { AD_COPY_PROMPT, factsBlock, polishDescription, polishTitle } from "./ad-copy";
 import { ProviderNotConfiguredError, type AdCopy, type ConfirmedFacts, type ImageAnalysis, type Usage, type VideoScript } from "./types";
 
 type OpenAiConfig = {
@@ -15,17 +16,6 @@ Não invente marca, material que não dê para ver, composição, garantia, cert
 Se houver texto legível, transcreva em visibleText.
 Quando não tiver certeza, deixe o campo vazio.
 Formato: {"productType":"","colors":[],"visibleText":[],"form":"","context":"","uncertain":[]}`;
-
-function factsBlock(facts: ConfirmedFacts) {
-  return [
-    `Nome confirmado: ${facts.name}`,
-    `Preço confirmado: ${facts.priceLabel || "não informado"}`,
-    `Marca confirmada: ${facts.brand || "não informada"}`,
-    `Características confirmadas pelo vendedor: ${facts.facts || "nenhuma"}`,
-    `Público informado: ${facts.audience || "não informado"}`,
-    `Observações visuais: ${facts.visible ? JSON.stringify(facts.visible) : "não disponíveis"}`,
-  ].join("\n");
-}
 
 function estimateTextCost(model: string, inputTokens: number, outputTokens: number) {
   const mini = model.includes("mini");
@@ -132,16 +122,15 @@ export function createOpenAiProviders(config: OpenAiConfig) {
         messages: [
           {
             role: "system",
-            content:
-              "Escreva anúncios em português do Brasil. Use somente os fatos confirmados. Não invente marca, composição, garantia, certificação, preço ou especificação ausente. Se a marca não foi informada, não cite marca. Se o preço não foi informado, não cite valor. Responda JSON: {\"title\":\"\",\"description\":\"\",\"hashtags\":[]}. Hashtags sem #, curtas e sem promessa não suportada.",
+            content: AD_COPY_PROMPT,
           },
           { role: "user", content: `Tom: ${input.tone}\n${factsBlock(input.facts)}` },
         ],
       });
       const raw = parseJson<Partial<AdCopy>>(payload.choices?.[0]?.message?.content || "{}");
       const copy: AdCopy = {
-        title: String(raw.title || input.facts.name).slice(0, 140),
-        description: String(raw.description || "").slice(0, 4000),
+        title: polishTitle(String(raw.title || input.facts.name)).slice(0, 140),
+        description: polishDescription(String(raw.description || ""), input.facts.name).slice(0, 4000),
         hashtags: normalizeHashtags(raw.hashtags, input.facts.name),
       };
       const inputTokens = payload.usage?.prompt_tokens ?? 0;

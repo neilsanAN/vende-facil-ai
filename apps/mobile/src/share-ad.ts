@@ -2,7 +2,12 @@ import { Linking, NativeModules, Platform, Share, TurboModuleRegistry } from "re
 import { getItem } from "./storage";
 
 function stripLinks(text: string) {
-  return text.replace(/https?:\/\/\S+/gi, "").replace(/\n{3,}/g, "\n\n").trim();
+  return text
+    .replace(/🔗\s*/g, "")
+    .replace(/https?:\/\/\S+/gi, "")
+    .replace(/\bwa\.me\/\S+/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export function buildAdCaption(ad: { title: string; description: string; hashtags?: string[] | string | null }) {
