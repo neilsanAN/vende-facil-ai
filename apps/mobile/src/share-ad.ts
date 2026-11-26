@@ -10,11 +10,36 @@ function stripLinks(text: string) {
     .trim();
 }
 
+/** Remove texto genérico ruim que a IA antiga gerava. */
+export function polishShareCaption(text: string) {
+  return stripLinks(text)
+    .replace(/^Produto\s*[-–—]\s*Saiba Mais.*$/gim, "")
+    .replace(/\bSaiba Mais(?:\s+Detalhes)?\b/gi, "")
+    .replace(/\bEntre em contato com a nossa equipe[^.]*\./gi, "")
+    .replace(/\bpara obter mais informações[^.]*\./gi, "")
+    .replace(/\besclarecer suas dúvidas[^.]*\./gi, "")
+    .replace(/^#produto\s+#atendimento\s*$/gim, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function buildAdCaption(ad: { title: string; description: string; hashtags?: string[] | string | null }) {
   const raw = ad.hashtags;
   const list = Array.isArray(raw) ? raw : typeof raw === "string" && raw.trim() ? raw.split(/[\s,]+/).filter(Boolean) : [];
-  const tags = list.map((tag) => (tag.startsWith("#") ? tag : `#${tag}`)).join(" ");
-  return [ad.title.trim(), "", ad.description.trim(), tags ? `\n${tags}` : ""].join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  const generic = new Set(["produto", "atendimento", "oferta", "loja"]);
+  const meaningful = list.map((tag) => tag.replace(/^#/, "").trim()).filter((tag) => tag && !generic.has(tag.toLowerCase()));
+  const tags = (meaningful.length ? meaningful : list.map((tag) => tag.replace(/^#/, "").trim()).filter(Boolean)).map((tag) => `#${tag}`);
+  return polishShareCaption([ad.title.trim(), "", ad.description.trim(), tags.length ? `\n${tags.join(" ")}` : ""].join("\n"));
+}
+
+export function isGenericPlaceholderAd(ad: { title: string; description: string }) {
+  const title = ad.title.toLowerCase();
+  const description = ad.description.toLowerCase();
+  if (title.includes("gerando anúncio")) return true;
+  if (title.includes("saiba mais")) return true;
+  if (description.includes("entre em contato com a nossa equipe")) return true;
+  if (description.includes("edite o título, a descrição")) return true;
+  return false;
 }
 
 function hasNative(name: string) {
@@ -190,7 +215,7 @@ export async function shareAdToChannel(options: {
   imageUris?: Array<string | null | undefined>;
   whatsappUrl?: string | null;
 }): Promise<ShareResult> {
-  const caption = stripLinks(options.caption || "");
+  const caption = polishShareCaption(options.caption || "");
   const captionCopied = await copyCaption(caption);
   const uris = [...new Set((options.imageUris || []).map((item) => item?.trim()).filter((item): item is string => Boolean(item)))];
   const files = uris.length ? await downloadAll(uris) : [];
