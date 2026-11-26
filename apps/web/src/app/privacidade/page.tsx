@@ -18,9 +18,20 @@ export default function PrivacyPage() {
         Conteúdo enviado à IA sai apenas quando um provedor está configurado, limitado aos fatos confirmados e à imagem necessária. Chaves de provedores e tokens de redes não são gravados em log.
       </p>
       <p className="mt-3">
-        Você pode pedir a exclusão da conta no app (Mais → Excluir minha conta). A exclusão despublica a loja quando você é o único membro, apaga os arquivos, remove as conexões com Facebook e Instagram e anonimiza o usuário. Pedidos já registrados podem permanecer pelo prazo necessário a obrigações legais, sem o e-mail da conta excluída. Veja o passo a passo em{" "}
-        <Link href="/exclusao-de-dados" className="text-primary">
-          Exclusão de dados
+        Você pode pedir a exclusão da conta no app (Mais → Excluir minha conta). A exclusão despublica a loja quando você é o único membro, apaga os arquivos, remove as conexões com Facebook e Instagram e anonimiza o usuário. Pedidos já registrados podem permanecer pelo prazo necessário a obrigações legais, sem o e-mail da conta excluída.
+      </p>
+
+      <h2 id="exclusao" className="mt-8 text-xl font-semibold">
+        Exclusão de dados do usuário
+      </h2>
+      <p className="mt-3">
+        Para excluir a conta e os dados (incluindo Facebook/Instagram): no app, abra <strong>Mais → Excluir minha conta</strong>, ou envie e-mail para{" "}
+        <a className="text-primary" href="mailto:tecnologialtdaatlas@gmail.com">
+          tecnologialtdaatlas@gmail.com
+        </a>{" "}
+        com o assunto “Exclusão de dados”. Instruções completas em{" "}
+        <Link href="/data-deletion" className="text-primary">
+          /data-deletion
         </Link>
         .
       </p>

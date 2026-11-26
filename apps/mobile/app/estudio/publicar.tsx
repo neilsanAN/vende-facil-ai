@@ -44,7 +44,7 @@ const SOCIALS: Array<{ key: Channel; label: string; icon: keyof typeof Ionicons.
 ];
 
 const META_HELP =
-  "O erro da Meta (“atualizando detalhes”) não é do VendeFácil. Em developers.facebook.com → Configurações → Básico preencha: ícone 1024, e-mail, categoria, privacidade (…/privacidade), exclusão (…/exclusao-de-dados). Em Funções, adicione sua conta como Administrador/Testadora e aceite o convite. Em Login do Facebook → Configurações, coloque o callback: https://vende-facil-ai.onrender.com/api/integrations/facebook/callback";
+  "Na Meta → Configurações → Básico, use exclusão: https://vende-facil-ai.onrender.com/data-deletion (com https). Se ainda recusar, mude o tipo para “URL de retorno de exclusão de dados” e cole: https://vende-facil-ai.onrender.com/api/integrations/facebook/data-deletion. Antes de salvar, abra a URL no Chrome para “acordar” o Render. Funções: adicione sua conta como Testadora. Login do Facebook → callback: https://vende-facil-ai.onrender.com/api/integrations/facebook/callback";
 
 function mediaUrl(path?: string | null) {
   if (!path) return null;

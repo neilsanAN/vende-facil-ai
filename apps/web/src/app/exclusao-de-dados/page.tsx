@@ -5,7 +5,7 @@ export const metadata = {
   description: "Como excluir sua conta e seus dados do VendeFácil AI, inclusive dados vindos do Facebook e do Instagram.",
 };
 
-const SUPPORT_EMAIL = "neilton.saints@gmail.com";
+const SUPPORT_EMAIL = "tecnologialtdaatlas@gmail.com";
 
 export default function DataDeletionPage() {
   return (
