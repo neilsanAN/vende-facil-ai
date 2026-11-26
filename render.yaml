@@ -38,13 +38,31 @@ services:
       - key: ENCRYPTION_KEY
         generateValue: true
       - key: STORAGE_DRIVER
-        value: local
+        value: r2
+      - key: R2_BUCKET_PRIVATE
+        value: vendefacil-private
+      - key: R2_BUCKET_PUBLIC
+        value: vendefacil-public
+      # Secrets — preencher no dashboard do Render (Environment):
+      # R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
+      # R2_ENDPOINT (opcional se R2_ACCOUNT_ID existir)
+      # R2_PUBLIC_BASE_URL (URL pública do bucket public, ex. https://pub-xxx.r2.dev)
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_ENDPOINT
+        sync: false
+      - key: R2_PUBLIC_BASE_URL
+        sync: false
       - key: TRUST_PROXY
         value: "true"
       - key: GEMINI_TEXT_MODEL
-        value: gemini-3.6-flash
+        value: gemini-2.0-flash
       - key: GEMINI_VISION_MODEL
-        value: gemini-3.6-flash
+        value: gemini-2.0-flash
       - key: GEMINI_API_KEY
         sync: false
       - key: OPENAI_API_KEY

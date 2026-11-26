@@ -24,6 +24,19 @@ A web/API fica em http://localhost:3000.
 
 Defina `GEMINI_API_KEY` (e demais secrets) só no serviço **API**. O app usa `EXPO_PUBLIC_API_URL` apontando para a API.
 
+### Storage (Cloudflare R2)
+
+Em produção o `render.yaml` usa `STORAGE_DRIVER=r2`. No dashboard do Render (serviço **API**), preencha:
+
+- `R2_ACCOUNT_ID`
+- `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` (token S3 do R2)
+- `R2_BUCKET_PRIVATE=vendefacil-private`
+- `R2_BUCKET_PUBLIC=vendefacil-public`
+- `R2_PUBLIC_BASE_URL` (URL pública do bucket public, ex. `https://pub-….r2.dev`)
+- `R2_ENDPOINT` opcional — se vazio, a API monta `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`
+
+Crie os 2 buckets no Cloudflare e habilite acesso público só no bucket **public**. No bucket **private**, configure CORS com `PUT`/`GET` se for usar o app web.
+
 No ambiente local, se o SMTP não estiver configurado, o cadastro mostra o link de verificação. Em produção esse link não volta na API.
 
 Para criar um administrador da plataforma, defina `ADMIN_EMAIL` e `ADMIN_PASSWORD` antes do seed.

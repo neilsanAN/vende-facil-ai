@@ -80,12 +80,26 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     }
   }
   if (config.STORAGE_DRIVER === "r2") {
-    const missing = ["R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET_PRIVATE", "R2_BUCKET_PUBLIC", "R2_ENDPOINT"].filter(
-      (key) => !config[key as keyof AppConfig],
-    );
+    const endpoint =
+      config.R2_ENDPOINT ||
+      (config.R2_ACCOUNT_ID ? `https://${config.R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : "");
+    const resolved: AppConfig = { ...config, R2_ENDPOINT: endpoint };
+    const missing = (
+      [
+        ["R2_ACCESS_KEY_ID", resolved.R2_ACCESS_KEY_ID],
+        ["R2_SECRET_ACCESS_KEY", resolved.R2_SECRET_ACCESS_KEY],
+        ["R2_BUCKET_PRIVATE", resolved.R2_BUCKET_PRIVATE],
+        ["R2_BUCKET_PUBLIC", resolved.R2_BUCKET_PUBLIC],
+        ["R2_ENDPOINT", resolved.R2_ENDPOINT],
+      ] as const
+    )
+      .filter(([, value]) => !value)
+      .map(([key]) => key);
     if (missing.length) {
-      throw new Error(`Storage R2 incompleto: ${missing.join(", ")}`);
+      throw new Error(`Storage R2 incompleto: ${missing.join(", ")}. Crie 2 buckets e um token S3 no Cloudflare R2.`);
     }
+    if (env === process.env) cached = resolved;
+    return resolved;
   }
   if (env === process.env) cached = config;
   return config;
