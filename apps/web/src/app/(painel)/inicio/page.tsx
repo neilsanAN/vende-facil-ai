@@ -102,7 +102,7 @@ export default async function InicioPage() {
           {recent.map((product) => (
             <Link key={product.id} href={`/produtos/${product.id}`} className="w-[118px] shrink-0 overflow-hidden rounded-[18px] border border-line bg-surface shadow-card">
               <div className="aspect-square bg-background">
-                {product.images[0] ? <img src={`/api/media/${product.images[0].mediaAssetId}`} alt="" className="h-full w-full object-cover" /> : null}
+                {product.images[0] ? <img src={product.images[0].url} alt="" className="h-full w-full object-cover" /> : null}
               </div>
               <div className="px-2 py-2">
                 <p className="truncate text-[10px] font-semibold leading-3 text-ink">{product.name}</p>
