@@ -6,6 +6,7 @@ import { ApiClientError } from "@vendefacil/api-client";
 import { api, apiBase } from "../../src/api";
 import { BackButton } from "../../src/back-button";
 import { KeyboardScreen } from "../../src/keyboard-screen";
+import { ScheduleCalendarField, formatScheduleBr } from "../../src/schedule-calendar";
 import { Toggle } from "../../src/toggle";
 import { handleTenantError } from "../../src/session";
 import { Card, Field, HelperText, PrimaryButton, ScreenTitle, SelectRow } from "../../src/ui";
@@ -26,7 +27,7 @@ export default function PublishScreen() {
   const [storeLink, setStoreLink] = useState("");
   const [enabled, setEnabled] = useState<Record<Channel, boolean>>({ WHATSAPP: true, INSTAGRAM: true, FACEBOOK: true });
   const [schedule, setSchedule] = useState(false);
-  const [when, setWhen] = useState("");
+  const [when, setWhen] = useState<Date | null>(null);
   const [picker, setPicker] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -71,11 +72,16 @@ export default function PublishScreen() {
       setMessage("Escolha um produto.");
       return;
     }
+    if (schedule && !when) {
+      setError(true);
+      setMessage("Escolha a data e o horário no calendário.");
+      return;
+    }
     setBusy(true);
     setError(false);
-    setMessage("Publicando…");
+    setMessage(schedule ? "Agendando…" : "Publicando…");
     try {
-      const scheduledAt = schedule && when.trim() ? new Date(when.replace(" ", "T")).toISOString() : null;
+      const scheduledAt = schedule && when ? when.toISOString() : null;
       const result = await api.publish({
         channel,
         targetType: "PRODUCT",
@@ -86,7 +92,11 @@ export default function PublishScreen() {
       });
       if (result.share?.link) setStoreLink(result.share.link);
       setWhatsappUrl(result.share?.whatsappUrl || null);
-      setMessage(schedule ? "Publicação agendada." : "Publicação registrada.");
+      setMessage(
+        schedule && when
+          ? `Publicação agendada para ${formatScheduleBr(when).compact}.`
+          : "Publicação registrada.",
+      );
       if (result.share?.whatsappUrl && channel === "WHATSAPP" && !schedule) {
         await Linking.openURL(result.share.whatsappUrl);
       }
@@ -156,14 +166,26 @@ export default function PublishScreen() {
           <View style={{ width: 40, height: 40, borderRadius: control.radiusCard, backgroundColor: colors.background, alignItems: "center", justifyContent: "center" }}>
             <Ionicons name="calendar-outline" size={control.icon} color={colors.primary} />
           </View>
-          <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700" }}>Agendar publicação</Text>
+          <View>
+            <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700" }}>Agendar publicação</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, fontWeight: "500", marginTop: 2 }}>
+              Calendário com horário de Brasília
+            </Text>
+          </View>
         </View>
-        <Toggle label="Agendar publicação" value={schedule} onChange={setSchedule} />
+        <Toggle
+          label="Agendar publicação"
+          value={schedule}
+          onChange={(next) => {
+            setSchedule(next);
+            if (next && !when) setWhen(new Date(Date.now() + 60 * 60 * 1000));
+          }}
+        />
       </Card>
 
       {schedule ? (
         <View style={{ marginBottom: 12 }}>
-          <Field label="Quando (AAAA-MM-DD HH:mm)" value={when} onChangeText={setWhen} placeholder="2026-11-25 18:00" />
+          <ScheduleCalendarField value={when} onChange={setWhen} />
         </View>
       ) : null}
 

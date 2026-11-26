@@ -138,6 +138,10 @@ export default function AdScreen() {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("Gerando com IA…");
   const generatingRef = useRef(false);
+  /** Incrementa a cada cancelamento/nova geração para ignorar respostas atrasadas. */
+  const generationSeq = useRef(0);
+  /** Rascunho criado nesta sessão (para arquivar se o usuário cancelar no meio). */
+  const sessionDraftId = useRef<string | null>(null);
 
   useEffect(() => {
     Animated.timing(slide, {
@@ -173,8 +177,14 @@ export default function AdScreen() {
       return;
     }
     if (step === 1) {
-      // Permite cancelar se travar na geração.
+      // Cancela geração em andamento e evita que a resposta atrasada crie outro anúncio.
+      generationSeq.current += 1;
       generatingRef.current = false;
+      const orphanId = sessionDraftId.current;
+      sessionDraftId.current = null;
+      if (orphanId && orphanId !== draft?.id) {
+        void api.archiveAd(orphanId).catch(() => undefined);
+      }
       setStep(0);
       setError("Geração cancelada.");
       return;
@@ -216,6 +226,7 @@ export default function AdScreen() {
       setUri(asset.uri);
       setMimeType(asset.mimeType || "image/jpeg");
       setDraft(null);
+      sessionDraftId.current = null;
       setCoverAssetId(null);
       setError("");
     } catch {
@@ -230,16 +241,37 @@ export default function AdScreen() {
     }
     if (generatingRef.current) return;
     generatingRef.current = true;
+    const seq = ++generationSeq.current;
     setError("");
     setStatus("Enviando foto…");
     setStep(1);
     const previousId = draft?.id || null;
+    let workingId = previousId;
     try {
       const asset = coverAssetId
         ? { id: coverAssetId }
         : await withTimeout(uploadLocalImage(uri, mimeType, "produto.jpg"), 60_000, "O envio da foto demorou demais. Tente de novo.");
-      if (!generatingRef.current) return;
+      if (seq !== generationSeq.current) return;
       setCoverAssetId(asset.id);
+
+      // Garante um único ID antes da IA: timeout/late response atualizam o mesmo anúncio.
+      if (!workingId) {
+        setStatus("Preparando rascunho…");
+        const placeholder = await api.createAd({
+          title: "Gerando anúncio…",
+          description: "Aguarde enquanto a IA monta o texto do seu anúncio.",
+          hashtags: ["produto", "oferta", "loja"],
+          tone: "PROFESSIONAL",
+          status: "DRAFT",
+        });
+        if (seq !== generationSeq.current) {
+          await api.archiveAd(placeholder.id).catch(() => undefined);
+          return;
+        }
+        workingId = placeholder.id;
+        sessionDraftId.current = placeholder.id;
+      }
+
       setStatus("Gerando título e descrição…");
       let created: { id: string; title: string; description: string; hashtags: string[] };
       try {
@@ -248,39 +280,32 @@ export default function AdScreen() {
             assetIds: [asset.id],
             tone: "PROFESSIONAL",
             productId: null,
-            replaceAdId: previousId,
+            replaceAdId: workingId,
             facts: { name: "Produto", brand: "", facts: "", audience: "", priceCents: null },
           }),
           75_000,
           "A IA demorou demais. Abrimos um rascunho para você editar.",
         );
       } catch (aiCause) {
-        // Fallback: não deixa a tela travada — cria rascunho editável.
+        if (seq !== generationSeq.current) return;
+        // Fallback: atualiza o mesmo rascunho — nunca cria um segundo anúncio.
         setStatus("Preparando rascunho…");
-        if (previousId) {
-          created = await api.updateAd(previousId, {
-            title: "Seu produto em destaque",
-            description: "Edite o título, a descrição e as hashtags do seu anúncio. Inclua benefícios e como comprar.",
-            hashtags: ["produto", "oferta", "loja"],
-            tone: "PROFESSIONAL",
-            status: "DRAFT",
-          });
-        } else {
-          created = await api.createAd({
-            title: "Seu produto em destaque",
-            description: "Edite o título, a descrição e as hashtags do seu anúncio. Inclua benefícios e como comprar.",
-            hashtags: ["produto", "oferta", "loja"],
-            tone: "PROFESSIONAL",
-            status: "DRAFT",
-          });
-        }
+        created = await api.updateAd(workingId!, {
+          title: "Seu produto em destaque",
+          description: "Edite o título, a descrição e as hashtags do seu anúncio. Inclua benefícios e como comprar.",
+          hashtags: ["produto", "oferta", "loja"],
+          tone: "PROFESSIONAL",
+          status: "DRAFT",
+        });
         const hint = aiCause instanceof ApiClientError || aiCause instanceof Error ? aiCause.message : "A IA não respondeu.";
         feedback.showToast(hint.includes("demorou") || hint.includes("rascunho") ? "Rascunho pronto para editar." : hint, "info");
       }
-      if (!generatingRef.current) return;
-      if (previousId && previousId !== created.id) {
-        await api.archiveAd(previousId).catch(() => undefined);
+      if (seq !== generationSeq.current) return;
+      // Se a IA ignorou replaceAdId e criou outro, arquiva o placeholder.
+      if (workingId && workingId !== created.id) {
+        await api.archiveAd(workingId).catch(() => undefined);
       }
+      sessionDraftId.current = null;
       await setItem(`ad_cover_${created.id}`, `${apiBase}/api/media/${asset.id}`);
       setDraft({
         ...created,
@@ -289,6 +314,7 @@ export default function AdScreen() {
       setStep(2);
       feedback.showToast(previousId ? "Anúncio atualizado." : "Anúncio pronto.", "success");
     } catch (cause) {
+      if (seq !== generationSeq.current) return;
       if (handleTenantError(cause)) {
         setStep(0);
         return;
@@ -298,8 +324,10 @@ export default function AdScreen() {
       setError(text);
       feedback.showToast(text, "error");
     } finally {
-      generatingRef.current = false;
-      setStatus("Gerando com IA…");
+      if (seq === generationSeq.current) {
+        generatingRef.current = false;
+        setStatus("Gerando com IA…");
+      }
     }
   }
 

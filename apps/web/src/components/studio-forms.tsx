@@ -123,7 +123,26 @@ export function PublishDesk({
     FACEBOOK: channels.find((item) => item.provider === "FACEBOOK")?.status === "CONNECTED",
   });
   const [schedule, setSchedule] = useState(false);
+  const [when, setWhen] = useState(() => {
+    const next = new Date(Date.now() + 60 * 60 * 1000);
+    next.setSeconds(0, 0);
+    const local = new Date(next.getTime() - next.getTimezoneOffset() * 60_000);
+    return local.toISOString().slice(0, 16);
+  });
   const catalogLink = share?.link || storeLink;
+  const whenDate = when ? new Date(when) : null;
+  const whenLabel =
+    whenDate && !Number.isNaN(whenDate.getTime())
+      ? whenDate.toLocaleString("pt-BR", {
+          weekday: "long",
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        })
+      : null;
 
   const socials = [
     { key: "WHATSAPP" as const, label: "WhatsApp", Icon: MessageCircle, iconClass: "text-emerald-600 bg-emerald-50", detail: "Compartilhar no WhatsApp" },
@@ -202,9 +221,19 @@ export function PublishDesk({
       </div>
 
       {schedule ? (
-        <div className="rounded-[18px] border border-line bg-surface p-4 shadow-card">
-          <Field label="Quando">
-            <input name="when" type="datetime-local" className={inputClass} />
+        <div className="space-y-3 rounded-[18px] border border-line bg-surface p-4 shadow-card">
+          <div className="rounded-xl bg-primary-soft px-3.5 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-primary">Data e hora (horário local)</p>
+            <p className="mt-1 text-[13px] font-semibold capitalize text-ink">{whenLabel || "Escolha data e horário"}</p>
+          </div>
+          <Field label="Calendário">
+            <input
+              type="datetime-local"
+              className={inputClass}
+              value={when}
+              min={new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 16)}
+              onChange={(event) => setWhen(event.target.value)}
+            />
           </Field>
         </div>
       ) : null}
@@ -219,6 +248,10 @@ export function PublishDesk({
             toast("Ative o canal antes de publicar.", "err");
             return;
           }
+          if (schedule && !when) {
+            toast("Escolha a data e o horário no calendário.", "err");
+            return;
+          }
           try {
             const result = await api<{ share: { whatsappUrl?: string; link?: string; caption?: string } | null }>("/api/publications", {
               method: "POST",
@@ -228,11 +261,11 @@ export function PublishDesk({
                 targetId: data.get("targetId") || products[0]?.id,
                 caption: data.get("caption") || "",
                 confirmManual: true,
-                scheduledAt: schedule && data.get("when") ? new Date(String(data.get("when"))).toISOString() : null,
+                scheduledAt: schedule && when ? new Date(when).toISOString() : null,
               }),
             });
             setShare(result.share);
-            toast("Publicação registrada com o estado real do canal.");
+            toast(schedule && whenLabel ? `Publicação agendada para ${whenLabel}.` : "Publicação registrada com o estado real do canal.");
           } catch (cause) {
             toast(cause instanceof ApiClientError ? cause.message : "Não foi possível publicar.", "err");
           }

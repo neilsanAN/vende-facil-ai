@@ -58,10 +58,14 @@ export class StudioService {
     const replaceId = input.replaceAdId || null;
     let existing = null as { id: string } | null;
     if (replaceId) {
-      existing = await this.db.advertisement.findFirst({
-        where: { id: replaceId, organizationId: tenant.organizationId, status: { not: "ARCHIVED" } },
-        select: { id: true },
+      const target = await this.db.advertisement.findFirst({
+        where: { id: replaceId, organizationId: tenant.organizationId },
+        select: { id: true, status: true },
       });
+      // Evita criar um anúncio novo (duplicata) quando o replace aponta para algo inválido/excluído.
+      if (!target) throw new AppError("NOT_FOUND", "Anúncio não encontrado para regenerar.", 404);
+      if (target.status === "ARCHIVED") throw new AppError("NOT_FOUND", "Este anúncio foi excluído.", 404);
+      existing = { id: target.id };
     }
     let result;
     try {

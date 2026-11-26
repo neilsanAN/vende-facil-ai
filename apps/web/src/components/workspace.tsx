@@ -232,7 +232,13 @@ export function AdStudio({ products }: { products: Array<{ id: string; name: str
       const ad = await api<{ id: string; title: string; description: string; hashtags: string[] }>("/api/ai/ads", {
         method: "POST",
         headers: { "idempotency-key": crypto.randomUUID() },
-        body: JSON.stringify({ productId: productId || null, assetIds: [assetId], tone, facts: { ...nextFacts, priceCents: price ?? null } }),
+        body: JSON.stringify({
+          productId: productId || null,
+          assetIds: [assetId],
+          tone,
+          facts: { ...nextFacts, priceCents: price ?? null },
+          replaceAdId: draft?.id ?? null,
+        }),
       });
       setDraft(ad);
       setBusy("");
