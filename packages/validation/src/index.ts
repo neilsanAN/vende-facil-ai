@@ -132,6 +132,7 @@ export const adUpdateSchema = z.object({
   tone: z.enum(AD_TONES),
   status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional(),
   productId: z.string().uuid().nullable().optional(),
+  imageAssetIds: z.array(z.string().uuid()).max(30).optional(),
 });
 
 export const artworkSchema = z.object({

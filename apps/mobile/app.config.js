@@ -64,6 +64,13 @@ module.exports = {
       "expo-secure-store",
       "expo-updates",
       [
+        "react-native-share",
+        {
+          ios: ["whatsapp", "instagram", "fb"],
+          android: ["com.whatsapp", "com.whatsapp.w4b", "com.instagram.android", "com.facebook.katana"],
+        },
+      ],
+      [
         "expo-image-picker",
         {
           cameraPermission: "A VendeFácil AI usa a câmera para fotografar o produto do anúncio.",

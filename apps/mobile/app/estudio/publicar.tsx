@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { Image, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AppState, Image, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
@@ -19,6 +20,7 @@ type Ad = {
   description: string;
   hashtags: string[];
   coverUrl?: string | null;
+  images: string[];
 };
 type Channel = "WHATSAPP" | "INSTAGRAM" | "FACEBOOK";
 type ChannelInfo = { provider: string; status: string; detail: string; connectUrl?: string | null };
@@ -52,26 +54,73 @@ export default function PublishScreen() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
+  const [images, setImages] = useState<string[]>([]);
+  const params = useLocalSearchParams<{ meta?: string }>();
+  const waitingMeta = useRef(false);
 
   async function loadChannels() {
     const pubs = await api.publications();
     setChannels(pubs.channels);
+    const ig = pubs.channels.find((item) => item.provider === "INSTAGRAM")?.status === "CONNECTED";
+    const fb = pubs.channels.find((item) => item.provider === "FACEBOOK")?.status === "CONNECTED";
+    setEnabled((current) => ({ ...current, INSTAGRAM: current.INSTAGRAM || ig, FACEBOOK: current.FACEBOOK || fb }));
+    return { ig, fb };
   }
+
+  useEffect(() => {
+    if (!params.meta) return;
+    void loadChannels()
+      .then(({ ig, fb }) => {
+        setError(params.meta !== "ok" || (!ig && !fb));
+        setMessage(
+          params.meta === "ok" && (ig || fb)
+            ? `Conectado: ${[fb ? "Facebook" : null, ig ? "Instagram" : null].filter(Boolean).join(" e ")}.`
+            : "A autorização Meta não foi concluída. Veja a mensagem que apareceu no navegador.",
+        );
+      })
+      .catch(() => undefined);
+  }, [params.meta]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state !== "active" || !waitingMeta.current) return;
+      waitingMeta.current = false;
+      void loadChannels()
+        .then(({ ig, fb }) => {
+          if (ig || fb) {
+            setError(false);
+            setMessage(`Conectado: ${[fb ? "Facebook" : null, ig ? "Instagram" : null].filter(Boolean).join(" e ")}.`);
+          }
+        })
+        .catch(() => undefined);
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     Promise.all([api.listAds(), api.publications()])
       .then(async ([rows, pubs]) => {
-        const withCovers = await Promise.all(
-          rows.map(async (row) => ({
-            ...row,
-            coverUrl: mediaUrl((await getItem(`ad_cover_${row.id}`)) || null),
-          })),
+        const withCovers: Ad[] = await Promise.all(
+          rows.map(async (row) => {
+            const local = mediaUrl((await getItem(`ad_cover_${row.id}`)) || null);
+            const server = (row.imageUrls || []).map((url) => mediaUrl(url)).filter((url): url is string => Boolean(url));
+            const list = server.length ? server : local ? [local] : [];
+            return {
+              id: row.id,
+              title: row.title,
+              description: row.description,
+              hashtags: row.hashtags,
+              coverUrl: list[0] || null,
+              images: list,
+            };
+          }),
         );
         setAds(withCovers);
         if (withCovers[0]) {
           setAdId(withCovers[0].id);
           setCaption(buildAdCaption(withCovers[0]));
           setCoverUrl(withCovers[0].coverUrl || null);
+          setImages(withCovers[0].images);
         }
         setChannels(pubs.channels);
         setEnabled({
@@ -94,6 +143,7 @@ export default function PublishScreen() {
     setAdId(ad.id);
     setCaption(buildAdCaption(ad));
     setCoverUrl(ad.coverUrl || null);
+    setImages(ad.images);
     setPicker(false);
   }
 
@@ -102,9 +152,10 @@ export default function PublishScreen() {
       setBusy(true);
       setError(false);
       setMessage("Abrindo autorização Meta…");
-      const result = await api.connectMeta();
+      const result = await api.connectMeta("app");
+      waitingMeta.current = true;
       await Linking.openURL(result.url);
-      setMessage("Depois de autorizar, volte e toque em Atualizar conexão. Se aparecer “app inativo”, no Meta ative o app (modo Ao vivo) ou cadastre sua conta como testadora.");
+      setMessage("Autorize sua Página e o Instagram na Meta. Ao voltar, a conexão atualiza sozinha.");
     } catch (cause) {
       if (handleTenantError(cause)) return;
       setError(true);
@@ -165,17 +216,30 @@ export default function PublishScreen() {
           confirmManual: !connected,
         });
 
+        const shareImages = result.share?.imageUrls?.length
+          ? result.share.imageUrls
+          : images.length
+            ? images
+            : [result.share?.imageUrl || coverUrl];
+
         if (channel === "WHATSAPP") {
           lastWhatsapp = result.share?.whatsappUrl || null;
           if (!scheduledAt) {
             try {
-              await shareAdToChannel({
+              const shared = await shareAdToChannel({
                 channel: "WHATSAPP",
                 caption: result.share?.caption || finalCaption,
-                imageUri: coverUrl || result.share?.imageUrl,
+                imageUris: shareImages,
                 whatsappUrl: result.share?.whatsappUrl,
               });
-              notes.push("WhatsApp: anúncio com texto e imagem.");
+              notes.push(
+                shared.images > 1
+                  ? `WhatsApp: anúncio com ${shared.images} fotos e texto.`
+                  : shared.images === 1
+                    ? "WhatsApp: anúncio com foto e texto."
+                    : "WhatsApp: texto do anúncio enviado.",
+              );
+              if (shared.captionCopied) notes.push("O texto também foi copiado — se não aparecer na foto, é só colar.");
             } catch {
               if (lastWhatsapp) {
                 await Linking.openURL(lastWhatsapp).catch(() => undefined);
@@ -192,7 +256,7 @@ export default function PublishScreen() {
             await shareAdToChannel({
               channel,
               caption: result.share?.caption || finalCaption,
-              imageUri: coverUrl || result.share?.imageUrl,
+              imageUris: shareImages,
             });
             notes.push(channel === "FACEBOOK" ? "Anúncio pronto no Facebook." : "Anúncio pronto no Instagram.");
           } catch {
@@ -319,8 +383,27 @@ export default function PublishScreen() {
       </View>
 
       {coverUrl ? (
-        <View style={{ marginBottom: 12, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}>
-          <Image source={{ uri: coverUrl }} style={{ width: "100%", aspectRatio: 4 / 5 }} resizeMode="cover" />
+        <View style={{ marginBottom: 12 }}>
+          <View style={{ borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}>
+            <Image source={{ uri: coverUrl }} style={{ width: "100%", aspectRatio: 4 / 5 }} resizeMode="cover" />
+          </View>
+          {images.length > 1 ? (
+            <>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingTop: 8 }}>
+                {images.map((uri) => (
+                  <Pressable key={uri} onPress={() => setCoverUrl(uri)}>
+                    <Image
+                      source={{ uri }}
+                      style={{ width: 56, height: 56, borderRadius: 10, borderWidth: uri === coverUrl ? 2 : 1, borderColor: uri === coverUrl ? colors.primary : colors.border }}
+                    />
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, marginTop: 6 }}>
+                {images.length} fotos serão enviadas junto com o texto.
+              </Text>
+            </>
+          ) : null}
         </View>
       ) : (
         <View

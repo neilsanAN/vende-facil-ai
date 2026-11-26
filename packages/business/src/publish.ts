@@ -12,6 +12,7 @@ type SharePayload = {
   link: string;
   caption: string;
   imageUrl?: string | null;
+  imageUrls?: string[];
   productName?: string | null;
 };
 
@@ -78,20 +79,32 @@ export class PublicationService {
     });
   }
 
-  facebookStart(tenant: Tenant) {
+  facebookStart(tenant: Tenant, from: "app" | "web" = "web") {
     assertMinRole(tenant.role, "EDITOR");
     if (!process.env.FACEBOOK_APP_ID) throw new AppError("PROVIDER_NOT_CONFIGURED", "O aplicativo Meta não está configurado.", 503);
-    const state = sealJson({ organizationId: tenant.organizationId, userId: tenant.userId, exp: Date.now() + 10 * 60 * 1000 }, this.encryptionKey);
+    const state = sealJson({ organizationId: tenant.organizationId, userId: tenant.userId, from, exp: Date.now() + 10 * 60 * 1000 }, this.encryptionKey);
     const url = new URL("https://www.facebook.com/v21.0/dialog/oauth");
     url.searchParams.set("client_id", process.env.FACEBOOK_APP_ID);
     url.searchParams.set("redirect_uri", `${this.appUrl}/api/integrations/facebook/callback`);
     url.searchParams.set("state", state);
     url.searchParams.set("scope", META_SCOPES.join(","));
+    url.searchParams.set("response_type", "code");
+    url.searchParams.set("auth_type", "rerequest");
     return url.toString();
   }
 
+  /** Lê de onde veio a autorização sem validar (para saber para onde voltar em caso de erro). */
+  callbackOrigin(state: string | null): "app" | "web" {
+    if (!state) return "web";
+    try {
+      return openJson<{ from?: "app" | "web" }>(state, this.encryptionKey).from === "app" ? "app" : "web";
+    } catch {
+      return "web";
+    }
+  }
+
   async facebookCallback(code: string, state: string) {
-    const parsed = openJson<{ organizationId: string; userId: string; exp: number }>(state, this.encryptionKey);
+    const parsed = openJson<{ organizationId: string; userId: string; exp: number; from?: "app" | "web" }>(state, this.encryptionKey);
     if (!parsed.exp || parsed.exp < Date.now()) throw new AppError("TOKEN_EXPIRED", "A autorização expirou.", 400);
     if (!process.env.FACEBOOK_APP_ID || !process.env.FACEBOOK_APP_SECRET) throw new AppError("PROVIDER_NOT_CONFIGURED", "Aplicativo Meta incompleto.", 503);
     const tokenUrl = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
@@ -104,10 +117,23 @@ export class PublicationService {
     if (!tokenResponse.ok || !tokenPayload.access_token) {
       throw new AppError("OAUTH_FAILED", tokenPayload.error?.message || "O Facebook não autorizou a conexão.", 502);
     }
-    const pagesResponse = await fetch(`https://graph.facebook.com/v21.0/me/accounts?access_token=${encodeURIComponent(tokenPayload.access_token)}`);
-    const pages = (await pagesResponse.json()) as { data?: Array<{ id: string; name: string; access_token: string }> };
-    const page = pages.data?.[0];
-    if (!page) throw new AppError("OAUTH_FAILED", "Nenhuma Página do Facebook foi encontrada nesta conta.", 422);
+    const pagesResponse = await fetch(
+      `https://graph.facebook.com/v21.0/me/accounts?fields=id,name,access_token,instagram_business_account{id,username}&limit=50&access_token=${encodeURIComponent(tokenPayload.access_token)}`,
+    );
+    const pages = (await pagesResponse.json()) as {
+      data?: Array<{ id: string; name: string; access_token: string; instagram_business_account?: { id: string } }>;
+      error?: { message?: string };
+    };
+    // Prefere a Página que já tem Instagram profissional vinculado.
+    const page = pages.data?.find((item) => item.instagram_business_account?.id) || pages.data?.[0];
+    if (!page) {
+      throw new AppError(
+        "OAUTH_FAILED",
+        pages.error?.message ||
+          "Nenhuma Página do Facebook foi liberada. Na tela da Meta, selecione sua Página (e o Instagram) e permita o acesso.",
+        422,
+      );
+    }
 
     await this.db.socialConnection.upsert({
       where: { organizationId_provider: { organizationId: parsed.organizationId, provider: "FACEBOOK" } },
@@ -179,6 +205,11 @@ export class PublicationService {
       entityType: "SocialConnection",
       metadata: { page: page.name, instagram: igPayload.instagram_business_account?.username || null },
     });
+    return {
+      from: parsed.from === "app" ? ("app" as const) : ("web" as const),
+      page: page.name,
+      instagram: igPayload.instagram_business_account?.username || null,
+    };
   }
 
   async create(
@@ -207,7 +238,7 @@ export class PublicationService {
         where: { organizationId_provider: { organizationId: tenant.organizationId, provider: "FACEBOOK" } },
       });
       if (fb?.status === "CONNECTED") {
-        return this.publishFacebook(tenant, input.targetType, input.targetId, caption, built.imageUrl);
+        return this.publishFacebook(tenant, input.targetType, input.targetId, caption, built.imageUrls);
       }
     }
     if (!input.scheduledAt && input.channel === "INSTAGRAM") {
@@ -215,7 +246,7 @@ export class PublicationService {
         where: { organizationId_provider: { organizationId: tenant.organizationId, provider: "INSTAGRAM" } },
       });
       if (ig?.status === "CONNECTED") {
-        return this.publishInstagram(tenant, input.targetType, input.targetId, caption, built.imageUrl);
+        return this.publishInstagram(tenant, input.targetType, input.targetId, caption, built.imageUrls);
       }
     }
 
@@ -256,9 +287,9 @@ export class PublicationService {
         try {
           const built = await this.buildShareContent(tenant as Tenant, publication.targetType, publication.targetId, publication.caption);
           if (publication.channel === "FACEBOOK") {
-            await this.publishFacebook(tenant, publication.targetType, publication.targetId, publication.caption, built.imageUrl, publication.id);
+            await this.publishFacebook(tenant, publication.targetType, publication.targetId, publication.caption, built.imageUrls, publication.id);
           } else {
-            await this.publishInstagram(tenant, publication.targetType, publication.targetId, publication.caption, built.imageUrl, publication.id);
+            await this.publishInstagram(tenant, publication.targetType, publication.targetId, publication.caption, built.imageUrls, publication.id);
           }
         } catch (error) {
           await this.db.publication.update({ where: { id: publication.id }, data: { status: "FAILED" } });
@@ -289,7 +320,7 @@ export class PublicationService {
     targetType: PublicationTarget,
     targetId: string,
     caption: string,
-    imageUrl?: string | null,
+    imageUrls: string[] = [],
     publicationId?: string,
   ) {
     const connection = await this.db.socialConnection.findUnique({
@@ -301,11 +332,36 @@ export class PublicationService {
     const credentials = openJson<{ pageAccessToken: string }>(connection.encryptedCredentials, this.encryptionKey);
     let response: Response;
     let payload: { id?: string; post_id?: string; error?: { message?: string } };
-    if (imageUrl) {
+    if (imageUrls.length > 1) {
+      // Post com várias fotos: sobe cada foto sem publicar e anexa todas num único post.
+      const mediaIds: string[] = [];
+      for (const url of imageUrls.slice(0, 30)) {
+        const photoResponse = await fetch(`https://graph.facebook.com/v21.0/${connection.externalAccountId}/photos`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ url, published: false, access_token: credentials.pageAccessToken }),
+        });
+        const photo = (await photoResponse.json()) as { id?: string; error?: { message?: string } };
+        if (!photoResponse.ok || !photo.id) {
+          throw new AppError("PUBLISH_FAILED", photo.error?.message || "O Facebook recusou uma das fotos.", 502);
+        }
+        mediaIds.push(photo.id);
+      }
+      response = await fetch(`https://graph.facebook.com/v21.0/${connection.externalAccountId}/feed`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          message: caption,
+          attached_media: mediaIds.map((media_fbid) => ({ media_fbid })),
+          access_token: credentials.pageAccessToken,
+        }),
+      });
+      payload = (await response.json()) as typeof payload;
+    } else if (imageUrls[0]) {
       response = await fetch(`https://graph.facebook.com/v21.0/${connection.externalAccountId}/photos`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url: imageUrl, caption, access_token: credentials.pageAccessToken }),
+        body: JSON.stringify({ url: imageUrls[0], caption, access_token: credentials.pageAccessToken }),
       });
       payload = (await response.json()) as typeof payload;
     } else {
@@ -357,7 +413,7 @@ export class PublicationService {
     targetType: PublicationTarget,
     targetId: string,
     caption: string,
-    imageUrl?: string | null,
+    imageUrls: string[] = [],
     publicationId?: string,
   ) {
     const connection = await this.db.socialConnection.findUnique({
@@ -366,21 +422,39 @@ export class PublicationService {
     if (!connection?.encryptedCredentials || connection.status !== "CONNECTED" || !connection.externalAccountId) {
       throw new AppError("REQUIRES_AUTH", "Conecte o Instagram Business (via Meta) antes de publicar.", 409);
     }
-    if (!imageUrl) {
+    if (!imageUrls.length) {
       throw new AppError("IMAGES_REQUIRED", "O Instagram precisa de uma foto do produto para publicar.", 422);
     }
     const credentials = openJson<{ pageAccessToken: string; igUserId: string }>(connection.encryptedCredentials, this.encryptionKey);
     const igUserId = credentials.igUserId || connection.externalAccountId;
-    const createResponse = await fetch(`https://graph.facebook.com/v21.0/${igUserId}/media`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        image_url: imageUrl,
-        caption,
-        access_token: credentials.pageAccessToken,
-      }),
-    });
-    const created = (await createResponse.json()) as { id?: string; error?: { message?: string } };
+    const createMedia = async (body: Record<string, unknown>) => {
+      const response = await fetch(`https://graph.facebook.com/v21.0/${igUserId}/media`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...body, access_token: credentials.pageAccessToken }),
+      });
+      return { response, payload: (await response.json()) as { id?: string; error?: { message?: string } } };
+    };
+    let createResponse: Response;
+    let created: { id?: string; error?: { message?: string } };
+    if (imageUrls.length > 1) {
+      // Carrossel do Instagram aceita no máximo 10 itens.
+      const children: string[] = [];
+      for (const url of imageUrls.slice(0, 10)) {
+        const child = await createMedia({ image_url: url, is_carousel_item: true });
+        if (!child.response.ok || !child.payload.id) {
+          throw new AppError("PUBLISH_FAILED", child.payload.error?.message || "O Instagram recusou uma das fotos.", 502);
+        }
+        children.push(child.payload.id);
+      }
+      const carousel = await createMedia({ media_type: "CAROUSEL", children: children.join(","), caption });
+      createResponse = carousel.response;
+      created = carousel.payload;
+    } else {
+      const single = await createMedia({ image_url: imageUrls[0], caption });
+      createResponse = single.response;
+      created = single.payload;
+    }
     if (!createResponse.ok || !created.id) {
       throw new AppError("PUBLISH_FAILED", created.error?.message || "Não foi possível preparar a mídia no Instagram.", 502);
     }
@@ -434,7 +508,7 @@ export class PublicationService {
   ) {
     const store = await this.db.store.findUnique({ where: { organizationId: tenant.organizationId } });
     let productName: string | null = null;
-    let imageAssetId: string | null = null;
+    let imageAssetIds: string[] = [];
     let productSlug: string | null = null;
     let autoCaption = "";
 
@@ -442,29 +516,26 @@ export class PublicationService {
       const ad = await this.db.advertisement.findFirst({ where: { id: targetId, organizationId: tenant.organizationId } });
       if (!ad) throw new AppError("NOT_FOUND", "Anúncio não encontrado.", 404);
       productName = ad.title;
+      imageAssetIds = [...ad.imageAssetIds];
       const tags = ad.hashtags.length ? `\n\n${ad.hashtags.map((tag) => `#${tag}`).join(" ")}` : "";
       autoCaption = `${ad.title}\n\n${ad.description.trim()}${tags}`.trim();
       if (ad.productId) {
         const product = await this.db.product.findFirst({
           where: { id: ad.productId, organizationId: tenant.organizationId },
-          include: { images: { orderBy: { position: "asc" }, take: 1 } },
+          include: { images: { orderBy: { position: "asc" } } },
         });
         productSlug = product?.slug || null;
-        imageAssetId = product?.images[0]?.mediaAssetId || null;
-        if (product && !/R\$\s?\d/i.test(autoCaption)) {
-          const price = product.promoPriceCents ?? product.priceCents;
-          autoCaption = `${ad.title}\n${formatBrl(price)}\n\n${ad.description.trim()}${tags}`.trim();
-        }
+        if (!imageAssetIds.length) imageAssetIds = product?.images.map((image) => image.mediaAssetId) || [];
       }
     } else if (targetType === "PRODUCT") {
       const product = await this.db.product.findFirst({
         where: { id: targetId, organizationId: tenant.organizationId },
-        include: { images: { orderBy: { position: "asc" }, take: 1 } },
+        include: { images: { orderBy: { position: "asc" } } },
       });
       if (!product) throw new AppError("NOT_FOUND", "Produto não encontrado.", 404);
       productName = product.name;
       productSlug = product.slug;
-      imageAssetId = product.images[0]?.mediaAssetId || null;
+      imageAssetIds = product.images.map((image) => image.mediaAssetId);
       const promoLine =
         product.promoPriceCents != null && product.promoPriceCents < product.priceCents
           ? `De ${formatBrl(product.priceCents)} por ${formatBrl(product.promoPriceCents)}`
@@ -484,13 +555,13 @@ export class PublicationService {
     const userCaption = (customCaption || "").trim().replace(/https?:\/\/\S+/gi, "").replace(/\n{3,}/g, "\n\n").trim();
     const caption = (userCaption || autoCaption).trim();
 
-    let imageUrl: string | null = null;
-    if (imageAssetId) {
-      if (this.catalog) await this.catalog.publishAsset(imageAssetId).catch(() => undefined);
-      imageUrl = `${this.appUrl}/api/media/${imageAssetId}`;
+    const imageUrls: string[] = [];
+    for (const assetId of imageAssetIds.slice(0, 30)) {
+      if (this.catalog) await this.catalog.publishAsset(assetId).catch(() => undefined);
+      imageUrls.push(`${this.appUrl}/api/media/${assetId}`);
     }
 
-    return { caption, link: productLink, imageUrl, productName, autoCaption };
+    return { caption, link: productLink, imageUrl: imageUrls[0] || null, imageUrls, productName, autoCaption };
   }
 
   private async sharePayload(
@@ -499,7 +570,7 @@ export class PublicationService {
     caption: string,
     _targetType: PublicationTarget,
     _targetId: string,
-    built: { link: string; imageUrl: string | null; productName: string | null },
+    built: { link: string; imageUrl: string | null; imageUrls: string[]; productName: string | null },
   ): Promise<SharePayload> {
     if (channel === "WHATSAPP") {
       // Sem número fixo: o usuário escolhe o contato/grupo no WhatsApp.
@@ -508,6 +579,7 @@ export class PublicationService {
         link: built.link,
         caption,
         imageUrl: built.imageUrl,
+        imageUrls: built.imageUrls,
         productName: built.productName,
       };
     }
@@ -515,6 +587,7 @@ export class PublicationService {
       link: built.link,
       caption,
       imageUrl: built.imageUrl,
+      imageUrls: built.imageUrls,
       productName: built.productName,
     };
   }

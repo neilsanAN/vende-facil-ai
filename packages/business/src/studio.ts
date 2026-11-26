@@ -108,6 +108,7 @@ export class StudioService {
           title: result.copy.title,
           description: result.copy.description,
           hashtags,
+          imageAssetIds: input.assetIds,
           tone: input.tone,
           status: "DRAFT",
         },
@@ -134,6 +135,7 @@ export class StudioService {
         title: result.copy.title,
         description: result.copy.description,
         hashtags,
+        imageAssetIds: input.assetIds,
         tone: input.tone,
         versions: {
           create: {
@@ -151,15 +153,26 @@ export class StudioService {
     return this.presentAd(ad.id, tenant.organizationId);
   }
 
-  async saveAd(tenant: Tenant, input: { id?: string; title: string; description: string; hashtags: string[]; tone: "PROFESSIONAL" | "FRIENDLY" | "URGENT" | "ELEGANT"; status?: "DRAFT" | "PUBLISHED" | "ARCHIVED"; productId?: string | null }) {
+  async saveAd(tenant: Tenant, input: { id?: string; title: string; description: string; hashtags: string[]; tone: "PROFESSIONAL" | "FRIENDLY" | "URGENT" | "ELEGANT"; status?: "DRAFT" | "PUBLISHED" | "ARCHIVED"; productId?: string | null; imageAssetIds?: string[] }) {
     assertMinRole(tenant.role, "EDITOR");
     const hashtags = normalizeHashtags(input.hashtags);
+    if (input.imageAssetIds?.length) {
+      for (const assetId of input.imageAssetIds) await this.ownedImage(tenant.organizationId, assetId);
+    }
     if (input.id) {
       const current = await this.db.advertisement.findFirst({ where: { id: input.id, organizationId: tenant.organizationId } });
       if (!current) throw new AppError("NOT_FOUND", "Anúncio não encontrado.", 404);
       await this.db.advertisement.update({
         where: { id: current.id },
-        data: { title: input.title, description: input.description, hashtags, tone: input.tone, status: input.status, productId: input.productId },
+        data: {
+          title: input.title,
+          description: input.description,
+          hashtags,
+          tone: input.tone,
+          status: input.status,
+          productId: input.productId,
+          ...(input.imageAssetIds ? { imageAssetIds: input.imageAssetIds } : {}),
+        },
       });
       await this.db.advertisementVersion.create({
         data: { advertisementId: current.id, organizationId: tenant.organizationId, title: input.title, description: input.description, hashtags, source: "MANUAL" },
@@ -172,6 +185,7 @@ export class StudioService {
         title: input.title,
         description: input.description,
         hashtags,
+        imageAssetIds: input.imageAssetIds ?? [],
         tone: input.tone,
         status: input.status ?? "DRAFT",
         productId: input.productId ?? null,
@@ -197,6 +211,8 @@ export class StudioService {
       status: row.status,
       productId: row.productId,
       product: row.product?.name ?? null,
+      imageAssetIds: row.imageAssetIds,
+      imageUrls: row.imageAssetIds.map((assetId) => `/api/media/${assetId}`),
       updatedAt: row.updatedAt,
     }));
   }

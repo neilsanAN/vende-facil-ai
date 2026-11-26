@@ -123,7 +123,13 @@ const routes: Route[] = [
   { method: "POST", pattern: "/webhooks/mercadopago", auth: "public", handle: webhook },
   { method: "GET", pattern: "/publications", auth: "tenant", handle: async (ctx) => json({ items: await ctx.container.publications.list(requireTenantSession(ctx)), channels: await ctx.container.publications.channels(requireTenantSession(ctx)) }) },
   { method: "POST", pattern: "/publications", auth: "tenant", handle: publish },
-  { method: "GET", pattern: "/integrations/facebook/start", auth: "tenant", handle: async (ctx) => json({ url: ctx.container.publications.facebookStart(requireTenantSession(ctx)) }) },
+  {
+    method: "GET",
+    pattern: "/integrations/facebook/start",
+    auth: "tenant",
+    handle: async (ctx) =>
+      json({ url: ctx.container.publications.facebookStart(requireTenantSession(ctx), ctx.query.get("from") === "app" ? "app" : "web") }),
+  },
   { method: "GET", pattern: "/integrations/facebook/callback", auth: "public", handle: facebookCallback },
   { method: "GET", pattern: "/notifications", auth: "user", handle: async (ctx) => json(await ctx.container.account.notifications(ctx.session!)) },
   { method: "POST", pattern: "/notifications/read", auth: "user", handle: async (ctx) => { await ctx.container.account.readNotifications(ctx.session!); return json({ ok: true }); } },
@@ -400,6 +406,7 @@ async function saveAd(ctx: RouteContext) {
       tone: data.tone,
       status: data.status,
       productId: data.productId ?? null,
+      imageAssetIds: data.imageAssetIds,
     }),
   );
 }
@@ -523,12 +530,58 @@ async function publish(ctx: RouteContext) {
   return json(await ctx.container.publications.create(requireTenantSession(ctx), body.data));
 }
 
+function metaResultPage(input: { ok: boolean; from: "app" | "web"; title: string; detail: string; appUrl: string }) {
+  const escape = (text: string) => text.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
+  const appLink = `vendefacil://estudio/publicar?meta=${input.ok ? "ok" : "erro"}`;
+  const back = input.from === "app" ? appLink : `${input.appUrl}/publicar?conectado=${input.ok ? "facebook" : "erro"}`;
+  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escape(input.title)}</title>
+<style>body{font-family:system-ui,sans-serif;background:#F5F6FA;margin:0;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:24px}
+.card{background:#fff;border-radius:20px;padding:28px;max-width:420px;width:100%;text-align:center;box-shadow:0 8px 30px rgba(20,20,60,.08)}
+h1{font-size:20px;margin:12px 0 8px;color:#151229}p{color:#5B5873;line-height:1.5;font-size:15px}
+a{display:block;margin-top:20px;background:#6D28D9;color:#fff;text-decoration:none;padding:14px;border-radius:999px;font-weight:700}
+.icon{font-size:44px}</style></head><body><div class="card"><div class="icon">${input.ok ? "✅" : "⚠️"}</div>
+<h1>${escape(input.title)}</h1><p>${escape(input.detail)}</p><a href="${escape(back)}">Voltar ao VendeFácil</a></div>
+${input.ok && input.from === "app" ? `<script>setTimeout(function(){location.href=${JSON.stringify(appLink)}},600)</script>` : ""}
+</body></html>`;
+  return new Response(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
+}
+
 async function facebookCallback(ctx: RouteContext) {
   const code = ctx.query.get("code");
   const state = ctx.query.get("state");
-  if (!code || !state) throw new AppError("OAUTH_FAILED", "A autorização não retornou os dados esperados.", 400);
-  await ctx.container.publications.facebookCallback(code, state);
-  return Response.redirect(`${ctx.container.config.APP_URL}/publicar?conectado=facebook`);
+  const appUrl = ctx.container.config.APP_URL;
+  const from = ctx.container.publications.callbackOrigin(state);
+  const metaError = ctx.query.get("error_description") || ctx.query.get("error_message") || ctx.query.get("error");
+  if (metaError || !code || !state) {
+    return metaResultPage({
+      ok: false,
+      from,
+      appUrl,
+      title: "Autorização não concluída",
+      detail: metaError ? `A Meta respondeu: ${metaError}` : "A autorização foi cancelada. Volte ao app e toque em Conectar de novo.",
+    });
+  }
+  try {
+    const result = await ctx.container.publications.facebookCallback(code, state);
+    return metaResultPage({
+      ok: true,
+      from: result.from,
+      appUrl,
+      title: "Conta conectada!",
+      detail: result.instagram
+        ? `Página “${result.page}” e Instagram @${result.instagram} autorizados. Já pode publicar direto pelo app.`
+        : `Página “${result.page}” autorizada. Para o Instagram, vincule uma conta profissional a essa Página e conecte de novo.`,
+    });
+  } catch (cause) {
+    return metaResultPage({
+      ok: false,
+      from,
+      appUrl,
+      title: "Não foi possível conectar",
+      detail: cause instanceof AppError ? cause.message : "Falha ao falar com a Meta. Tente de novo em instantes.",
+    });
+  }
 }
 
 async function profile(ctx: RouteContext) {

@@ -168,6 +168,7 @@ export function createApiClient(options: {
         hashtags: string[];
         tone: "PROFESSIONAL" | "FRIENDLY" | "URGENT" | "ELEGANT";
         status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+        imageAssetIds?: string[];
       },
     ) =>
       request<{ id: string; title: string; description: string; hashtags: string[] }>(`/api/ads/${id}`, {
@@ -187,6 +188,8 @@ export function createApiClient(options: {
           tone: string;
           status: string;
           product: string | null;
+          imageAssetIds?: string[];
+          imageUrls?: string[];
           updatedAt: string;
         }>
       >("/api/ads"),
@@ -299,7 +302,7 @@ export function createApiClient(options: {
         items: unknown[];
         channels: Array<{ provider: string; status: string; detail: string; connectUrl?: string | null }>;
       }>("/api/publications"),
-    connectMeta: () => request<{ url: string }>("/api/integrations/facebook/start"),
+    connectMeta: (from: "app" | "web" = "web") => request<{ url: string }>(`/api/integrations/facebook/start?from=${from}`),
     publish: (body: {
       channel: "WHATSAPP" | "INSTAGRAM" | "FACEBOOK";
       targetType: "PRODUCT" | "ADVERTISEMENT" | "VIDEO" | "CATALOG";
@@ -314,6 +317,7 @@ export function createApiClient(options: {
           link?: string;
           caption?: string;
           imageUrl?: string | null;
+          imageUrls?: string[];
           productName?: string | null;
         } | null;
       }>("/api/publications", {

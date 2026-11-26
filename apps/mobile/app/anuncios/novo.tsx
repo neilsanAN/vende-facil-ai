@@ -281,6 +281,7 @@ export default function AdScreen() {
           hashtags: ["produto", "oferta", "loja"],
           tone: "PROFESSIONAL",
           status: "DRAFT",
+          imageAssetIds: ids,
         });
         const hint = aiCause instanceof ApiClientError || aiCause instanceof Error ? aiCause.message : "A IA não respondeu.";
         feedback.showToast(hint.includes("demorou") || hint.includes("rascunho") ? "Rascunho pronto para editar." : hint, "info");
@@ -330,6 +331,7 @@ export default function AdScreen() {
           hashtags: normalizeHashtags(draft.hashtags, draft.title),
           tone: "PROFESSIONAL",
           status: "DRAFT",
+          ...(assetIds.length ? { imageAssetIds: assetIds } : {}),
         });
         if (assetIds[0]) await setItem(`ad_cover_${draft.id}`, `${apiBase}/api/media/${assetIds[0]}`);
         else if (coverUri) await setItem(`ad_cover_${draft.id}`, coverUri);

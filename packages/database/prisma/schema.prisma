@@ -522,6 +522,7 @@ model Advertisement {
   title          String
   description    String
   hashtags       String[]
+  imageAssetIds  String[]                @default([])
   tone           AdTone                  @default(PROFESSIONAL)
   status         AdStatus                @default(DRAFT)
   createdAt      DateTime                @default(now())
