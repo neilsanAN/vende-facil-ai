@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Bell, Camera, DollarSign, Eye, ImageIcon, MousePointer2, Share2, ShoppingCart, Sparkles, Video } from "lucide-react";
-import { formatBrl } from "@vendefacil/types";
+import { dayGreeting, firstName, formatBrl } from "@vendefacil/types";
 import { getContainer } from "@vendefacil/business";
 import { tenant } from "@/server/session";
 
@@ -17,11 +17,8 @@ export default async function InicioPage() {
   const session = await tenant();
   const data = await getContainer().commerce.dashboard(session);
   const { stats, recent } = data;
-  const first =
-    (data.greeting?.name || "").trim() ||
-    session.name.trim().split(/\s+/)[0] ||
-    session.email.split("@")[0] ||
-    "você";
+  const first = firstName(data.greeting?.name || session.name, session.email.split("@")[0] || "você");
+  const hello = dayGreeting();
   const metrics = [
     { label: "Visualizações", value: String(stats.productViews || stats.views), icon: Eye, tone: "text-primary bg-primary-soft" },
     { label: "Cliques", value: String(stats.whatsappClicks), icon: MousePointer2, tone: "text-primary bg-primary-soft" },
@@ -37,7 +34,7 @@ export default async function InicioPage() {
         </span>
         <div className="min-w-0 flex-1">
           <h1 className="text-[18px] font-bold leading-5 tracking-tight text-ink">
-            Olá, {first}! <span aria-hidden>👋</span>
+            {hello}, {first}!
           </h1>
           <p className="text-[11px] font-medium text-muted">Pronto para vender hoje?</p>
         </div>

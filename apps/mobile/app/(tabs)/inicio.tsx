@@ -3,6 +3,7 @@ import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { Link, router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { dayGreeting, firstName } from "@vendefacil/types";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
 import { api, apiBase } from "../../src/api";
 import { handleTenantError } from "../../src/session";
@@ -54,10 +55,8 @@ export default function HomeScreen() {
       load();
     }, [load]),
   );
-  const first =
-    (data?.greeting?.name || "").trim().split(/\s+/)[0] ||
-    (data?.greeting?.name || "").trim() ||
-    "você";
+  const first = firstName(data?.greeting?.name);
+  const hello = dayGreeting();
   const stats = data?.stats;
   return (
     <ScrollView
@@ -70,7 +69,7 @@ export default function HomeScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>
-            Olá, {first}! 👋
+            {hello}, {first}!
           </Text>
           <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 1 }}>Pronto para vender hoje?</Text>
         </View>

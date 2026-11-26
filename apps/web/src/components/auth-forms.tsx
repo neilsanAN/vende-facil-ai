@@ -145,11 +145,38 @@ function PasswordStrength({
   );
 }
 
+const LAST_EMAIL_KEY = "vf_last_email";
+
+function rememberLastEmail(email: string) {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized || typeof window === "undefined") return;
+  try {
+    localStorage.setItem(LAST_EMAIL_KEY, normalized);
+  } catch {
+    /* ignore */
+  }
+}
+
+function readLastEmail() {
+  if (typeof window === "undefined") return "";
+  try {
+    return localStorage.getItem(LAST_EMAIL_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
 export function LoginForm() {
   const router = useRouter();
   const form = useForm({ resolver: zodResolver(loginSchema), defaultValues: { email: "", password: "" } });
   const [error, setError] = useState("");
   const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const saved = readLastEmail();
+    if (saved) form.setValue("email", saved);
+  }, [form]);
+
   return (
     <AuthGradientFrame
       title="Acesse sua conta"
@@ -167,6 +194,7 @@ export function LoginForm() {
           onSubmit={form.handleSubmit(async (values) => {
             setError("");
             try {
+              rememberLastEmail(values.email);
               await api("/api/auth/login", { method: "POST", body: JSON.stringify(values) });
               router.push("/inicio");
               router.refresh();
@@ -174,6 +202,7 @@ export function LoginForm() {
               if (cause instanceof ApiClientError && cause.code === "EMAIL_UNVERIFIED") {
                 const details = cause.details as { email?: string; devCode?: string | null } | undefined;
                 const email = details?.email || values.email;
+                rememberLastEmail(email);
                 sessionStorage.setItem("vf_otp_email", email);
                 if (details?.devCode) sessionStorage.setItem("vf_otp_dev", details.devCode);
                 router.push(`/verificar-email?email=${encodeURIComponent(email)}`);
@@ -254,6 +283,7 @@ export function RegisterForm() {
           setError("");
           try {
             const result = await api<{ email: string; message: string; devCode?: string | null }>("/api/auth/register", { method: "POST", body: JSON.stringify(values) });
+            rememberLastEmail(result.email);
             sessionStorage.setItem("vf_otp_email", result.email);
             if (result.devCode) sessionStorage.setItem("vf_otp_dev", result.devCode);
             else sessionStorage.removeItem("vf_otp_dev");

@@ -169,6 +169,20 @@ export function formatBrl(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+/** Saudação pt-BR conforme horário local (Bom dia / Boa tarde / Boa noite). */
+export function dayGreeting(date = new Date()) {
+  const hour = date.getHours();
+  if (hour >= 5 && hour < 12) return "Bom dia";
+  if (hour >= 12 && hour < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
+export function firstName(fullName?: string | null, fallback = "você") {
+  const value = (fullName || "").trim();
+  if (!value) return fallback;
+  return value.split(/\s+/)[0] || fallback;
+}
+
 export { normalizeHashtags, formatHashtag } from "./hashtags";
 
 export function isPlanLimits(value: unknown): value is PlanLimits {

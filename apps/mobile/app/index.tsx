@@ -40,6 +40,8 @@ export default function AuthGate() {
       try {
         setBootMessage("Verificando sessão…");
         setBootDetail("Confirmando se você já está conectado");
+        const savedEmail = await getItem("vf_last_email");
+        if (alive && savedEmail) setEmail(savedEmail);
         const access = await getItem("vf_access");
         const refresh = await getItem("vf_refresh");
         if (access) {
@@ -94,10 +96,26 @@ export default function AuthGate() {
     [],
   );
 
-  async function persistSession(accessToken: string, refreshToken: string) {
+  async function rememberEmail(value: string) {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return;
+    await setItem("vf_last_email", normalized);
+  }
+
+  async function persistSession(accessToken: string, refreshToken: string, loginEmail?: string) {
+    if (loginEmail) await rememberEmail(loginEmail);
     await setItem("vf_access", accessToken);
     await setItem("vf_refresh", refreshToken);
     await routeAfterAuth();
+  }
+
+  async function goLogin() {
+    const saved = (await getItem("vf_last_email")) || email;
+    if (saved) setEmail(saved);
+    setPassword("");
+    setError("");
+    setMessage("");
+    setScreen("login");
   }
 
   if (booting) {
@@ -123,7 +141,7 @@ export default function AuthGate() {
           <Pressable onPress={() => setScreen("register")} style={{ height: control.height, borderRadius: 999, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}>
             <Text style={{ color: "#fff", fontSize: fonts.body, fontWeight: "600" }}>Começar</Text>
           </Pressable>
-          <Pressable onPress={() => setScreen("login")} style={{ height: control.height, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.35)", alignItems: "center", justifyContent: "center" }}>
+          <Pressable onPress={() => void goLogin()} style={{ height: control.height, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.35)", alignItems: "center", justifyContent: "center" }}>
             <Text style={{ color: "#fff", fontSize: fonts.body, fontWeight: "600" }}>Já tenho conta</Text>
           </Pressable>
         </View>
@@ -136,11 +154,7 @@ export default function AuthGate() {
       <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, justifyContent: "center" }} keyboardShouldPersistTaps="handled">
           <Pressable
-            onPress={() => {
-              setError("");
-              setMessage("");
-              setScreen("login");
-            }}
+            onPress={() => void goLogin()}
             style={{ position: "absolute", left: 0, top: 24, flexDirection: "row", alignItems: "center", gap: 4 }}
           >
             <Ionicons name="chevron-back" size={22} color={colors.primary} />
@@ -167,7 +181,7 @@ export default function AuthGate() {
               setError("");
               try {
                 const session = await api.verifyEmail({ email, code });
-                await persistSession(session.accessToken, session.refreshToken);
+                await persistSession(session.accessToken, session.refreshToken, email);
               } catch (cause) {
                 setError(cause instanceof Error ? cause.message : "Código inválido.");
               } finally {
@@ -327,17 +341,20 @@ export default function AuthGate() {
                 }
                 const result = await api.register({ name, email, password, acceptTerms: true });
                 setEmail(result.email);
+                await rememberEmail(result.email);
                 if (result.devCode) setDevCode(result.devCode);
                 setScreen("otp");
                 setMessage(result.message);
                 return;
               }
               const session = await api.login({ email, password });
-              await persistSession(session.accessToken, session.refreshToken);
+              await persistSession(session.accessToken, session.refreshToken, email);
             } catch (cause) {
               if (cause instanceof ApiClientError && cause.code === "EMAIL_UNVERIFIED") {
                 const details = cause.details as { email?: string; devCode?: string | null } | undefined;
-                setEmail(details?.email || email);
+                const nextEmail = details?.email || email;
+                setEmail(nextEmail);
+                await rememberEmail(nextEmail);
                 if (details?.devCode) setDevCode(details.devCode);
                 setScreen("otp");
                 setMessage(cause.message);
