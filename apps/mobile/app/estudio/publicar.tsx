@@ -168,23 +168,36 @@ export default function PublishScreen() {
         if (channel === "WHATSAPP") {
           lastWhatsapp = result.share?.whatsappUrl || null;
           if (!scheduledAt) {
-            await shareAdToChannel({
-              channel: "WHATSAPP",
-              caption: result.share?.caption || finalCaption,
-              imageUri: coverUrl || result.share?.imageUrl,
-              whatsappUrl: result.share?.whatsappUrl,
-            });
+            try {
+              await shareAdToChannel({
+                channel: "WHATSAPP",
+                caption: result.share?.caption || finalCaption,
+                imageUri: coverUrl || result.share?.imageUrl,
+                whatsappUrl: result.share?.whatsappUrl,
+              });
+              notes.push("WhatsApp: anúncio com texto e imagem.");
+            } catch {
+              if (lastWhatsapp) {
+                await Linking.openURL(lastWhatsapp).catch(() => undefined);
+              }
+              notes.push("WhatsApp aberto com o texto do anúncio.");
+            }
+          } else {
+            notes.push("WhatsApp agendado.");
           }
-          notes.push("WhatsApp com o anúncio (texto + imagem).");
         } else if (connected && !scheduledAt) {
           notes.push(channel === "FACEBOOK" ? "Publicado no Facebook." : "Publicado no Instagram.");
         } else if (!scheduledAt) {
-          await shareAdToChannel({
-            channel,
-            caption: result.share?.caption || finalCaption,
-            imageUri: coverUrl || result.share?.imageUrl,
-          });
-          notes.push(channel === "FACEBOOK" ? "Anúncio pronto no Facebook." : "Anúncio pronto no Instagram.");
+          try {
+            await shareAdToChannel({
+              channel,
+              caption: result.share?.caption || finalCaption,
+              imageUri: coverUrl || result.share?.imageUrl,
+            });
+            notes.push(channel === "FACEBOOK" ? "Anúncio pronto no Facebook." : "Anúncio pronto no Instagram.");
+          } catch {
+            notes.push(channel === "FACEBOOK" ? "Abra o Facebook e cole o anúncio." : "Abra o Instagram e cole o anúncio.");
+          }
         } else {
           notes.push(`${channel} agendado.`);
         }

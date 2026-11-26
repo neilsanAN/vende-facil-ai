@@ -63,7 +63,6 @@ module.exports = {
       "expo-router",
       "expo-secure-store",
       "expo-updates",
-      "expo-file-system",
       [
         "expo-image-picker",
         {
