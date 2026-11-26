@@ -117,7 +117,7 @@ export const confirmedFactsSchema = z.object({
 
 export const adGenerateSchema = z.object({
   productId: z.string().uuid().nullable().optional(),
-  assetIds: z.array(z.string().uuid()).min(1).max(8),
+  assetIds: z.array(z.string().uuid()).min(1).max(30),
   tone: z.enum(AD_TONES),
   facts: confirmedFactsSchema,
   /** Se informado, regenera no mesmo anúncio em vez de criar outro. */

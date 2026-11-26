@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Linking, Modal, Pressable, ScrollView, Share, Text, View } from "react-native";
+import { Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
-import { api, apiBase } from "../../src/api";
+import { api } from "../../src/api";
 import { BackButton } from "../../src/back-button";
 import { KeyboardScreen } from "../../src/keyboard-screen";
 import { ScheduleCalendarField, formatScheduleBr } from "../../src/schedule-calendar";
@@ -24,7 +24,6 @@ export default function PublishScreen() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productId, setProductId] = useState("");
   const [caption, setCaption] = useState("");
-  const [storeLink, setStoreLink] = useState("");
   const [enabled, setEnabled] = useState<Record<Channel, boolean>>({ WHATSAPP: true, INSTAGRAM: true, FACEBOOK: true });
   const [schedule, setSchedule] = useState(false);
   const [when, setWhen] = useState<Date | null>(null);
@@ -35,13 +34,11 @@ export default function PublishScreen() {
   const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([api.products(), api.publications(), api.shell().catch(() => null)])
-      .then(([productResult, pubs, shell]) => {
+    Promise.all([api.products(), api.publications()])
+      .then(([productResult, pubs]) => {
         const rows = ((productResult as { data?: Product[] }).data || []) as Product[];
         setProducts(rows);
         if (rows[0]) setProductId(rows[0].id);
-        const slug = shell?.store?.slug;
-        setStoreLink(slug ? `${apiBase}/v/${slug}` : "");
         const ig = pubs.channels.find((item) => item.provider === "INSTAGRAM");
         const fb = pubs.channels.find((item) => item.provider === "FACEBOOK");
         setEnabled({
@@ -58,7 +55,6 @@ export default function PublishScreen() {
   }, []);
 
   const selected = useMemo(() => products.find((item) => item.id === productId), [products, productId]);
-  const catalogLink = storeLink;
 
   async function publishNow() {
     const channel = (Object.entries(enabled).find(([, value]) => value)?.[0] as Channel | undefined) || "WHATSAPP";
@@ -90,7 +86,6 @@ export default function PublishScreen() {
         scheduledAt,
         confirmManual: true,
       });
-      if (result.share?.link) setStoreLink(result.share.link);
       setWhatsappUrl(result.share?.whatsappUrl || null);
       setMessage(
         schedule && when
@@ -128,38 +123,6 @@ export default function PublishScreen() {
           </Card>
         ))}
       </View>
-
-      <Card style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, marginBottom: 10 }}>
-        <View style={{ width: 40, height: 40, borderRadius: control.radiusCard, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" }}>
-          <Ionicons name="link-outline" size={control.icon} color={colors.primary} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700" }}>Link da minha loja</Text>
-          <Text style={{ color: colors.textSecondary, fontSize: fonts.body2, fontWeight: "500", marginTop: 2 }} numberOfLines={1}>
-            {catalogLink || "Compartilhe seu catálogo online"}
-          </Text>
-        </View>
-        <Pressable
-          disabled={!catalogLink}
-          onPress={() => {
-            if (!catalogLink) return;
-            void Share.share({ message: catalogLink });
-          }}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: control.radiusInput,
-            borderWidth: 1,
-            borderColor: colors.border,
-            backgroundColor: colors.background,
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: catalogLink ? 1 : 0.5,
-          }}
-        >
-          <Ionicons name="copy-outline" size={control.icon} color={colors.textSecondary} />
-        </Pressable>
-      </Card>
 
       <Card style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, marginBottom: 12 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>

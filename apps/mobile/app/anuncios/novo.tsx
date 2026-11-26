@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Dimensions, Easing, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
@@ -16,6 +15,7 @@ import { HashtagField } from "../../src/hashtag-field";
 import { useKeyboardBottomInset } from "../../src/keyboard-screen";
 import { useFeedback } from "../../src/feedback";
 import { setItem } from "../../src/storage";
+import { LocalPhoto, MAX_PRODUCT_PHOTOS, PhotoGallery } from "../../src/photo-gallery";
 
 type Draft = { id: string; title: string; description: string; hashtags: string[] };
 type Step = 0 | 1 | 2;
@@ -131,10 +131,10 @@ export default function AdScreen() {
   const spin = useRef(new Animated.Value(0)).current;
 
   const [step, setStep] = useState<Step>(0);
-  const [uri, setUri] = useState<string | null>(null);
-  const [mimeType, setMimeType] = useState("image/jpeg");
-  const [coverAssetId, setCoverAssetId] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<LocalPhoto[]>([]);
+  const [assetIds, setAssetIds] = useState<string[]>([]);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const coverUri = photos[0]?.uri || null;
   const [error, setError] = useState("");
   const [status, setStatus] = useState("Gerando com IA…");
   const generatingRef = useRef(false);
@@ -208,51 +208,36 @@ export default function AdScreen() {
     });
   }
 
-  async function open(camera: boolean) {
-    try {
-      const permission = camera
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        feedback.showToast(camera ? "Autorize a câmera." : "Autorize a galeria.", "error");
-        return;
-      }
-      const result = camera
-        ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.85, allowsEditing: true, aspect: [4, 5] })
-        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.85, allowsEditing: true, aspect: [4, 5] });
-      if (result.canceled) return;
-      const asset = result.assets[0];
-      if (!asset?.uri) return;
-      setUri(asset.uri);
-      setMimeType(asset.mimeType || "image/jpeg");
-      setDraft(null);
-      sessionDraftId.current = null;
-      setCoverAssetId(null);
-      setError("");
-    } catch {
-      feedback.showToast("Não foi possível abrir a câmera/galeria.", "error");
-    }
-  }
-
   async function runGenerate() {
-    if (!uri) {
-      setError("Tire ou escolha uma foto primeiro.");
+    if (!photos.length) {
+      setError("Tire ou escolha ao menos uma foto primeiro.");
       return;
     }
     if (generatingRef.current) return;
     generatingRef.current = true;
     const seq = ++generationSeq.current;
     setError("");
-    setStatus("Enviando foto…");
+    setStatus(photos.length > 1 ? `Enviando ${photos.length} fotos…` : "Enviando foto…");
     setStep(1);
     const previousId = draft?.id || null;
     let workingId = previousId;
     try {
-      const asset = coverAssetId
-        ? { id: coverAssetId }
-        : await withTimeout(uploadLocalImage(uri, mimeType, "produto.jpg"), 60_000, "O envio da foto demorou demais. Tente de novo.");
-      if (seq !== generationSeq.current) return;
-      setCoverAssetId(asset.id);
+      let ids = assetIds;
+      if (ids.length !== photos.length) {
+        ids = [];
+        for (const [index, photo] of photos.slice(0, MAX_PRODUCT_PHOTOS).entries()) {
+          if (seq !== generationSeq.current) return;
+          setStatus(`Enviando foto ${index + 1} de ${photos.length}…`);
+          const asset = await withTimeout(
+            uploadLocalImage(photo.uri, photo.mimeType, `anuncio-${index + 1}.jpg`),
+            60_000,
+            "O envio da foto demorou demais. Tente de novo.",
+          );
+          ids.push(asset.id);
+        }
+        if (seq !== generationSeq.current) return;
+        setAssetIds(ids);
+      }
 
       // Garante um único ID antes da IA: timeout/late response atualizam o mesmo anúncio.
       if (!workingId) {
@@ -277,7 +262,7 @@ export default function AdScreen() {
       try {
         created = await withTimeout(
           api.generateAd({
-            assetIds: [asset.id],
+            assetIds: ids,
             tone: "PROFESSIONAL",
             productId: null,
             replaceAdId: workingId,
@@ -306,7 +291,7 @@ export default function AdScreen() {
         await api.archiveAd(workingId).catch(() => undefined);
       }
       sessionDraftId.current = null;
-      await setItem(`ad_cover_${created.id}`, `${apiBase}/api/media/${asset.id}`);
+      if (ids[0]) await setItem(`ad_cover_${created.id}`, `${apiBase}/api/media/${ids[0]}`);
       setDraft({
         ...created,
         hashtags: normalizeHashtags(created.hashtags, created.title),
@@ -346,8 +331,8 @@ export default function AdScreen() {
           tone: "PROFESSIONAL",
           status: "DRAFT",
         });
-        if (coverAssetId) await setItem(`ad_cover_${draft.id}`, `${apiBase}/api/media/${coverAssetId}`);
-        else if (uri) await setItem(`ad_cover_${draft.id}`, uri);
+        if (assetIds[0]) await setItem(`ad_cover_${draft.id}`, `${apiBase}/api/media/${assetIds[0]}`);
+        else if (coverUri) await setItem(`ad_cover_${draft.id}`, coverUri);
       });
       feedback.showToast("Anúncio salvo.", "success");
       router.replace("/anuncios");
@@ -384,94 +369,22 @@ export default function AdScreen() {
         >
           {/* Step 1 — Foto */}
           <View style={{ width: PAGE_WIDTH, flex: 1, paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom, 20) }}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 12 }}>
-              <View
-                style={{
-                  borderRadius: 20,
-                  borderWidth: 1.5,
-                  borderStyle: "dashed",
-                  borderColor: uri ? colors.primary : "#D7D0EA",
-                  backgroundColor: "#F7F4FF",
-                  padding: 20,
-                  alignItems: "center",
-                  minHeight: 280,
-                  justifyContent: "center",
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 12, gap: 14 }}>
+              <PhotoGallery
+                photos={photos}
+                onChange={(next) => {
+                  setPhotos(next);
+                  setAssetIds([]);
+                  setDraft(null);
+                  sessionDraftId.current = null;
+                  setError("");
                 }}
-              >
-                {uri ? (
-                  <Image source={{ uri }} style={{ width: "100%", aspectRatio: 4 / 5, borderRadius: 14 }} resizeMode="cover" />
-                ) : (
-                  <>
-                    <View
-                      style={{
-                        width: 56,
-                        height: 56,
-                        borderRadius: 16,
-                        backgroundColor: colors.primarySoft,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginBottom: 12,
-                      }}
-                    >
-                      <Ionicons name="camera" size={26} color={colors.primary} />
-                    </View>
-                    <Text
-                      style={{
-                        color: colors.text,
-                        fontSize: fonts.subtitle,
-                        fontWeight: "600",
-                        textAlign: "center",
-                        lineHeight: 18,
-                        maxWidth: 240,
-                        marginBottom: 18,
-                      }}
-                    >
-                      Tire uma foto do produto ou escolha da galeria
-                    </Text>
-                  </>
-                )}
-
-                <View style={{ flexDirection: "row", gap: 10, width: "100%", marginTop: uri ? 14 : 0 }}>
-                  <Pressable
-                    onPress={() => void open(true)}
-                    style={{
-                      flex: 1,
-                      height: 48,
-                      borderRadius: 14,
-                      backgroundColor: colors.primary,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <Ionicons name="camera" size={18} color="#fff" />
-                    <Text style={{ color: "#fff", fontSize: fonts.body, fontWeight: "700" }}>Câmera</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => void open(false)}
-                    style={{
-                      flex: 1,
-                      height: 48,
-                      borderRadius: 14,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      backgroundColor: colors.surface,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <Ionicons name="images-outline" size={18} color={colors.text} />
-                    <Text style={{ color: colors.text, fontSize: fonts.body, fontWeight: "700" }}>Galeria</Text>
-                  </Pressable>
-                </View>
-              </View>
+                emptyLabel="Escolha até 30 fotos do produto"
+                onError={(text) => feedback.showToast(text, "error")}
+              />
 
               <View
                 style={{
-                  marginTop: 14,
                   borderRadius: 14,
                   backgroundColor: colors.primarySoft,
                   paddingHorizontal: 14,
@@ -483,14 +396,14 @@ export default function AdScreen() {
               >
                 <Ionicons name="sparkles" size={16} color={colors.primary} style={{ marginTop: 1 }} />
                 <Text style={{ flex: 1, color: colors.text, fontSize: fonts.body2, fontWeight: "500", lineHeight: 16 }}>
-                  A IA vai analisar a imagem e sugerir título, descrição, categoria e hashtags.
+                  A IA analisa as fotos e sugere título, descrição e hashtags. A primeira foto vira a capa.
                 </Text>
               </View>
 
-              {error ? <Text style={{ color: colors.error, fontSize: fonts.body, marginTop: 10, fontWeight: "600" }}>{error}</Text> : null}
+              {error ? <Text style={{ color: colors.error, fontSize: fonts.body, fontWeight: "600" }}>{error}</Text> : null}
             </ScrollView>
 
-            <PrimaryButton label="Avançar" disabled={!uri} onPress={() => void runGenerate()} />
+            <PrimaryButton label="Avançar" disabled={!photos.length} onPress={() => void runGenerate()} />
           </View>
 
           {/* Step 2 — IA */}
@@ -522,10 +435,10 @@ export default function AdScreen() {
               keyboardDismissMode="on-drag"
               automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
             >
-              {uri ? (
+              {coverUri ? (
                 <View>
                   <View style={{ borderRadius: 18, overflow: "hidden", backgroundColor: colors.surface }}>
-                    <Image source={{ uri }} style={{ width: "100%", aspectRatio: 4 / 5 }} resizeMode="cover" />
+                    <Image source={{ uri: coverUri }} style={{ width: "100%", aspectRatio: 4 / 5 }} resizeMode="cover" />
                     <Pressable
                       onPress={() => {
                         setStep(0);
@@ -548,19 +461,23 @@ export default function AdScreen() {
                       <Ionicons name="pencil" size={14} color={colors.text} />
                     </Pressable>
                   </View>
-                  <View style={{ flexDirection: "row", justifyContent: "center", gap: 6, marginTop: 10 }}>
-                    {[0, 1, 2, 3].map((dot) => (
-                      <View
-                        key={dot}
-                        style={{
-                          width: 7,
-                          height: 7,
-                          borderRadius: 999,
-                          backgroundColor: dot === 0 ? colors.primary : "#D8DBE6",
-                        }}
-                      />
-                    ))}
-                  </View>
+                  {photos.length > 1 ? (
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+                      {photos.slice(0, 8).map((photo) => (
+                        <Image
+                          key={photo.key}
+                          source={{ uri: photo.uri }}
+                          style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: "#EEF0F5" }}
+                          resizeMode="cover"
+                        />
+                      ))}
+                      {photos.length > 8 ? (
+                        <View style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" }}>
+                          <Text style={{ color: colors.primary, fontSize: fonts.caption, fontWeight: "700" }}>+{photos.length - 8}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  ) : null}
                 </View>
               ) : null}
 

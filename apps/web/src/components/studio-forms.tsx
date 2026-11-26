@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, Copy, Facebook, Instagram, Link2, MessageCircle } from "lucide-react";
+import { Calendar, Facebook, Instagram, MessageCircle } from "lucide-react";
 import { VOICE_STYLES } from "@vendefacil/types";
 import { Button, Field, areaClass, inputClass, useToast } from "@/components/ui";
 import { api, ApiClientError } from "@/lib/http";
@@ -109,7 +109,6 @@ export function ArtForm({ products }: { products: Array<{ id: string; name: stri
 export function PublishDesk({
   channels,
   products,
-  storeLink = "",
 }: {
   channels: Array<{ provider: string; status: string; detail: string }>;
   products: Array<{ id: string; name: string }>;
@@ -129,7 +128,6 @@ export function PublishDesk({
     const local = new Date(next.getTime() - next.getTimezoneOffset() * 60_000);
     return local.toISOString().slice(0, 16);
   });
-  const catalogLink = share?.link || storeLink;
   const whenDate = when ? new Date(when) : null;
   const whenLabel =
     whenDate && !Number.isNaN(whenDate.getTime())
@@ -174,34 +172,6 @@ export function PublishDesk({
           </li>
         ))}
       </ul>
-
-      {/* Store link card */}
-      <div className="flex items-center gap-3 rounded-[18px] border border-line bg-surface px-4 py-3.5 shadow-card">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
-          <Link2 size={18} />
-        </span>
-        <span className="min-w-0 flex-1">
-          <strong className="block text-[13px] font-semibold leading-4 text-ink">Link da minha loja</strong>
-          <span className="text-[11px] font-medium text-muted">{catalogLink || "Compartilhe seu catálogo online"}</span>
-        </span>
-        <button
-          type="button"
-          className="grid h-10 w-10 place-items-center rounded-lg border border-line bg-background text-muted"
-          aria-label="Copiar"
-          disabled={!catalogLink}
-          onClick={async () => {
-            if (!catalogLink) return;
-            try {
-              await navigator.clipboard.writeText(catalogLink);
-              toast("Link copiado.");
-            } catch {
-              toast("Não foi possível copiar.", "err");
-            }
-          }}
-        >
-          <Copy size={16} />
-        </button>
-      </div>
 
       {/* Schedule toggle */}
       <div className="flex items-center justify-between rounded-[18px] border border-line bg-surface px-4 py-3.5 shadow-card">

@@ -172,21 +172,36 @@ export default function ProductsScreen() {
                 borderColor: colors.border,
                 borderWidth: 1,
                 borderRadius: 16,
-                padding: 10,
-                marginBottom: 8,
+                padding: 12,
+                marginBottom: 10,
                 flexDirection: "row",
-                gap: 10,
-                alignItems: "flex-start",
+                gap: 12,
+                alignItems: "center",
               }}
             >
-              <View style={{ width: 64, height: 64, borderRadius: 12, overflow: "hidden", backgroundColor: "#F3F4F8" }}>
+              <View style={{ width: 92, height: 92, borderRadius: 16, overflow: "hidden", backgroundColor: "#F3F4F8", borderWidth: 1, borderColor: colors.border }}>
                 {imageUrl ? (
-                  <Image source={{ uri: imageUrl }} style={{ width: "100%", height: "100%" }} />
+                  <Image source={{ uri: imageUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
                 ) : (
                   <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-                    <Ionicons name="cube-outline" size={22} color={colors.textSecondary} />
+                    <Ionicons name="cube-outline" size={26} color={colors.textSecondary} />
                   </View>
                 )}
+                {(item.images?.length || 0) > 1 ? (
+                  <View
+                    style={{
+                      position: "absolute",
+                      right: 6,
+                      bottom: 6,
+                      borderRadius: 999,
+                      backgroundColor: "rgba(23,24,39,0.72)",
+                      paddingHorizontal: 7,
+                      paddingVertical: 3,
+                    }}
+                  >
+                    <Text style={{ color: "#fff", fontSize: 9, fontWeight: "700" }}>{item.images?.length} fotos</Text>
+                  </View>
+                ) : null}
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700" }} numberOfLines={1}>

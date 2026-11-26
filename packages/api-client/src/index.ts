@@ -116,6 +116,8 @@ export function createApiClient(options: {
       }>(`/api/products/${id}`),
     addProductImage: (id: string, assetId: string) =>
       request(`/api/products/${id}/images`, { method: "POST", body: JSON.stringify({ assetId }) }),
+    removeProductImage: (id: string, imageId: string) =>
+      request<{ ok: boolean }>(`/api/products/${id}/images/${imageId}`, { method: "DELETE" }),
     dashboard: () => request("/api/dashboard"),
     orders: () => request("/api/orders"),
     stats: (range = "7d") => request(`/api/stats?range=${range}`),

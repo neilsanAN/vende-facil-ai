@@ -136,6 +136,7 @@ export class CatalogService {
     const asset = await this.db.mediaAsset.findFirst({ where: { id: assetId, organizationId: tenant.organizationId, status: "READY", kind: "IMAGE" } });
     if (!product || !asset) throw new AppError("NOT_FOUND", "Produto ou imagem não encontrado.", 404);
     const position = await this.db.productImage.count({ where: { productId } });
+    if (position >= 30) throw new AppError("LIMIT", "Limite de 30 fotos por produto.", 422);
     await this.db.productImage.create({ data: { organizationId: tenant.organizationId, productId, mediaAssetId: assetId, alt, position } });
     if (product.published) await this.publishAsset(asset.id);
     return this.get(tenant, productId);
