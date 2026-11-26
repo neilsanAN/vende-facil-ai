@@ -390,7 +390,18 @@ async function generateAd(ctx: RouteContext) {
 async function saveAd(ctx: RouteContext) {
   const body = await readJson(ctx.req, adUpdateSchema);
   if (!body.ok) return body.response;
-  return json(await ctx.container.studio.saveAd(requireTenantSession(ctx), { ...body.data, id: ctx.params.id }));
+  const data = body.data;
+  return json(
+    await ctx.container.studio.saveAd(requireTenantSession(ctx), {
+      id: ctx.params.id || undefined,
+      title: data.title,
+      description: data.description,
+      hashtags: data.hashtags,
+      tone: data.tone,
+      status: data.status,
+      productId: data.productId ?? null,
+    }),
+  );
 }
 
 async function artwork(ctx: RouteContext) {
