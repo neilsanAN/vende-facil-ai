@@ -1,6 +1,6 @@
 import type { PrismaClient, PublicationTarget, SocialProvider } from "@prisma/client";
 import { formatBrl } from "@vendefacil/types";
-import { openJson, sealJson } from "@vendefacil/media";
+import { openJson, sealJson, signPayload } from "@vendefacil/media";
 import type { CatalogService } from "./catalog";
 import { AppError } from "./errors";
 import { whatsAppLink } from "./ledger";
@@ -81,15 +81,22 @@ export class PublicationService {
 
   facebookStart(tenant: Tenant, from: "app" | "web" = "web") {
     assertMinRole(tenant.role, "EDITOR");
-    if (!process.env.FACEBOOK_APP_ID) throw new AppError("PROVIDER_NOT_CONFIGURED", "O aplicativo Meta não está configurado.", 503);
-    const state = sealJson({ organizationId: tenant.organizationId, userId: tenant.userId, from, exp: Date.now() + 10 * 60 * 1000 }, this.encryptionKey);
+    if (!process.env.FACEBOOK_APP_ID) {
+      throw new AppError("PROVIDER_NOT_CONFIGURED", "Falta FACEBOOK_APP_ID no Render. Salve a chave e faça redeploy.", 503);
+    }
+    if (!process.env.FACEBOOK_APP_SECRET) {
+      throw new AppError("PROVIDER_NOT_CONFIGURED", "Falta FACEBOOK_APP_SECRET no Render. Salve a chave e faça redeploy.", 503);
+    }
+    const appUrl = this.appUrl.replace(/\/$/, "");
+    const redirectUri = `${appUrl}/api/integrations/facebook/callback`;
+    const state = sealJson({ organizationId: tenant.organizationId, userId: tenant.userId, from, exp: Date.now() + 15 * 60 * 1000 }, this.encryptionKey);
     const url = new URL("https://www.facebook.com/v21.0/dialog/oauth");
     url.searchParams.set("client_id", process.env.FACEBOOK_APP_ID);
-    url.searchParams.set("redirect_uri", `${this.appUrl}/api/integrations/facebook/callback`);
+    url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("state", state);
     url.searchParams.set("scope", META_SCOPES.join(","));
     url.searchParams.set("response_type", "code");
-    url.searchParams.set("auth_type", "rerequest");
+    // Sem auth_type=rerequest: evita erro em apps ainda em desenvolvimento.
     return url.toString();
   }
 
@@ -110,7 +117,7 @@ export class PublicationService {
     const tokenUrl = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
     tokenUrl.searchParams.set("client_id", process.env.FACEBOOK_APP_ID);
     tokenUrl.searchParams.set("client_secret", process.env.FACEBOOK_APP_SECRET);
-    tokenUrl.searchParams.set("redirect_uri", `${this.appUrl}/api/integrations/facebook/callback`);
+    tokenUrl.searchParams.set("redirect_uri", `${this.appUrl.replace(/\/$/, "")}/api/integrations/facebook/callback`);
     tokenUrl.searchParams.set("code", code);
     const tokenResponse = await fetch(tokenUrl);
     const tokenPayload = (await tokenResponse.json()) as { access_token?: string; error?: { message?: string } };
@@ -558,7 +565,10 @@ export class PublicationService {
     const imageUrls: string[] = [];
     for (const assetId of imageAssetIds.slice(0, 30)) {
       if (this.catalog) await this.catalog.publishAsset(assetId).catch(() => undefined);
-      imageUrls.push(`${this.appUrl}/api/media/${assetId}`);
+      // URL assinada: o celular baixa a foto sem Bearer (Image/WhatsApp).
+      const exp = String(Date.now() + 6 * 60 * 60 * 1000);
+      const sig = signPayload(`${assetId}.${exp}`, this.encryptionKey);
+      imageUrls.push(`${this.appUrl}/api/media/${assetId}?exp=${exp}&sig=${encodeURIComponent(sig)}`);
     }
 
     return { caption, link: productLink, imageUrl: imageUrls[0] || null, imageUrls, productName, autoCaption };

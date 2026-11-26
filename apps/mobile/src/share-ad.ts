@@ -20,41 +20,85 @@ function hasNative(name: string) {
   }
 }
 
+function toBase64(bytes: Uint8Array) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 3) {
+    const a = bytes[i] ?? 0;
+    const b = bytes[i + 1];
+    const c = bytes[i + 2];
+    out += chars[a >> 2];
+    out += chars[((a & 3) << 4) | ((b ?? 0) >> 4)];
+    out += b === undefined ? "=" : chars[((b & 15) << 2) | ((c ?? 0) >> 6)];
+    out += c === undefined ? "=" : chars[c & 63];
+  }
+  return out;
+}
+
 async function copyCaption(caption: string) {
-  if (!caption || !hasNative("ExpoClipboard")) return false;
+  if (!caption) return false;
   try {
-    const Clipboard = await import("expo-clipboard");
-    await Clipboard.setStringAsync(caption);
-    return true;
+    if (hasNative("ExpoClipboard")) {
+      const Clipboard = await import("expo-clipboard");
+      await Clipboard.setStringAsync(caption);
+      return true;
+    }
   } catch {
-    return false;
+    // ignore
+  }
+  return false;
+}
+
+async function getFileSystem() {
+  try {
+    return await import("expo-file-system");
+  } catch {
+    return null;
   }
 }
 
-/** Baixa as fotos para o cache local. Nunca derruba a tela se o módulo nativo faltar. */
-async function downloadAll(uris: string[]): Promise<string[]> {
-  const local: string[] = [];
-  let FileSystem: typeof import("expo-file-system") | null = null;
-  try {
-    FileSystem = await import("expo-file-system");
-  } catch {
-    FileSystem = null;
-  }
+/** Baixa http(s) com fetch (segue redirect do R2) e grava no cache. */
+async function downloadOne(uri: string, index: number): Promise<string | null> {
+  if (uri.startsWith("file://") || uri.startsWith("content://")) return uri;
+  if (!/^https?:\/\//.test(uri)) return null;
+
+  const FileSystem = await getFileSystem();
+  if (!FileSystem?.cacheDirectory) return null;
+
   const token = await getItem("vf_access").catch(() => null);
-  for (const [index, uri] of uris.entries()) {
-    if (uri.startsWith("file://") || uri.startsWith("content://")) {
-      local.push(uri);
-      continue;
-    }
-    if (!/^https?:\/\//.test(uri) || !FileSystem?.cacheDirectory || typeof FileSystem.downloadAsync !== "function") continue;
+  const dest = `${FileSystem.cacheDirectory}anuncio-share-${Date.now()}-${index + 1}.jpg`;
+
+  try {
+    const response = await fetch(uri, {
+      headers: token ? { authorization: `Bearer ${token}` } : undefined,
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (!bytes.byteLength) throw new Error("empty");
+    const Encoding = (FileSystem as { EncodingType?: { Base64: string } }).EncodingType;
+    await FileSystem.writeAsStringAsync(dest, toBase64(bytes), {
+      encoding: (Encoding?.Base64 || "base64") as "base64",
+    });
+    return dest;
+  } catch {
+    // Fallback clássico do SDK 53
     try {
-      const dest = `${FileSystem.cacheDirectory}anuncio-${Date.now()}-${index + 1}.jpg`;
-      const result = await FileSystem.downloadAsync(uri, dest, token ? { headers: { authorization: `Bearer ${token}` } } : undefined);
-      if (result?.status && result.status >= 400) continue;
-      if (result?.uri) local.push(result.uri);
+      if (typeof FileSystem.downloadAsync === "function") {
+        const result = await FileSystem.downloadAsync(uri, dest, token ? { headers: { authorization: `Bearer ${token}` } } : undefined);
+        if (result?.uri && (!result.status || result.status < 400)) return result.uri;
+      }
     } catch {
-      // segue com as demais fotos
+      // ignore
     }
+  }
+  return null;
+}
+
+async function downloadAll(uris: string[]) {
+  const local: string[] = [];
+  for (const [index, uri] of uris.entries()) {
+    const file = await downloadOne(uri, index);
+    if (file) local.push(file);
   }
   return local;
 }
@@ -65,48 +109,75 @@ async function shareWithRNShare(channel: "WHATSAPP" | "INSTAGRAM" | "FACEBOOK", 
   if (!hasNative("RNShare")) return false;
   try {
     const RNShare = (await import("react-native-share")).default;
-    const common = {
+    const options = {
       urls: files,
-      type: "image/jpeg",
+      url: files[0],
+      type: files.length > 1 ? "image/*" : "image/jpeg",
       message: caption,
+      title: "Anúncio VendeFácil",
       failOnCancel: false,
+      filename: "anuncio",
     };
     if (channel === "WHATSAPP") {
       try {
-        await RNShare.shareSingle({ ...common, social: RNShare.Social.WHATSAPP } as never);
+        await RNShare.shareSingle({ ...options, social: RNShare.Social.WHATSAPP, whatsAppNumber: undefined } as never);
         return true;
       } catch {
         try {
-          await RNShare.shareSingle({ ...common, social: RNShare.Social.WHATSAPPBUSINESS } as never);
+          await RNShare.shareSingle({ ...options, social: RNShare.Social.WHATSAPPBUSINESS } as never);
           return true;
         } catch {
-          // WhatsApp não encontrado direto: abre a folha de compartilhar.
+          // abre a folha geral
         }
       }
     }
-    await RNShare.open({ ...common, title: "Enviar anúncio" } as never);
+    await RNShare.open(options as never);
     return true;
   } catch {
     return false;
   }
 }
 
-async function shareFirstImageFallback(file: string, caption: string) {
-  if (!hasNative("ExpoSharing")) return false;
+async function shareViaExpoSharing(files: string[], caption: string) {
+  if (!hasNative("ExpoSharing") || !files[0]) return false;
   try {
     const Sharing = await import("expo-sharing");
     if (!(await Sharing.isAvailableAsync())) return false;
-    await Sharing.shareAsync(file, { mimeType: "image/jpeg", dialogTitle: "Enviar anúncio" });
-    if (caption) await Share.share({ message: caption }).catch(() => undefined);
+    // Uma foto por vez — no Android o WhatsApp recebe a imagem; o texto já está na área de transferência.
+    await Sharing.shareAsync(files[0], { mimeType: "image/jpeg", dialogTitle: "Enviar anúncio no WhatsApp" });
+    if (caption && files.length === 1) {
+      // Reforça o texto depois, se o usuário cancelar o share de texto tudo bem.
+      await Share.share({ message: caption }).catch(() => undefined);
+    }
     return true;
   } catch {
     return false;
   }
 }
 
+async function openWhatsAppText(whatsappUrl: string | null | undefined, caption: string) {
+  const targets = [
+    whatsappUrl,
+    caption ? `https://wa.me/?text=${encodeURIComponent(caption)}` : null,
+    caption ? `whatsapp://send?text=${encodeURIComponent(caption)}` : null,
+  ].filter((item): item is string => Boolean(item));
+
+  for (const url of targets) {
+    try {
+      if (await Linking.canOpenURL(url)) {
+        await Linking.openURL(url);
+        return true;
+      }
+    } catch {
+      // tenta o próximo
+    }
+  }
+  return false;
+}
+
 /**
- * Compartilha o anúncio exatamente como foi criado: todas as fotos + título, descrição e hashtags.
- * O texto também vai para a área de transferência (se o app de destino ignorar a legenda, é só colar).
+ * Compartilha o anúncio exatamente como foi criado: fotos + título/descrição/hashtags.
+ * O texto também vai para a área de transferência.
  */
 export async function shareAdToChannel(options: {
   channel: "WHATSAPP" | "INSTAGRAM" | "FACEBOOK";
@@ -116,15 +187,15 @@ export async function shareAdToChannel(options: {
 }): Promise<ShareResult> {
   const caption = stripLinks(options.caption || "");
   const captionCopied = await copyCaption(caption);
-  const uris = [...new Set((options.imageUris || []).filter((item): item is string => Boolean(item)))];
+  const uris = [...new Set((options.imageUris || []).map((item) => item?.trim()).filter((item): item is string => Boolean(item)))];
   const files = uris.length ? await downloadAll(uris) : [];
 
   if (files.length && (await shareWithRNShare(options.channel, files, caption))) {
     return { images: files.length, captionCopied };
   }
 
-  if (files[0] && (await shareFirstImageFallback(files[0], caption))) {
-    return { images: 1, captionCopied };
+  if (files.length && (await shareViaExpoSharing(files, caption))) {
+    return { images: files.length, captionCopied };
   }
 
   if (files[0] && Platform.OS === "ios") {
@@ -136,17 +207,12 @@ export async function shareAdToChannel(options: {
     }
   }
 
-  if (options.channel === "WHATSAPP" && options.whatsappUrl) {
-    try {
-      if (await Linking.canOpenURL(options.whatsappUrl)) {
-        await Linking.openURL(options.whatsappUrl);
-        return { images: 0, captionCopied };
-      }
-    } catch {
-      // segue
+  if (options.channel === "WHATSAPP") {
+    if (await openWhatsAppText(options.whatsappUrl, caption)) {
+      return { images: files.length, captionCopied };
     }
   }
 
   if (caption) await Share.share({ message: caption });
-  return { images: 0, captionCopied };
+  return { images: files.length, captionCopied };
 }

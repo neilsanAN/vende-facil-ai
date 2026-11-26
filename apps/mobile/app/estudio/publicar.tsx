@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AppState, Image, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { AppState, Image, Linking, Modal, Pressable, ScrollView, Share, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
@@ -102,9 +102,18 @@ export default function PublishScreen() {
       .then(async ([rows, pubs]) => {
         const withCovers: Ad[] = await Promise.all(
           rows.map(async (row) => {
-            const local = mediaUrl((await getItem(`ad_cover_${row.id}`)) || null);
+            let localImages: string[] = [];
+            try {
+              const raw = await getItem(`ad_images_${row.id}`);
+              if (raw) localImages = (JSON.parse(raw) as string[]).filter(Boolean);
+            } catch {
+              localImages = [];
+            }
+            const coverLocal = (await getItem(`ad_cover_${row.id}`)) || null;
+            if (!localImages.length && coverLocal) localImages = [coverLocal];
             const server = (row.imageUrls || []).map((url) => mediaUrl(url)).filter((url): url is string => Boolean(url));
-            const list = server.length ? server : local ? [local] : [];
+            // Preferência: fotos locais (compartilha no WhatsApp sem baixar) → servidor.
+            const list = localImages.length ? localImages : server;
             return {
               id: row.id,
               title: row.title,
@@ -153,13 +162,24 @@ export default function PublishScreen() {
       setError(false);
       setMessage("Abrindo autorização Meta…");
       const result = await api.connectMeta("app");
+      if (!result?.url) throw new Error("A API não devolveu a URL da Meta.");
       waitingMeta.current = true;
-      await Linking.openURL(result.url);
-      setMessage("Autorize sua Página e o Instagram na Meta. Ao voltar, a conexão atualiza sozinha.");
+      const opened = await Linking.openURL(result.url);
+      if (opened === false) {
+        setError(true);
+        setMessage("Não deu para abrir o navegador. Abra o link da Meta manualmente e autorize.");
+        return;
+      }
+      setMessage("Na Meta: marque sua Página e o Instagram e toque em Permitir. Se aparecer “app inativo”, o app ainda está em modo desenvolvimento.");
     } catch (cause) {
       if (handleTenantError(cause)) return;
       setError(true);
-      setMessage(cause instanceof ApiClientError ? cause.message : "Não foi possível conectar. Confira as chaves no Render e se o app Meta está ativo.");
+      const text = cause instanceof ApiClientError ? cause.message : cause instanceof Error ? cause.message : "Não foi possível conectar.";
+      setMessage(
+        text.includes("inativo") || text.toLowerCase().includes("inactive")
+          ? "App Meta inativo: em developers.facebook.com coloque o app em modo Ao vivo (ou adicione sua conta como Testadora)."
+          : text,
+      );
     } finally {
       setBusy(false);
     }
@@ -216,11 +236,15 @@ export default function PublishScreen() {
           confirmManual: !connected,
         });
 
-        const shareImages = result.share?.imageUrls?.length
-          ? result.share.imageUrls
-          : images.length
-            ? images
-            : [result.share?.imageUrl || coverUrl];
+        // Locais primeiro (file://), depois URLs assinadas do servidor.
+        const shareImages = [
+          ...images,
+          ...(result.share?.imageUrls || []),
+          result.share?.imageUrl,
+          coverUrl,
+        ].filter((item): item is string => Boolean(item));
+        const uniqueImages = [...new Set(shareImages)];
+        const shareCaption = (result.share?.caption || finalCaption).trim() || finalCaption;
 
         if (channel === "WHATSAPP") {
           lastWhatsapp = result.share?.whatsappUrl || null;
@@ -228,22 +252,19 @@ export default function PublishScreen() {
             try {
               const shared = await shareAdToChannel({
                 channel: "WHATSAPP",
-                caption: result.share?.caption || finalCaption,
-                imageUris: shareImages,
+                caption: shareCaption,
+                imageUris: uniqueImages,
                 whatsappUrl: result.share?.whatsappUrl,
               });
               notes.push(
-                shared.images > 1
-                  ? `WhatsApp: anúncio com ${shared.images} fotos e texto.`
-                  : shared.images === 1
-                    ? "WhatsApp: anúncio com foto e texto."
-                    : "WhatsApp: texto do anúncio enviado.",
+                shared.images > 0
+                  ? `WhatsApp: ${shared.images} foto(s) do anúncio + texto.`
+                  : "WhatsApp: texto do anúncio enviado (sem foto anexada).",
               );
-              if (shared.captionCopied) notes.push("O texto também foi copiado — se não aparecer na foto, é só colar.");
+              if (shared.captionCopied) notes.push("Texto copiado — se a legenda não aparecer, cole no WhatsApp.");
             } catch {
-              if (lastWhatsapp) {
-                await Linking.openURL(lastWhatsapp).catch(() => undefined);
-              }
+              if (lastWhatsapp) await Linking.openURL(lastWhatsapp).catch(() => undefined);
+              else await Share.share({ message: shareCaption }).catch(() => undefined);
               notes.push("WhatsApp aberto com o texto do anúncio.");
             }
           } else {
@@ -255,8 +276,8 @@ export default function PublishScreen() {
           try {
             await shareAdToChannel({
               channel,
-              caption: result.share?.caption || finalCaption,
-              imageUris: shareImages,
+              caption: shareCaption,
+              imageUris: uniqueImages,
             });
             notes.push(channel === "FACEBOOK" ? "Anúncio pronto no Facebook." : "Anúncio pronto no Instagram.");
           } catch {

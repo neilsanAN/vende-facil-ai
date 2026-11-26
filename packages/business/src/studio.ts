@@ -125,6 +125,7 @@ export class StudioService {
         },
       });
       await audit(this.db, { organizationId: tenant.organizationId, actorUserId: tenant.userId, action: "ad.regenerated", entityType: "Advertisement", entityId: existing.id });
+      for (const assetId of input.assetIds) await this.catalog.publishAsset(assetId).catch(() => undefined);
       return this.presentAd(existing.id, tenant.organizationId);
     }
 
@@ -150,6 +151,7 @@ export class StudioService {
       },
     });
     await audit(this.db, { organizationId: tenant.organizationId, actorUserId: tenant.userId, action: "ad.generated", entityType: "Advertisement", entityId: ad.id });
+    for (const assetId of input.assetIds) await this.catalog.publishAsset(assetId).catch(() => undefined);
     return this.presentAd(ad.id, tenant.organizationId);
   }
 
@@ -157,7 +159,10 @@ export class StudioService {
     assertMinRole(tenant.role, "EDITOR");
     const hashtags = normalizeHashtags(input.hashtags);
     if (input.imageAssetIds?.length) {
-      for (const assetId of input.imageAssetIds) await this.ownedImage(tenant.organizationId, assetId);
+      for (const assetId of input.imageAssetIds) {
+        await this.ownedImage(tenant.organizationId, assetId);
+        await this.catalog.publishAsset(assetId).catch(() => undefined);
+      }
     }
     if (input.id) {
       const current = await this.db.advertisement.findFirst({ where: { id: input.id, organizationId: tenant.organizationId } });
@@ -213,6 +218,7 @@ export class StudioService {
       product: row.product?.name ?? null,
       imageAssetIds: row.imageAssetIds,
       imageUrls: row.imageAssetIds.map((assetId) => `/api/media/${assetId}`),
+      coverUrl: row.imageAssetIds[0] ? `/api/media/${row.imageAssetIds[0]}` : null,
       updatedAt: row.updatedAt,
     }));
   }

@@ -292,7 +292,10 @@ export default function AdScreen() {
         await api.archiveAd(workingId).catch(() => undefined);
       }
       sessionDraftId.current = null;
-      if (ids[0]) await setItem(`ad_cover_${created.id}`, `${apiBase}/api/media/${ids[0]}`);
+      const localUris = photos.map((photo) => photo.uri).filter(Boolean);
+      if (localUris.length) await setItem(`ad_images_${created.id}`, JSON.stringify(localUris));
+      if (localUris[0]) await setItem(`ad_cover_${created.id}`, localUris[0]);
+      else if (ids[0]) await setItem(`ad_cover_${created.id}`, `${apiBase}/api/media/${ids[0]}`);
       setDraft({
         ...created,
         hashtags: normalizeHashtags(created.hashtags, created.title),
@@ -333,7 +336,10 @@ export default function AdScreen() {
           status: "DRAFT",
           ...(assetIds.length ? { imageAssetIds: assetIds } : {}),
         });
-        if (assetIds[0]) await setItem(`ad_cover_${draft.id}`, `${apiBase}/api/media/${assetIds[0]}`);
+        const localUris = photos.map((photo) => photo.uri).filter(Boolean);
+        if (localUris.length) await setItem(`ad_images_${draft.id}`, JSON.stringify(localUris));
+        if (localUris[0]) await setItem(`ad_cover_${draft.id}`, localUris[0]);
+        else if (assetIds[0]) await setItem(`ad_cover_${draft.id}`, `${apiBase}/api/media/${assetIds[0]}`);
         else if (coverUri) await setItem(`ad_cover_${draft.id}`, coverUri);
       });
       feedback.showToast("Anúncio salvo.", "success");
