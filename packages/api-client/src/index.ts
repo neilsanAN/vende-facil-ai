@@ -297,8 +297,9 @@ export function createApiClient(options: {
     publications: () =>
       request<{
         items: unknown[];
-        channels: Array<{ provider: string; status: string; detail: string }>;
+        channels: Array<{ provider: string; status: string; detail: string; connectUrl?: string | null }>;
       }>("/api/publications"),
+    connectMeta: () => request<{ url: string }>("/api/integrations/facebook/start"),
     publish: (body: {
       channel: "WHATSAPP" | "INSTAGRAM" | "FACEBOOK";
       targetType: "PRODUCT" | "ADVERTISEMENT" | "VIDEO" | "CATALOG";
@@ -307,7 +308,15 @@ export function createApiClient(options: {
       scheduledAt?: string | null;
       confirmManual?: boolean;
     }) =>
-      request<{ share: { whatsappUrl?: string; link?: string; caption?: string } | null }>("/api/publications", {
+      request<{
+        share: {
+          whatsappUrl?: string;
+          link?: string;
+          caption?: string;
+          imageUrl?: string | null;
+          productName?: string | null;
+        } | null;
+      }>("/api/publications", {
         method: "POST",
         body: JSON.stringify({ ...body, confirmManual: body.confirmManual ?? true }),
       }),

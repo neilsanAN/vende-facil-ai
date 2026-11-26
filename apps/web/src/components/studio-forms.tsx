@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Calendar, Facebook, Instagram, MessageCircle } from "lucide-react";
 import { VOICE_STYLES } from "@vendefacil/types";
 import { Button, Field, areaClass, inputClass, useToast } from "@/components/ui";
@@ -106,20 +106,23 @@ export function ArtForm({ products }: { products: Array<{ id: string; name: stri
   );
 }
 
+type ChannelInfo = { provider: string; status: string; detail: string; connectUrl?: string | null };
+
 export function PublishDesk({
-  channels,
+  channels: initialChannels,
   products,
 }: {
-  channels: Array<{ provider: string; status: string; detail: string }>;
+  channels: ChannelInfo[];
   products: Array<{ id: string; name: string }>;
   storeLink?: string;
 }) {
   const toast = useToast();
+  const [channels, setChannels] = useState(initialChannels);
   const [share, setShare] = useState<{ whatsappUrl?: string; link?: string; caption?: string } | null>(null);
   const [enabled, setEnabled] = useState({
     WHATSAPP: true,
-    INSTAGRAM: channels.find((item) => item.provider === "INSTAGRAM")?.status !== "REQUIRES_AUTH",
-    FACEBOOK: channels.find((item) => item.provider === "FACEBOOK")?.status === "CONNECTED",
+    INSTAGRAM: false,
+    FACEBOOK: false,
   });
   const [schedule, setSchedule] = useState(false);
   const [when, setWhen] = useState(() => {
@@ -142,38 +145,69 @@ export function PublishDesk({
         })
       : null;
 
+  const channelMap = useMemo(() => new Map(channels.map((item) => [item.provider, item])), [channels]);
+
   const socials = [
-    { key: "WHATSAPP" as const, label: "WhatsApp", Icon: MessageCircle, iconClass: "text-emerald-600 bg-emerald-50", detail: "Compartilhar no WhatsApp" },
-    { key: "INSTAGRAM" as const, label: "Instagram", Icon: Instagram, iconClass: "text-pink-600 bg-pink-50", detail: "Publicar no Instagram (Feed ou Stories)" },
-    { key: "FACEBOOK" as const, label: "Facebook", Icon: Facebook, iconClass: "text-blue-600 bg-blue-50", detail: "Publicar no Facebook (Página)" },
+    { key: "WHATSAPP" as const, label: "WhatsApp", Icon: MessageCircle, iconClass: "text-emerald-600 bg-emerald-50", detail: "Produto completo no WhatsApp" },
+    { key: "INSTAGRAM" as const, label: "Instagram", Icon: Instagram, iconClass: "text-pink-600 bg-pink-50", detail: "Publicar direto após autorizar" },
+    { key: "FACEBOOK" as const, label: "Facebook", Icon: Facebook, iconClass: "text-blue-600 bg-blue-50", detail: "Publicar direto na Página" },
   ];
+
+  async function refreshChannels() {
+    const result = await api<{ channels: ChannelInfo[] }>("/api/publications");
+    setChannels(result.channels);
+  }
+
+  async function connectMeta() {
+    try {
+      const result = await api<{ url: string }>("/api/integrations/facebook/start");
+      window.location.href = result.url;
+    } catch (cause) {
+      toast(cause instanceof ApiClientError ? cause.message : "Não foi possível conectar o Meta.", "err");
+    }
+  }
 
   return (
     <div className="space-y-4">
-      {/* Social toggle cards */}
       <ul className="space-y-2.5">
-        {socials.map((item) => (
-          <li key={item.key} className="flex items-center gap-3 rounded-[18px] border border-line bg-surface px-4 py-3.5 shadow-card">
-            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${item.iconClass}`}>
-              <item.Icon size={18} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <strong className="block text-[13px] font-semibold leading-4 text-ink">{item.label}</strong>
-              {item.detail ? <span className="text-[11px] font-medium text-muted">{item.detail}</span> : null}
-            </span>
-            <button
-              type="button"
-              className={`relative h-7 w-12 shrink-0 rounded-full transition ${enabled[item.key] ? "bg-primary" : "bg-[#E0E3EA]"}`}
-              onClick={() => setEnabled((current) => ({ ...current, [item.key]: !current[item.key] }))}
-              aria-label={`Alternar ${item.label}`}
-            >
-              <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-card transition ${enabled[item.key] ? "left-[22px]" : "left-0.5"}`} />
-            </button>
-          </li>
-        ))}
+        {socials.map((item) => {
+          const info = channelMap.get(item.key);
+          const connected = item.key === "WHATSAPP" || info?.status === "CONNECTED";
+          const needsConnect = item.key !== "WHATSAPP" && !connected;
+          return (
+            <li key={item.key} className="flex items-center gap-3 rounded-[18px] border border-line bg-surface px-4 py-3.5 shadow-card">
+              <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${item.iconClass}`}>
+                <item.Icon size={18} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <strong className="block text-[13px] font-semibold leading-4 text-ink">{item.label}</strong>
+                <span className="text-[11px] font-medium text-muted">{info?.detail || item.detail}</span>
+              </span>
+              {needsConnect ? (
+                <button type="button" className="h-8 rounded-full bg-primary px-3 text-[11px] font-bold text-white" onClick={() => void connectMeta()}>
+                  Conectar
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={`relative h-7 w-12 shrink-0 rounded-full transition ${enabled[item.key] ? "bg-primary" : "bg-[#E0E3EA]"}`}
+                  onClick={() => setEnabled((current) => ({ ...current, [item.key]: !current[item.key] }))}
+                  aria-label={`Alternar ${item.label}`}
+                >
+                  <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-card transition ${enabled[item.key] ? "left-[22px]" : "left-0.5"}`} />
+                </button>
+              )}
+            </li>
+          );
+        })}
       </ul>
 
-      {/* Schedule toggle */}
+      {channels.some((item) => item.provider !== "WHATSAPP" && item.status !== "CONNECTED") ? (
+        <button type="button" className="mx-auto block text-[12px] font-semibold text-primary" onClick={() => void refreshChannels()}>
+          Atualizar conexão
+        </button>
+      ) : null}
+
       <div className="flex items-center justify-between rounded-[18px] border border-line bg-surface px-4 py-3.5 shadow-card">
         <span className="flex items-center gap-3">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-background text-primary">
@@ -213,9 +247,13 @@ export function PublishDesk({
         onSubmit={async (event) => {
           event.preventDefault();
           const data = new FormData(event.currentTarget);
-          const channel = String(data.get("channel") || "WHATSAPP");
-          if (!enabled[channel as keyof typeof enabled]) {
+          const channel = String(data.get("channel") || "WHATSAPP") as "WHATSAPP" | "INSTAGRAM" | "FACEBOOK";
+          if (!enabled[channel]) {
             toast("Ative o canal antes de publicar.", "err");
+            return;
+          }
+          if (channel !== "WHATSAPP" && channelMap.get(channel)?.status !== "CONNECTED") {
+            toast("Conecte a conta Meta antes de publicar.", "err");
             return;
           }
           if (schedule && !when) {
@@ -235,14 +273,19 @@ export function PublishDesk({
               }),
             });
             setShare(result.share);
-            toast(schedule && whenLabel ? `Publicação agendada para ${whenLabel}.` : "Publicação registrada com o estado real do canal.");
+            if (channel === "WHATSAPP" && result.share?.whatsappUrl) {
+              window.open(result.share.whatsappUrl, "_blank", "noopener,noreferrer");
+              toast("WhatsApp aberto com o produto completo.");
+            } else {
+              toast(schedule && whenLabel ? `Publicação agendada para ${whenLabel}.` : "Publicação enviada.");
+            }
           } catch (cause) {
             toast(cause instanceof ApiClientError ? cause.message : "Não foi possível publicar.", "err");
           }
         }}
       >
         <input type="hidden" name="channel" value={Object.entries(enabled).find(([, v]) => v)?.[0] || "WHATSAPP"} />
-        <details className="rounded-[18px] border border-line bg-surface px-4 py-3 shadow-card">
+        <details className="rounded-[18px] border border-line bg-surface px-4 py-3 shadow-card" open>
           <summary className="cursor-pointer text-[12px] font-semibold text-ink">Produto e legenda</summary>
           <div className="mt-3 space-y-3">
             <Field label="Produto" section>
@@ -255,7 +298,7 @@ export function PublishDesk({
               </select>
             </Field>
             <Field label="Legenda" section>
-              <textarea name="caption" className={areaClass} placeholder="Escreva algo para compartilhar..." />
+              <textarea name="caption" className={areaClass} placeholder="Deixe em branco para usar nome, preço e descrição do produto." />
             </Field>
           </div>
         </details>
@@ -266,7 +309,7 @@ export function PublishDesk({
 
       {share?.whatsappUrl ? (
         <a className="block text-center text-[12px] font-semibold text-primary" href={share.whatsappUrl} target="_blank" rel="noreferrer">
-          Abrir WhatsApp
+          Abrir WhatsApp de novo
         </a>
       ) : null}
     </div>

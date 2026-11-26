@@ -47,7 +47,7 @@ export function createContainer() {
   const studio = new StudioService(db, ai, storage, tenants, catalog, billing);
   const videos = new VideoService(db, ai, storage, billing);
   const commerce = new CommerceService(db);
-  const publications = new PublicationService(db, tenants, config.ENCRYPTION_KEY, config.APP_URL);
+  const publications = new PublicationService(db, tenants, config.ENCRYPTION_KEY, config.APP_URL, catalog);
   const account = new AccountService(db, storage);
   const admin = new AdminService(db);
   return { db, storage, ai, config, auth, tenants, catalog, media, studio, videos, commerce, billing, publications, account, admin };
