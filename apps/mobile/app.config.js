@@ -15,11 +15,13 @@ module.exports = {
     owner: process.env.EXPO_OWNER || "neilsan",
     version: "0.1.0",
     orientation: "portrait",
+    icon: "./assets/icon.png",
     userInterfaceStyle: "dark",
     newArchEnabled: true,
     web: {
       bundler: "metro",
       output: "single",
+      favicon: "./assets/favicon.png",
     },
     ios: {
       supportsTablet: false,
@@ -32,6 +34,12 @@ module.exports = {
     android: {
       package: "ai.vendefacil.app",
       versionCode: 1,
+      adaptiveIcon: {
+        foregroundImage: "./assets/adaptive-icon.png",
+        backgroundImage: "./assets/adaptive-icon-background.png",
+        monochromeImage: "./assets/adaptive-icon-monochrome.png",
+        backgroundColor: "#7C5CFF",
+      },
       softwareKeyboardLayoutMode: "resize",
       permissions: ["CAMERA"],
       blockedPermissions: [
@@ -63,6 +71,15 @@ module.exports = {
       "expo-router",
       "expo-secure-store",
       "expo-updates",
+      [
+        "expo-splash-screen",
+        {
+          image: "./assets/splash-icon.png",
+          imageWidth: 160,
+          resizeMode: "contain",
+          backgroundColor: "#070617",
+        },
+      ],
       [
         "react-native-share",
         {
