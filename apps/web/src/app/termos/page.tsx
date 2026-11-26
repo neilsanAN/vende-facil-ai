@@ -1,12 +1,8 @@
-import Link from "next/link";
-
 export default function TermsPage() {
   return (
     <article className="mx-auto max-w-2xl px-4 py-10 text-sm leading-6">
-      <Link href="/cadastro" className="text-[12px] font-semibold text-primary">
-        ← Voltar
-      </Link>
-      <h1 className="mt-4 text-2xl font-semibold">Termos de uso</h1>
+      <p className="text-[12px] font-semibold text-primary">VendeFácil AI</p>
+      <h1 className="mt-2 text-2xl font-semibold">Termos de uso</h1>
       <p className="mt-4">
         A VendeFacil AI é uma ferramenta para o vendedor criar cadastro, anúncios, artes e vídeos da própria loja. O vendedor é responsável pelo conteúdo que publica, pelos direitos das imagens, das músicas e pelas informações comerciais que confirma.
       </p>

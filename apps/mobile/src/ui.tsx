@@ -22,6 +22,8 @@ export function Field({
   placeholder,
   keyboardType,
   editable = true,
+  secureTextEntry,
+  autoCapitalize,
 }: {
   label: string;
   value: string;
@@ -30,6 +32,8 @@ export function Field({
   placeholder?: string;
   keyboardType?: TextInputProps["keyboardType"];
   editable?: boolean;
+  secureTextEntry?: boolean;
+  autoCapitalize?: TextInputProps["autoCapitalize"];
 }) {
   return (
     <View
@@ -53,6 +57,8 @@ export function Field({
         placeholderTextColor="#9A96AB"
         keyboardType={keyboardType}
         editable={editable}
+        secureTextEntry={secureTextEntry}
+        autoCapitalize={autoCapitalize}
         textAlignVertical={multiline ? "top" : "center"}
         scrollEnabled={multiline}
         style={{

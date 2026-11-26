@@ -77,6 +77,10 @@ export default function MoreScreen() {
         <Ionicons name="chevron-forward" size={16} color="#FECACA" />
       </Pressable>
 
+      <Pressable onPress={() => router.push("/conta/excluir")} style={{ marginTop: 14, alignItems: "center", paddingVertical: 8 }}>
+        <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, fontWeight: "600" }}>Excluir minha conta</Text>
+      </Pressable>
+
       <ConfirmSheet
         open={confirmLogout}
         title="Sair da conta?"

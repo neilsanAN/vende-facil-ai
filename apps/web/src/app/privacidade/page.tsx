@@ -3,10 +3,8 @@ import Link from "next/link";
 export default function PrivacyPage() {
   return (
     <article className="mx-auto max-w-2xl px-4 py-10 text-sm leading-6">
-      <Link href="/cadastro" className="text-[12px] font-semibold text-primary">
-        ← Voltar
-      </Link>
-      <h1 className="mt-4 text-2xl font-semibold">Política de privacidade</h1>
+      <p className="text-[12px] font-semibold text-primary">VendeFácil AI</p>
+      <h1 className="mt-2 text-2xl font-semibold">Política de privacidade</h1>
       <p className="mt-4">
         A VendeFacil AI trata dados de conta, loja, produtos, pedidos, contatos e registros de uso para prestar o serviço. A base inclui execução de contrato e legítimo interesse de segurança.
       </p>
@@ -20,7 +18,11 @@ export default function PrivacyPage() {
         Conteúdo enviado à IA sai apenas quando um provedor está configurado, limitado aos fatos confirmados e à imagem necessária. Chaves de provedores e tokens de redes não são gravados em log.
       </p>
       <p className="mt-3">
-        Você pode exportar os dados da conta e pedir exclusão. A exclusão despublica a loja quando você é o único membro, apaga os arquivos e anonimiza o usuário. Pedidos já registrados podem permanecer pelo prazo necessário a obrigações legais, sem o e-mail da conta excluída.
+        Você pode pedir a exclusão da conta no app (Mais → Excluir minha conta). A exclusão despublica a loja quando você é o único membro, apaga os arquivos, remove as conexões com Facebook e Instagram e anonimiza o usuário. Pedidos já registrados podem permanecer pelo prazo necessário a obrigações legais, sem o e-mail da conta excluída. Veja o passo a passo em{" "}
+        <Link href="/exclusao-de-dados" className="text-primary">
+          Exclusão de dados
+        </Link>
+        .
       </p>
       <p className="mt-3">Este texto deve ser revisado por assessoria jurídica, inclusive quanto à LGPD, antes da operação com clientes.</p>
     </article>

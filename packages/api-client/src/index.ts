@@ -302,6 +302,8 @@ export function createApiClient(options: {
         items: unknown[];
         channels: Array<{ provider: string; status: string; detail: string; connectUrl?: string | null }>;
       }>("/api/publications"),
+    deleteAccount: (body: { email: string; password: string }) =>
+      request<{ ok: boolean }>("/api/account/delete", { method: "POST", body: JSON.stringify(body) }),
     connectMeta: (from: "app" | "web" = "web") => request<{ url: string }>(`/api/integrations/facebook/start?from=${from}`),
     publish: (body: {
       channel: "WHATSAPP" | "INSTAGRAM" | "FACEBOOK";
