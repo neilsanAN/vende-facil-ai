@@ -65,6 +65,7 @@ export class AccountService {
           if (asset.publicObjectKey) await this.storage.deleteObject("public", asset.publicObjectKey).catch(() => undefined);
         }
         await this.db.mediaAsset.updateMany({ where: { organizationId: membership.organizationId }, data: { status: "DELETED", publicObjectKey: null } });
+        await this.db.socialConnection.deleteMany({ where: { organizationId: membership.organizationId } });
       } else {
         await this.db.organizationMember.delete({ where: { id: membership.id } });
       }
