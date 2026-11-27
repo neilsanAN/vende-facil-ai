@@ -1,5 +1,4 @@
 import { normalizeHashtags } from "@vendefacil/types";
-import { AD_COPY_PROMPT, factsBlock, polishDescription, polishTitle } from "./ad-copy";
 import { type AdCopy, type ConfirmedFacts, type ImageAnalysis, type Usage, type VideoScript } from "./types";
 
 type GeminiConfig = {
@@ -15,6 +14,17 @@ Não invente marca, material que não dê para ver, composição, garantia, cert
 Se houver texto legível, transcreva em visibleText.
 Quando não tiver certeza, deixe o campo vazio.
 Formato: {"productType":"","colors":[],"visibleText":[],"form":"","context":"","uncertain":[]}`;
+
+function factsBlock(facts: ConfirmedFacts) {
+  return [
+    `Nome confirmado: ${facts.name}`,
+    `Preço confirmado: ${facts.priceLabel || "não informado"}`,
+    `Marca confirmada: ${facts.brand || "não informada"}`,
+    `Características confirmadas pelo vendedor: ${facts.facts || "nenhuma"}`,
+    `Público informado: ${facts.audience || "não informado"}`,
+    `Observações visuais: ${facts.visible ? JSON.stringify(facts.visible) : "não disponíveis"}`,
+  ].join("\n");
+}
 
 function estimateTextCost(model: string, inputTokens: number, outputTokens: number) {
   const flash = model.includes("flash");
@@ -135,13 +145,14 @@ export function createGeminiProviders(config: GeminiConfig) {
     async adCopy(input: { facts: ConfirmedFacts; tone: string }) {
       const result = await generateContent(config.apiKey, config.textModel, {
         temperature: 0.4,
-        systemInstruction: AD_COPY_PROMPT,
+        systemInstruction:
+          "Escreva anúncios em português do Brasil. Use somente os fatos confirmados. Não invente marca, composição, garantia, certificação, preço ou especificação ausente. Se a marca não foi informada, não cite marca. Se o preço não foi informado, não cite valor. Responda JSON: {\"title\":\"\",\"description\":\"\",\"hashtags\":[]}. Hashtags sem #, curtas e sem promessa não suportada.",
         parts: [{ text: `Tom: ${input.tone}\n${factsBlock(input.facts)}` }],
       });
       const raw = parseJson<Partial<AdCopy>>(result.content);
       const copy: AdCopy = {
-        title: polishTitle(String(raw.title || input.facts.name)).slice(0, 140),
-        description: polishDescription(String(raw.description || ""), input.facts.name).slice(0, 4000),
+        title: String(raw.title || input.facts.name).slice(0, 140),
+        description: String(raw.description || "").slice(0, 4000),
         hashtags: normalizeHashtags(raw.hashtags, input.facts.name),
       };
       return {

@@ -1,4 +1,5 @@
-import { Linking, NativeModules, Platform, Share, TurboModuleRegistry } from "react-native";
+import { formatWhatsAppPost } from "@vendefacil/types";
+import { Linking, Platform, Share, TurboModuleRegistry, NativeModules } from "react-native";
 import { getItem } from "./storage";
 
 function stripLinks(text: string) {
@@ -23,13 +24,26 @@ export function polishShareCaption(text: string) {
     .trim();
 }
 
-export function buildAdCaption(ad: { title: string; description: string; hashtags?: string[] | string | null }) {
-  const raw = ad.hashtags;
-  const list = Array.isArray(raw) ? raw : typeof raw === "string" && raw.trim() ? raw.split(/[\s,]+/).filter(Boolean) : [];
-  const generic = new Set(["produto", "atendimento", "oferta", "loja"]);
-  const meaningful = list.map((tag) => tag.replace(/^#/, "").trim()).filter((tag) => tag && !generic.has(tag.toLowerCase()));
-  const tags = (meaningful.length ? meaningful : list.map((tag) => tag.replace(/^#/, "").trim()).filter(Boolean)).map((tag) => `#${tag}`);
-  return polishShareCaption([ad.title.trim(), "", ad.description.trim(), tags.length ? `\n${tags.join(" ")}` : ""].join("\n"));
+export function buildAdCaption(ad: {
+  title: string;
+  description: string;
+  hashtags?: string[] | string | null;
+  storeName?: string | null;
+  priceLabel?: string | null;
+  compareAtLabel?: string | null;
+  includeStore?: boolean;
+}) {
+  return formatWhatsAppPost(
+    {
+      storeName: ad.storeName,
+      title: ad.title,
+      description: ad.description,
+      hashtags: ad.hashtags,
+      priceLabel: ad.priceLabel,
+      compareAtLabel: ad.compareAtLabel,
+    },
+    { includeStore: ad.includeStore },
+  );
 }
 
 export function isGenericPlaceholderAd(ad: { title: string; description: string }) {
@@ -48,6 +62,15 @@ function hasNative(name: string) {
   } catch {
     return Boolean((NativeModules as Record<string, unknown>)[name]);
   }
+}
+
+/** Absolute path → file:// so Sharing / RNShare accept it. */
+function toFileUri(pathOrUri: string): string {
+  const t = pathOrUri.trim();
+  if (!t) return t;
+  if (/^(file|content|https?|ph|assets-library):\/\//i.test(t)) return t;
+  if (t.startsWith("/")) return `file://${t}`;
+  return t;
 }
 
 function toBase64(bytes: Uint8Array) {
@@ -87,47 +110,147 @@ async function getFileSystem() {
   }
 }
 
-/** Baixa http(s) com fetch (segue redirect do R2) e grava no cache. */
-async function downloadOne(uri: string, index: number): Promise<string | null> {
-  if (uri.startsWith("file://") || uri.startsWith("content://")) return uri;
-  if (!/^https?:\/\//.test(uri)) return null;
+type ImageKind = { ext: string; mime: string };
+type LocalImage = { uri: string; mime: string };
 
-  const FileSystem = await getFileSystem();
-  if (!FileSystem?.cacheDirectory) return null;
-
-  const token = await getItem("vf_access").catch(() => null);
-  const dest = `${FileSystem.cacheDirectory}anuncio-share-${Date.now()}-${index + 1}.jpg`;
-
-  try {
-    const response = await fetch(uri, {
-      headers: token ? { authorization: `Bearer ${token}` } : undefined,
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (!bytes.byteLength) throw new Error("empty");
-    const Encoding = (FileSystem as { EncodingType?: { Base64: string } }).EncodingType;
-    await FileSystem.writeAsStringAsync(dest, toBase64(bytes), {
-      encoding: (Encoding?.Base64 || "base64") as "base64",
-    });
-    return dest;
-  } catch {
-    // Fallback clássico do SDK 53
-    try {
-      if (typeof FileSystem.downloadAsync === "function") {
-        const result = await FileSystem.downloadAsync(uri, dest, token ? { headers: { authorization: `Bearer ${token}` } } : undefined);
-        if (result?.uri && (!result.status || result.status < 400)) return result.uri;
-      }
-    } catch {
-      // ignore
-    }
-  }
+function kindFromSample(sample: string): ImageKind | null {
+  if (sample.startsWith("/9j/")) return { ext: ".jpg", mime: "image/jpeg" };
+  if (sample.startsWith("iVBORw")) return { ext: ".png", mime: "image/png" };
+  if (sample.startsWith("UklGR")) return { ext: ".webp", mime: "image/webp" };
+  if (sample.startsWith("R0lGOD")) return { ext: ".gif", mime: "image/gif" };
   return null;
 }
 
+async function sniffImage(fileUri: string, FileSystem: { readAsStringAsync: (uri: string, options: { encoding: "base64"; position?: number; length?: number }) => Promise<string> }) {
+  try {
+    const sample = await FileSystem.readAsStringAsync(fileUri, { encoding: "base64", position: 0, length: 24 });
+    return kindFromSample(sample);
+  } catch {
+    try {
+      const all = await FileSystem.readAsStringAsync(fileUri, { encoding: "base64" });
+      return kindFromSample(all.slice(0, 32));
+    } catch {
+      return null;
+    }
+  }
+}
+
+async function discard(FileSystem: { deleteAsync?: (uri: string, options?: { idempotent?: boolean }) => Promise<void> }, uri: string) {
+  try {
+    await FileSystem.deleteAsync?.(uri, { idempotent: true });
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Garante um arquivo local com extensão real (jpg/png/webp).
+ * WhatsApp recusa foto salva como .jpg quando o conteúdo é png/webp.
+ */
+async function materialize(
+  sourceUri: string,
+  index: number,
+  FileSystem: Awaited<ReturnType<typeof getFileSystem>>,
+): Promise<LocalImage | null> {
+  if (!FileSystem?.cacheDirectory) return null;
+  const kind = await sniffImage(sourceUri, FileSystem);
+  if (!kind) {
+    await discard(FileSystem, sourceUri);
+    return null;
+  }
+  const dest = `${FileSystem.cacheDirectory}anuncio-${Date.now()}-${index + 1}${kind.ext}`;
+  try {
+    if (sourceUri === dest) return { uri: toFileUri(dest), mime: kind.mime };
+    await FileSystem.moveAsync({ from: sourceUri, to: dest });
+    return { uri: toFileUri(dest), mime: kind.mime };
+  } catch {
+    return { uri: toFileUri(sourceUri), mime: kind.mime };
+  }
+}
+
+async function downloadOne(uri: string, index: number): Promise<LocalImage | null> {
+  const raw = uri.trim();
+  if (!raw) return null;
+
+  const FileSystem = await getFileSystem();
+  if (!FileSystem?.cacheDirectory) {
+    if (/^file:\/\//i.test(raw) || (raw.startsWith("/") && !raw.startsWith("//"))) {
+      return { uri: toFileUri(raw), mime: "image/jpeg" };
+    }
+    return null;
+  }
+
+  const scratch = `${FileSystem.cacheDirectory}anuncio-src-${Date.now()}-${index}.bin`;
+
+  if (/^content:\/\//i.test(raw)) {
+    try {
+      await FileSystem.copyAsync({ from: raw, to: scratch });
+      return await materialize(scratch, index, FileSystem);
+    } catch {
+      return null;
+    }
+  }
+
+  if (/^file:\/\//i.test(raw) || (raw.startsWith("/") && !raw.startsWith("//"))) {
+    const fileUri = toFileUri(raw);
+    try {
+      const info = await FileSystem.getInfoAsync(fileUri);
+      if (!info.exists || (info.size != null && info.size < 32)) return null;
+    } catch {
+      return null;
+    }
+    try {
+      await FileSystem.copyAsync({ from: fileUri, to: scratch });
+      return await materialize(scratch, index, FileSystem);
+    } catch {
+      const kind = await sniffImage(fileUri, FileSystem);
+      return kind ? { uri: fileUri, mime: kind.mime } : null;
+    }
+  }
+
+  if (!/^https?:\/\//i.test(raw)) return null;
+
+  const signed = /[?&]sig=/.test(raw);
+  const token = signed ? null : await getItem("vf_access").catch(() => null);
+  const headers = token ? { authorization: `Bearer ${token}` } : undefined;
+
+  try {
+    if (typeof FileSystem.downloadAsync === "function") {
+      const result = await FileSystem.downloadAsync(raw, scratch, headers ? { headers } : undefined);
+      if (result?.uri && (!result.status || result.status < 400)) {
+        const ready = await materialize(result.uri, index, FileSystem);
+        if (ready) return ready;
+      }
+    }
+  } catch {
+    // tenta fetch abaixo
+  }
+
+  try {
+    const response = await fetch(raw, headers ? { headers } : undefined);
+    if (!response.ok) return null;
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength < 32) return null;
+    const Encoding = (FileSystem as { EncodingType?: { Base64: string } }).EncodingType;
+    await FileSystem.writeAsStringAsync(scratch, toBase64(bytes), {
+      encoding: (Encoding?.Base64 || "base64") as "base64",
+    });
+    return await materialize(scratch, index, FileSystem);
+  } catch {
+    await discard(FileSystem, scratch);
+    return null;
+  }
+}
+
 async function downloadAll(uris: string[]) {
-  const local: string[] = [];
+  const local: LocalImage[] = [];
+  const seen = new Set<string>();
   for (const [index, uri] of uris.entries()) {
-    const file = await downloadOne(uri, index);
+    if (local.length >= 10) break;
+    const key = uri.trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const file = await downloadOne(key, index);
     if (file) local.push(file);
   }
   return local;
@@ -135,50 +258,124 @@ async function downloadAll(uris: string[]) {
 
 type ShareResult = { images: number; captionCopied: boolean };
 
-async function shareWithRNShare(channel: "WHATSAPP" | "INSTAGRAM" | "FACEBOOK", files: string[], caption: string) {
-  if (!hasNative("RNShare")) return false;
+function shareType(files: Array<{ mime: string }>) {
+  const mimes = new Set(files.map((file) => file.mime));
+  return mimes.size === 1 ? [...mimes][0] : "image/*";
+}
+
+async function shareWithRNShare(channel: "WHATSAPP" | "INSTAGRAM" | "FACEBOOK", files: LocalImage[], caption: string) {
+  if (!hasNative("RNShare") || !files.length) return false;
   try {
     const RNShare = (await import("react-native-share")).default;
-    const options = {
-      urls: files,
-      url: files[0],
-      type: files.length > 1 ? "image/*" : "image/jpeg",
-      message: caption,
-      title: "Anúncio VendeFácil",
-      failOnCancel: false,
-      filename: "anuncio",
-    };
+    const type = shareType(files);
+    const single = files.length === 1;
+    // Uma foto: só `url`. `urls` força SEND_MULTIPLE e o WhatsApp deixa a imagem de fora.
+    const payload = single
+      ? {
+          url: files[0].uri,
+          type: files[0].mime,
+          message: caption,
+          filename: `anuncio${files[0].mime === "image/png" ? ".png" : files[0].mime === "image/webp" ? ".webp" : ".jpg"}`,
+          useInternalStorage: true,
+          failOnCancel: false,
+        }
+      : {
+          // Sem `filenames`: no Android esse campo vira uma subpasta do arquivo e a foto some.
+          urls: files.map((file) => file.uri),
+          type,
+          message: caption,
+          useInternalStorage: true,
+          failOnCancel: false,
+        };
+
     if (channel === "WHATSAPP") {
-      try {
-        await RNShare.shareSingle({ ...options, social: RNShare.Social.WHATSAPP, whatsAppNumber: undefined } as never);
-        return true;
-      } catch {
+      const socials = [RNShare.Social.WHATSAPP, RNShare.Social.WHATSAPPBUSINESS];
+      for (const social of socials) {
         try {
-          await RNShare.shareSingle({ ...options, social: RNShare.Social.WHATSAPPBUSINESS } as never);
+          await RNShare.shareSingle({ ...payload, social } as never);
           return true;
         } catch {
-          // abre a folha geral
+          // tenta o outro app ou a folha
         }
       }
     }
-    await RNShare.open(options as never);
+
+    await RNShare.open(payload as never);
     return true;
   } catch {
     return false;
   }
 }
 
-async function shareViaExpoSharing(files: string[], caption: string) {
+/** Caminho que o react-native-share grava de novo via FileProvider. Usado se o file:// não anexar. */
+async function shareViaDataUri(files: LocalImage[], caption: string) {
+  if (!hasNative("RNShare")) return false;
+  const FileSystem = await getFileSystem();
+  if (!FileSystem) return false;
+  try {
+    const packed: Array<{ url: string; name: string; mime: string }> = [];
+    for (const file of files.slice(0, 4)) {
+      const info = await FileSystem.getInfoAsync(file.uri);
+      if (!info.exists || (info.size != null && info.size > 2_500_000)) continue;
+      const Encoding = (FileSystem as { EncodingType?: { Base64: string } }).EncodingType;
+      const data = await FileSystem.readAsStringAsync(file.uri, { encoding: (Encoding?.Base64 || "base64") as "base64" });
+      if (!data) continue;
+      const ext = file.mime === "image/png" ? "png" : file.mime === "image/webp" ? "webp" : "jpg";
+      packed.push({ url: `data:${file.mime};base64,${data}`, name: `anuncio-${packed.length + 1}.${ext}`, mime: file.mime });
+    }
+    if (!packed.length) return false;
+    const RNShare = (await import("react-native-share")).default;
+    const single = packed.length === 1;
+    const payload = single
+      ? {
+          url: packed[0].url,
+          type: packed[0].mime,
+          message: caption,
+          filename: "anuncio",
+          useInternalStorage: true,
+          failOnCancel: false,
+        }
+      : {
+          urls: packed.map((file) => file.url),
+          type: shareType(packed),
+          message: caption,
+          filenames: packed.map((file) => file.name),
+          useInternalStorage: true,
+          failOnCancel: false,
+        };
+    for (const social of [RNShare.Social.WHATSAPP, RNShare.Social.WHATSAPPBUSINESS]) {
+      try {
+        await RNShare.shareSingle({ ...payload, social } as never);
+        return true;
+      } catch {
+        // próxima tentativa
+      }
+    }
+    await RNShare.open(payload as never);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function shareViaExpoSharing(files: LocalImage[], caption: string) {
   if (!hasNative("ExpoSharing") || !files[0]) return false;
   try {
     const Sharing = await import("expo-sharing");
     if (!(await Sharing.isAvailableAsync())) return false;
-    // Uma foto por vez — no Android o WhatsApp recebe a imagem; o texto já está na área de transferência.
-    await Sharing.shareAsync(files[0], { mimeType: "image/jpeg", dialogTitle: "Enviar anúncio no WhatsApp" });
-    if (caption && files.length === 1) {
-      // Reforça o texto depois, se o usuário cancelar o share de texto tudo bem.
-      await Share.share({ message: caption }).catch(() => undefined);
+    await Sharing.shareAsync(toFileUri(files[0].uri), {
+      mimeType: files[0].mime,
+      dialogTitle: "Enviar anúncio no WhatsApp",
+      UTI: "public.jpeg",
+    });
+    for (const extra of files.slice(1, 10)) {
+      try {
+        await Sharing.shareAsync(toFileUri(extra.uri), { mimeType: extra.mime, dialogTitle: "Enviar foto do anúncio" });
+      } catch {
+        break;
+      }
     }
+    if (caption) await Share.share({ message: caption }).catch(() => undefined);
     return true;
   } catch {
     return false;
@@ -188,8 +385,8 @@ async function shareViaExpoSharing(files: string[], caption: string) {
 async function openWhatsAppText(whatsappUrl: string | null | undefined, caption: string) {
   const targets = [
     whatsappUrl,
-    caption ? `https://wa.me/?text=${encodeURIComponent(caption)}` : null,
     caption ? `whatsapp://send?text=${encodeURIComponent(caption)}` : null,
+    caption ? `https://wa.me/?text=${encodeURIComponent(caption)}` : null,
   ].filter((item): item is string => Boolean(item));
 
   for (const url of targets) {
@@ -202,12 +399,20 @@ async function openWhatsAppText(whatsappUrl: string | null | undefined, caption:
       // tenta o próximo
     }
   }
+  try {
+    if (caption) {
+      await Linking.openURL(`https://wa.me/?text=${encodeURIComponent(caption)}`);
+      return true;
+    }
+  } catch {
+    // ignore
+  }
   return false;
 }
 
 /**
- * Compartilha o anúncio exatamente como foi criado: fotos + título/descrição/hashtags.
- * O texto também vai para a área de transferência.
+ * Compartilha o anúncio: fotos reais + mensagem formatada.
+ * Texto puro só quando nenhuma imagem pôde ser preparada.
  */
 export async function shareAdToChannel(options: {
   channel: "WHATSAPP" | "INSTAGRAM" | "FACEBOOK";
@@ -218,9 +423,18 @@ export async function shareAdToChannel(options: {
   const caption = polishShareCaption(options.caption || "");
   const captionCopied = await copyCaption(caption);
   const uris = [...new Set((options.imageUris || []).map((item) => item?.trim()).filter((item): item is string => Boolean(item)))];
-  const files = uris.length ? await downloadAll(uris) : [];
+  const remote = uris.filter((uri) => /^https?:\/\//i.test(uri));
+  const signed = remote.filter((uri) => /[?&]sig=/.test(uri));
+  const local = uris.filter((uri) => !/^https?:\/\//i.test(uri));
+  let files = signed.length ? await downloadAll(signed) : [];
+  if (!files.length && remote.length) files = await downloadAll(remote.filter((uri) => !signed.includes(uri)));
+  if (!files.length && local.length) files = await downloadAll(local);
 
   if (files.length && (await shareWithRNShare(options.channel, files, caption))) {
+    return { images: files.length, captionCopied };
+  }
+
+  if (files.length && options.channel === "WHATSAPP" && (await shareViaDataUri(files, caption))) {
     return { images: files.length, captionCopied };
   }
 
@@ -230,19 +444,19 @@ export async function shareAdToChannel(options: {
 
   if (files[0] && Platform.OS === "ios") {
     try {
-      await Share.share({ message: caption, url: files[0] });
-      return { images: 1, captionCopied };
+      await Share.share({ message: caption, url: files[0].uri, title: "Anúncio" });
+      return { images: files.length, captionCopied };
     } catch {
       // segue
     }
   }
 
-  if (options.channel === "WHATSAPP") {
+  if (!files.length && options.channel === "WHATSAPP") {
     if (await openWhatsAppText(options.whatsappUrl, caption)) {
-      return { images: files.length, captionCopied };
+      return { images: 0, captionCopied };
     }
   }
 
-  if (caption) await Share.share({ message: caption });
-  return { images: files.length, captionCopied };
+  if (caption) await Share.share({ message: caption }).catch(() => undefined);
+  return { images: 0, captionCopied };
 }

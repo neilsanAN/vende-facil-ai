@@ -55,34 +55,6 @@ export class StudioService {
       const product = await this.db.product.findFirst({ where: { id: input.productId, organizationId: tenant.organizationId } });
       if (!product) throw new AppError("NOT_FOUND", "Produto não encontrado.", 404);
     }
-
-    // Sem nome real (ex.: "Produto"), analisa a foto para gerar anúncio profissional.
-    let facts = { ...input.facts };
-    const genericName = !facts.name?.trim() || /^produto$/i.test(facts.name.trim());
-    if (this.ai.vision && input.assetIds[0] && (genericName || !facts.facts?.trim())) {
-      try {
-        const analysis = await this.analyze(tenant, input.assetIds[0]);
-        const nameFromVision = [analysis.productType, analysis.visibleText?.[0]].find((item) => item && item.trim().length >= 2);
-        facts = {
-          ...facts,
-          name: genericName && nameFromVision ? nameFromVision.slice(0, 120) : facts.name || nameFromVision || "Produto em destaque",
-          facts: [
-            facts.facts,
-            analysis.form,
-            analysis.context,
-            analysis.colors?.length ? `Cores: ${analysis.colors.join(", ")}` : "",
-            analysis.visibleText?.length ? `Texto na foto: ${analysis.visibleText.join(" ")}` : "",
-          ]
-            .filter((item) => item && String(item).trim())
-            .join(". ")
-            .slice(0, 1500),
-          visible: analysis,
-        };
-      } catch {
-        // Segue com os fatos enviados pelo app.
-      }
-    }
-
     const replaceId = input.replaceAdId || null;
     let existing = null as { id: string } | null;
     if (replaceId) {
@@ -97,13 +69,7 @@ export class StudioService {
     }
     let result;
     try {
-      result = await this.ai.text.adCopy({
-        facts: {
-          ...facts,
-          priceLabel: facts.priceCents != null ? formatBrl(facts.priceCents) : undefined,
-        },
-        tone: input.tone,
-      });
+      result = await this.ai.text.adCopy({ facts: { ...input.facts, priceLabel: input.facts.priceCents != null ? formatBrl(input.facts.priceCents) : undefined }, tone: input.tone });
     } catch (error) {
       if (error instanceof ProviderNotConfiguredError) throw new AppError("PROVIDER_NOT_CONFIGURED", error.message, 503);
       if (error instanceof AppError) throw error;
@@ -112,7 +78,7 @@ export class StudioService {
       throw new AppError("AI_FAILED", detail.includes("demorou") ? detail : "Não foi possível gerar o anúncio. Tente de novo.", 502);
     }
     try {
-      assertGroundedCopy(`${result.copy.title}\n${result.copy.description}`, facts.priceCents != null);
+      assertGroundedCopy(`${result.copy.title}\n${result.copy.description}`, input.facts.priceCents != null);
     } catch {
       // Remove menção a preço inventado em vez de travar o fluxo.
       result = {
@@ -236,11 +202,7 @@ export class StudioService {
 
   async listAds(tenant: Tenant) {
     const rows = await this.db.advertisement.findMany({
-      where: {
-        organizationId: tenant.organizationId,
-        status: { not: "ARCHIVED" },
-        NOT: { title: { in: ["Gerando anúncio…", "Gerando anúncio..."] } },
-      },
+      where: { organizationId: tenant.organizationId, status: { not: "ARCHIVED" } },
       orderBy: { updatedAt: "desc" },
       take: 50,
       include: { product: { select: { name: true } } },

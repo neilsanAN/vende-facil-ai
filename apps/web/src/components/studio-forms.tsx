@@ -108,6 +108,30 @@ export function ArtForm({ products }: { products: Array<{ id: string; name: stri
 
 type ChannelInfo = { provider: string; status: string; detail: string; connectUrl?: string | null };
 
+async function shareWhatsAppWithPhotos(share: { caption?: string; imageUrls?: string[] }) {
+  const urls = (share.imageUrls || []).filter(Boolean).slice(0, 10);
+  if (!urls.length || typeof navigator === "undefined" || !navigator.share) return "skip" as const;
+  try {
+    const files: File[] = [];
+    for (const [index, url] of urls.entries()) {
+      const response = await fetch(url);
+      if (!response.ok) continue;
+      const blob = await response.blob();
+      if (blob.size < 32) continue;
+      const type = blob.type.startsWith("image/") ? blob.type : "image/jpeg";
+      const ext = type.includes("png") ? "png" : type.includes("webp") ? "webp" : "jpg";
+      files.push(new File([blob], `anuncio-${index + 1}.${ext}`, { type }));
+    }
+    if (!files.length) return "skip" as const;
+    if (navigator.canShare && !navigator.canShare({ files })) return "skip" as const;
+    await navigator.share({ files, text: share.caption || "", title: "Anúncio" });
+    return "shared" as const;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") return "cancel" as const;
+    return "skip" as const;
+  }
+}
+
 export function PublishDesk({
   channels: initialChannels,
   products,
@@ -118,7 +142,7 @@ export function PublishDesk({
 }) {
   const toast = useToast();
   const [channels, setChannels] = useState(initialChannels);
-  const [share, setShare] = useState<{ whatsappUrl?: string; link?: string; caption?: string } | null>(null);
+  const [share, setShare] = useState<{ whatsappUrl?: string; link?: string; caption?: string; imageUrls?: string[] } | null>(null);
   const [enabled, setEnabled] = useState({
     WHATSAPP: true,
     INSTAGRAM: false,
@@ -258,7 +282,7 @@ export function PublishDesk({
           }
           try {
             const caption = String(data.get("caption") || "").replace(/https?:\/\/\S+/gi, "").trim();
-            const result = await api<{ share: { whatsappUrl?: string; link?: string; caption?: string } | null }>("/api/publications", {
+            const result = await api<{ share: { whatsappUrl?: string; link?: string; caption?: string; imageUrls?: string[] } | null }>("/api/publications", {
               method: "POST",
               body: JSON.stringify({
                 channel,
@@ -270,9 +294,14 @@ export function PublishDesk({
               }),
             });
             setShare(result.share);
-            if (channel === "WHATSAPP" && result.share?.whatsappUrl) {
-              window.open(result.share.whatsappUrl, "_blank", "noopener,noreferrer");
-              toast("WhatsApp aberto com o anúncio (nome, preço e texto).");
+            if (channel === "WHATSAPP" && result.share) {
+              const sharedFiles = await shareWhatsAppWithPhotos(result.share);
+              if (sharedFiles === "cancel") return;
+              if (sharedFiles === "shared") toast("WhatsApp aberto com fotos e mensagem formatada.");
+              else if (result.share.whatsappUrl) {
+                window.open(result.share.whatsappUrl, "_blank", "noopener,noreferrer");
+                toast("WhatsApp aberto com a mensagem formatada.");
+              }
             } else if (result.share?.caption && navigator.share) {
               await navigator.share({ text: result.share.caption, title: "Anúncio" });
               toast("Anúncio pronto para publicar.");
@@ -301,7 +330,7 @@ export function PublishDesk({
               </select>
             </Field>
             <Field label="Anúncio (nome, preço e texto)" section>
-              <textarea name="caption" className={areaClass} placeholder="Deixe em branco para montar com nome, preço e descrição do produto (sem link)." />
+              <textarea name="caption" className={areaClass} placeholder="Deixe em branco para montar loja, título, preço e descrição, no formato do WhatsApp." />
             </Field>
           </div>
         </details>

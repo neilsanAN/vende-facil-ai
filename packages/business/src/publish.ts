@@ -1,5 +1,5 @@
 import type { PrismaClient, PublicationTarget, SocialProvider } from "@prisma/client";
-import { formatBrl } from "@vendefacil/types";
+import { formatBrl, formatWhatsAppPost, plainShareText } from "@vendefacil/types";
 import { openJson, sealJson, signPayload } from "@vendefacil/media";
 import type { CatalogService } from "./catalog";
 import { AppError } from "./errors";
@@ -237,7 +237,7 @@ export class PublicationService {
     }
 
     const built = await this.buildShareContent(tenant, input.targetType, input.targetId, input.caption);
-    const caption = built.caption;
+    const caption = input.channel === "WHATSAPP" ? built.caption : plainShareText(built.caption);
 
     // Publicação direta via API Meta só se a conta já estiver conectada.
     if (!input.scheduledAt && input.channel === "FACEBOOK") {
@@ -518,14 +518,22 @@ export class PublicationService {
     let imageAssetIds: string[] = [];
     let productSlug: string | null = null;
     let autoCaption = "";
+    const priceOf = (priceCents: number, promoPriceCents?: number | null) => {
+      const onSale = promoPriceCents != null && promoPriceCents > 0 && promoPriceCents < priceCents;
+      const sale = onSale ? promoPriceCents : priceCents;
+      return {
+        priceLabel: sale > 0 ? formatBrl(sale) : null,
+        compareAtLabel: onSale ? formatBrl(priceCents) : null,
+      };
+    };
 
     if (targetType === "ADVERTISEMENT") {
       const ad = await this.db.advertisement.findFirst({ where: { id: targetId, organizationId: tenant.organizationId } });
       if (!ad) throw new AppError("NOT_FOUND", "Anúncio não encontrado.", 404);
       productName = ad.title;
       imageAssetIds = [...ad.imageAssetIds];
-      const tags = ad.hashtags.length ? `\n\n${ad.hashtags.map((tag) => `#${tag}`).join(" ")}` : "";
-      autoCaption = `${ad.title}\n\n${ad.description.trim()}${tags}`.trim();
+      let priceLabel: string | null = null;
+      let compareAtLabel: string | null = null;
       if (ad.productId) {
         const product = await this.db.product.findFirst({
           where: { id: ad.productId, organizationId: tenant.organizationId },
@@ -533,7 +541,20 @@ export class PublicationService {
         });
         productSlug = product?.slug || null;
         if (!imageAssetIds.length) imageAssetIds = product?.images.map((image) => image.mediaAssetId) || [];
+        if (product) {
+          const prices = priceOf(product.priceCents, product.promoPriceCents);
+          priceLabel = prices.priceLabel;
+          compareAtLabel = prices.compareAtLabel;
+        }
       }
+      autoCaption = formatWhatsAppPost({
+        storeName: store?.name,
+        title: ad.title,
+        description: ad.description,
+        hashtags: ad.hashtags,
+        priceLabel,
+        compareAtLabel,
+      });
     } else if (targetType === "PRODUCT") {
       const product = await this.db.product.findFirst({
         where: { id: targetId, organizationId: tenant.organizationId },
@@ -543,12 +564,14 @@ export class PublicationService {
       productName = product.name;
       productSlug = product.slug;
       imageAssetIds = product.images.map((image) => image.mediaAssetId);
-      const promoLine =
-        product.promoPriceCents != null && product.promoPriceCents < product.priceCents
-          ? `De ${formatBrl(product.priceCents)} por ${formatBrl(product.promoPriceCents)}`
-          : formatBrl(product.promoPriceCents ?? product.priceCents);
-      const description = product.description?.trim();
-      autoCaption = [product.name, promoLine, "", description || null, "", "Chame no WhatsApp e garanta o seu!"].filter((line) => line !== null).join("\n").trim();
+      const prices = priceOf(product.priceCents, product.promoPriceCents);
+      autoCaption = formatWhatsAppPost({
+        storeName: store?.name,
+        title: product.name,
+        description: product.description,
+        priceLabel: prices.priceLabel,
+        compareAtLabel: prices.compareAtLabel,
+      });
     } else if (targetType === "VIDEO") {
       const video = await this.db.videoProject.findFirst({ where: { id: targetId, organizationId: tenant.organizationId } });
       if (!video) throw new AppError("NOT_FOUND", "Vídeo não encontrado.", 404);
@@ -559,13 +582,8 @@ export class PublicationService {
     const storeLink = store ? `${this.appUrl}/v/${store.slug}` : this.appUrl;
     const productLink = store && productSlug ? `${this.appUrl}/v/${store.slug}/${productSlug}` : storeLink;
     // Anúncio profissional: sem URL. Se o usuário colar link na legenda, removemos.
-    const userCaption = (customCaption || "")
-      .trim()
-      .replace(/🔗\s*/g, "")
-      .replace(/https?:\/\/\S+/gi, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-    const caption = (userCaption || autoCaption).replace(/🔗\s*/g, "").replace(/https?:\/\/\S+/gi, "").trim();
+    const userCaption = (customCaption || "").trim().replace(/https?:\/\/\S+/gi, "").replace(/\n{3,}/g, "\n\n").trim();
+    const caption = (userCaption || autoCaption).trim();
 
     const imageUrls: string[] = [];
     for (const assetId of imageAssetIds.slice(0, 30)) {

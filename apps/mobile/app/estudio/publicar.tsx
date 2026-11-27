@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Image, Linking, Modal, Pressable, ScrollView, Share, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { formatWhatsAppBundle, plainShareText } from "@vendefacil/types";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
 import { api, apiBase } from "../../src/api";
@@ -22,6 +23,8 @@ type Ad = {
   coverUrl?: string | null;
   images: string[];
   kind: "AD";
+  priceLabel?: string;
+  compareAtLabel?: string;
 };
 type ProductItem = {
   id: string;
@@ -32,6 +35,7 @@ type ProductItem = {
   images: string[];
   kind: "PRODUCT";
   priceLabel?: string;
+  compareAtLabel?: string;
 };
 type ShareItem = Ad | ProductItem;
 type Channel = "WHATSAPP" | "INSTAGRAM" | "FACEBOOK";
@@ -59,13 +63,82 @@ function itemKey(item: ShareItem) {
   return `${item.kind}:${item.id}`;
 }
 
+function itemPhotos(item: ShareItem) {
+  const list = item.images.filter(Boolean);
+  return list.length ? list : item.coverUrl ? [item.coverUrl] : [];
+}
+
+function SelectionPreview({ items }: { items: ShareItem[] }) {
+  const photoCount = items.reduce((total, item) => total + itemPhotos(item).length, 0);
+  const summary =
+    items.length === 1
+      ? `${photoCount === 1 ? "1 foto" : `${photoCount} fotos`} neste envio`
+      : `${items.length} itens · ${photoCount === 1 ? "1 foto" : `${photoCount} fotos`}`;
+
+  if (!items.length) {
+    return (
+      <View style={{ marginBottom: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: "#F7F8FB", paddingVertical: 14, paddingHorizontal: 14 }}>
+        <Text style={{ color: colors.textSecondary, fontSize: fonts.body2 }}>Nada selecionado ainda</Text>
+      </View>
+    );
+  }
+
+  const single = items.length === 1 ? items[0] : null;
+  const strip: Array<{ key: string; uri: string; label: string; count: number }> = single
+    ? itemPhotos(single).map((uri, index) => ({ key: `${itemKey(single)}-${index}`, uri, label: index === 0 ? "Capa" : "", count: 1 }))
+    : items.map((item) => {
+        const gallery = itemPhotos(item);
+        return { key: itemKey(item), uri: gallery[0] || "", label: item.title, count: gallery.length };
+      });
+
+  return (
+    <View style={{ marginBottom: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 12, gap: 10 }}>
+      <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, fontWeight: "600" }}>{summary}</Text>
+      {photoCount === 0 ? (
+        <Text style={{ color: colors.textSecondary, fontSize: fonts.body2 }}>Sem foto neste item</Text>
+      ) : (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+          {strip.map((thumb) => (
+            <View key={thumb.key} style={{ width: 76 }}>
+              <View style={{ width: 76, height: 76, borderRadius: 12, overflow: "hidden", backgroundColor: "#EEF0F5" }}>
+                {thumb.uri ? <Image source={{ uri: thumb.uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" /> : null}
+                {thumb.count > 1 ? (
+                  <View style={{ position: "absolute", right: 4, bottom: 4, borderRadius: 999, backgroundColor: "rgba(15,12,30,0.72)", paddingHorizontal: 6, paddingVertical: 2 }}>
+                    <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700" }}>{thumb.count}</Text>
+                  </View>
+                ) : null}
+              </View>
+              {thumb.label ? (
+                <Text style={{ color: colors.text, fontSize: 10, fontWeight: "600", marginTop: 4 }} numberOfLines={1}>
+                  {thumb.label}
+                </Text>
+              ) : null}
+            </View>
+          ))}
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
 function formatBrl(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function priceBits(priceCents?: number | null, promoPriceCents?: number | null) {
+  const list = priceCents ?? 0;
+  const onSale = promoPriceCents != null && promoPriceCents > 0 && list > 0 && promoPriceCents < list;
+  const sale = onSale ? promoPriceCents : list;
+  return {
+    priceLabel: sale > 0 ? formatBrl(sale) : undefined,
+    compareAtLabel: onSale ? formatBrl(list) : undefined,
+  };
 }
 
 export default function PublishScreen() {
   const [ads, setAds] = useState<Ad[]>([]);
   const [products, setProducts] = useState<ProductItem[]>([]);
+  const [storeName, setStoreName] = useState("");
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [caption, setCaption] = useState("");
   const [channels, setChannels] = useState<ChannelInfo[]>([]);
@@ -87,7 +160,6 @@ export default function PublishScreen() {
     () => catalog.filter((item) => selectedKeys.includes(itemKey(item))),
     [catalog, selectedKeys],
   );
-  const primary = selectedItems[0] || null;
   const channelMap = useMemo(() => new Map(channels.map((item) => [item.provider, item])), [channels]);
 
   async function loadChannels() {
@@ -136,8 +208,12 @@ export default function PublishScreen() {
   }, []);
 
   useEffect(() => {
-    Promise.all([api.listAds(), api.products(), api.publications()])
-      .then(async ([adRows, productPayload, pubs]) => {
+    Promise.all([api.listAds(), api.products(), api.publications(), api.shell().catch(() => null)])
+      .then(async ([adRows, productPayload, pubs, shell]) => {
+        setStoreName(shell?.store?.name || "");
+        const productRows = ((productPayload as { data?: Array<{ id: string; name: string; description?: string; priceCents?: number; promoPriceCents?: number | null; images?: Array<{ url?: string }> }> }).data || []).filter(
+          (row) => row.name?.trim(),
+        );
         const usableAds = adRows.filter((row) => !isGenericPlaceholderAd(row));
         const withCovers: Ad[] = await Promise.all(
           usableAds.map(async (row) => {
@@ -151,38 +227,38 @@ export default function PublishScreen() {
             const coverLocal = (await getItem(`ad_cover_${row.id}`)) || null;
             if (!localImages.length && coverLocal) localImages = [coverLocal];
             const server = (row.imageUrls || []).map((url) => mediaUrl(url)).filter((url): url is string => Boolean(url));
-            const list = localImages.length ? localImages : server;
+            // Locais + servidor: se o content:// expirar, as URLs /api/media ainda salvam o share
+            const list = [...new Set([...server, ...localImages].filter(Boolean))];
+            const linked = productRows.find((product) => product.id === (row as { productId?: string | null }).productId)
+              || productRows.find((product) => product.name === (row as { product?: string | null }).product);
+            const prices = priceBits(linked?.priceCents, linked?.promoPriceCents);
             return {
               id: row.id,
               title: row.title,
               description: row.description,
               hashtags: row.hashtags,
-              coverUrl: list[0] || null,
+              coverUrl: list[0] || coverLocal || null,
               images: list,
               kind: "AD" as const,
+              priceLabel: prices.priceLabel,
+              compareAtLabel: prices.compareAtLabel,
             };
           }),
         );
 
-        const productRows = ((productPayload as { data?: Array<{ id: string; name: string; description?: string; priceCents?: number; promoPriceCents?: number | null; images?: Array<{ url?: string }> }> }).data || []).filter(
-          (row) => row.name?.trim(),
-        );
         const productItems: ProductItem[] = productRows.map((row) => {
           const images = (row.images || []).map((image) => mediaUrl(image.url)).filter((url): url is string => Boolean(url));
-          const price = row.promoPriceCents ?? row.priceCents ?? 0;
-          const priceLabel = price ? formatBrl(price) : "";
-          const description = [row.description?.trim() || "", priceLabel ? `Por ${priceLabel}` : "", "Chame no WhatsApp e garanta o seu!"]
-            .filter(Boolean)
-            .join("\n\n");
+          const prices = priceBits(row.priceCents, row.promoPriceCents);
           return {
             id: row.id,
             title: row.name,
-            description,
+            description: row.description?.trim() || "",
             hashtags: [],
             coverUrl: images[0] || null,
             images,
             kind: "PRODUCT" as const,
-            priceLabel,
+            priceLabel: prices.priceLabel,
+            compareAtLabel: prices.compareAtLabel,
           };
         });
 
@@ -211,9 +287,18 @@ export default function PublishScreen() {
       const next = current.includes(key) ? current.filter((value) => value !== key) : [...current, key];
       const all = [...ads, ...products];
       const picked = all.filter((row) => next.includes(itemKey(row)));
-      if (picked.length === 1) setCaption(buildAdCaption(picked[0]));
-      else if (picked.length === 0) setCaption("");
-      else setCaption(picked.map((row) => buildAdCaption(row)).join("\n\n————\n\n"));
+      setCaption(
+        formatWhatsAppBundle(
+          picked.map((row) => ({
+            storeName,
+            title: row.title,
+            description: row.description,
+            hashtags: row.hashtags,
+            priceLabel: row.priceLabel,
+            compareAtLabel: row.compareAtLabel,
+          })),
+        ),
+      );
       return next;
     });
   }
@@ -274,18 +359,19 @@ export default function PublishScreen() {
       let lastWhatsapp: string | null = null;
 
       for (const item of selectedItems) {
-        const exactCaption = polishShareCaption(
+        const formatted = polishShareCaption(
           selectedItems.length === 1 && caption.trim()
             ? caption
-            : buildAdCaption(item),
+            : buildAdCaption({ ...item, storeName }),
         );
-        if (!exactCaption) {
+        if (!formatted) {
           notes.push(`“${item.title}” sem texto útil — pulado.`);
           continue;
         }
 
         for (const channel of selectedChannels) {
           const connected = channelConnected(channelMap.get(channel));
+          const exactCaption = channel === "WHATSAPP" ? formatted : plainShareText(formatted);
           const result = await api.publish({
             channel,
             targetType: item.kind === "AD" ? "ADVERTISEMENT" : "PRODUCT",
@@ -295,9 +381,15 @@ export default function PublishScreen() {
             confirmManual: !connected,
           });
 
-          const shareImages = [...item.images, ...(result.share?.imageUrls || []), result.share?.imageUrl, item.coverUrl].filter(
-            (uri): uri is string => Boolean(uri),
-          );
+          // URLs assinadas do publish primeiro (http público) — mais confiáveis que content:// local
+          const shareImages = [
+            ...(result.share?.imageUrls || []),
+            result.share?.imageUrl,
+            ...item.images,
+            item.coverUrl,
+          ]
+            .map((uri) => mediaUrl(uri || null))
+            .filter((uri): uri is string => Boolean(uri));
           const uniqueImages = [...new Set(shareImages)];
           const shareCaption = polishShareCaption(result.share?.caption || exactCaption);
 
@@ -313,8 +405,8 @@ export default function PublishScreen() {
                 });
                 notes.push(
                   shared.images > 0
-                    ? `WhatsApp: “${item.title}” com ${shared.images} foto(s).`
-                    : `WhatsApp: “${item.title}” (texto).`,
+                    ? `WhatsApp: “${item.title}” com ${shared.images} foto(s) e mensagem formatada.`
+                    : `WhatsApp: “${item.title}” só com o texto. As fotos não abriram.`,
                 );
               } catch {
                 if (lastWhatsapp) await Linking.openURL(lastWhatsapp).catch(() => undefined);
@@ -369,7 +461,7 @@ export default function PublishScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700" }}>{item.label}</Text>
                   <Text style={{ color: colors.textSecondary, fontSize: fonts.body2, fontWeight: "500", marginTop: 2 }}>
-                    {info?.detail || (item.key === "WHATSAPP" ? "Texto + fotos do que você selecionar" : "Conecte para publicar direto")}
+                    {info?.detail || (item.key === "WHATSAPP" ? "Fotos do anúncio e mensagem formatada" : "Conecte para publicar direto")}
                   </Text>
                 </View>
                 {needsConnect ? (
@@ -454,26 +546,21 @@ export default function PublishScreen() {
         ) : null}
       </Pressable>
 
-      {primary?.coverUrl ? (
-        <View style={{ marginBottom: 12, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: colors.border }}>
-          <Image source={{ uri: primary.coverUrl }} style={{ width: "100%", aspectRatio: 4 / 5 }} resizeMode="cover" />
-        </View>
-      ) : (
-        <View style={{ marginBottom: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: "#F3F4F8", minHeight: 100, alignItems: "center", justifyContent: "center" }}>
-          <Text style={{ color: colors.textSecondary, fontSize: fonts.body2 }}>
-            {selectedItems.length ? "Sem foto neste item" : "Nada selecionado ainda"}
-          </Text>
-        </View>
-      )}
+      <SelectionPreview items={selectedItems} />
 
       <View style={{ marginBottom: 14 }}>
         <Field
-          label={selectedItems.length > 1 ? "Textos que serão enviados" : "Texto do anúncio"}
+          label={selectedItems.length > 1 ? "Mensagens que serão enviadas" : enabled.WHATSAPP ? "Mensagem do WhatsApp" : "Texto do anúncio"}
           value={caption}
           onChangeText={setCaption}
           multiline
-          placeholder="Escolha anúncios/produtos acima. O texto aparece aqui para você revisar."
+          placeholder="Escolha anúncios ou produtos. A mensagem aparece aqui para você revisar."
         />
+        {enabled.WHATSAPP ? (
+          <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, marginTop: 8 }}>
+            Loja, título e preço em destaque. As fotos seguem no mesmo envio. Se o WhatsApp não colar o texto, ele já fica copiado.
+          </Text>
+        ) : null}
       </View>
 
       {message ? <HelperText error={error}>{message}</HelperText> : null}
@@ -558,7 +645,7 @@ export default function PublishScreen() {
                           {item.title}
                         </Text>
                         <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, marginTop: 2 }} numberOfLines={2}>
-                          {item.description}
+                          {[item.priceLabel, item.description].filter(Boolean).join(" · ") || "Sem descrição"}
                         </Text>
                       </View>
                     </Pressable>

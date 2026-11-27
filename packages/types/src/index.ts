@@ -184,6 +184,8 @@ export function firstName(fullName?: string | null, fallback = "você") {
 }
 
 export { normalizeHashtags, formatHashtag } from "./hashtags";
+export { cleanShareDescription, formatWhatsAppBundle, formatWhatsAppPost, plainShareText, shareHashtags } from "./share-message";
+export type { SharePost } from "./share-message";
 
 export function isPlanLimits(value: unknown): value is PlanLimits {
   if (!value || typeof value !== "object") return false;
