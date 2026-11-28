@@ -167,6 +167,12 @@ export default function AuthGate() {
     await setItem("vf_last_email", normalized);
   }
 
+  async function loadLastEmail() {
+    const saved = await getItem("vf_last_email");
+    if (saved) setEmail(saved);
+    return saved;
+  }
+
   async function persistSession(accessToken: string, refreshToken: string, loginEmail?: string) {
     if (loginEmail) await rememberEmail(loginEmail);
     await setItem("vf_access", accessToken);
@@ -175,14 +181,18 @@ export default function AuthGate() {
   }
 
   async function goLogin() {
-    const saved = (await getItem("vf_last_email")) || email;
-    if (saved) setEmail(saved);
+    await loadLastEmail();
     setPassword("");
     setError("");
     setMessage("");
     setTouched({ name: false, email: false, password: false, terms: false });
     setScreen("login");
   }
+
+  useEffect(() => {
+    if (screen !== "login" && screen !== "forgot") return;
+    void loadLastEmail();
+  }, [screen]);
 
   function goRegister() {
     setError("");
@@ -192,9 +202,10 @@ export default function AuthGate() {
   }
 
   function goForgot() {
+    void loadLastEmail();
     setError("");
     setMessage("");
-    setTouched({ name: false, email: true, password: false, terms: false });
+    setTouched({ name: false, email: false, password: false, terms: false });
     setScreen("forgot");
   }
 
