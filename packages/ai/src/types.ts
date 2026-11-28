@@ -54,9 +54,27 @@ export type ConfirmedFacts = {
   visible?: ImageAnalysis | null;
 };
 
+export type StudioBackgroundStyle =
+  | "white_studio"
+  | "soft_gray"
+  | "marble"
+  | "dark_premium"
+  | "wood_natural"
+  | "pastel_mint"
+  | "lifestyle_blur";
+
 export interface ImageAnalysisProvider {
   readonly id: string;
   analyze(input: { image: Buffer; mimeType: string }): Promise<{ analysis: ImageAnalysis; usage: Usage }>;
+}
+
+export interface ImageEditProvider {
+  readonly id: string;
+  studioBackground(input: {
+    image: Buffer;
+    mimeType: string;
+    style: StudioBackgroundStyle;
+  }): Promise<{ image: Buffer; mimeType: string; usage: Usage }>;
 }
 
 export interface TextGenerationProvider {
@@ -77,6 +95,7 @@ export interface VideoGenerationProvider {
 
 export type AiRegistry = {
   vision: ImageAnalysisProvider | null;
+  imageEdit: ImageEditProvider | null;
   text: TextGenerationProvider | null;
   speech: TextToSpeechProvider[];
   generativeVideo: VideoGenerationProvider | null;

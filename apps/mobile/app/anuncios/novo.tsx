@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Dimensions, Easing, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Animated, Dimensions, Easing, Image, InteractionManager, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -29,16 +29,25 @@ const STEPS = [
   { key: "ajustes", label: "Ajustes" },
 ] as const;
 
-const BACKGROUNDS = [
+const SOLID_BACKGROUNDS = [
   { id: "original", label: "Original", color: null as string | null },
   { id: "white", label: "Branco", color: "#FFFFFF" },
   { id: "soft", label: "Cinza", color: "#F3F4F8" },
   { id: "cream", label: "Creme", color: "#F7F1E8" },
-  { id: "studio", label: "Estúdio", color: "#E8EEF5" },
   { id: "dark", label: "Preto", color: "#111827" },
-  { id: "brand", label: "Roxo", color: "#EDE9FE" },
-  { id: "mint", label: "Menta", color: "#E7F8F2" },
 ] as const;
+
+const AI_BACKGROUNDS = [
+  { id: "white_studio", label: "Estúdio IA", color: "#FFFFFF", swatch: "#F8FAFC" },
+  { id: "soft_gray", label: "Cinza IA", color: "#F3F4F8", swatch: "#E5E7EB" },
+  { id: "marble", label: "Mármore", color: "#F5F5F4", swatch: "#E7E5E4" },
+  { id: "dark_premium", label: "Premium", color: "#111827", swatch: "#1F2937" },
+  { id: "wood_natural", label: "Madeira", color: "#E8D9C5", swatch: "#D6B98C" },
+  { id: "pastel_mint", label: "Menta IA", color: "#E7F8F2", swatch: "#A7F3D0" },
+  { id: "lifestyle_blur", label: "Lifestyle", color: "#E8EEF5", swatch: "#BFDBFE" },
+] as const;
+
+type AiBgStyle = (typeof AI_BACKGROUNDS)[number]["id"];
 
 const CONDITIONS: Array<{ id: Condition; label: string }> = [
   { id: "novo", label: "Novo" },
@@ -203,7 +212,9 @@ export default function AdScreen() {
   const [step, setStep] = useState<Step>(0);
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
   const [assetIds, setAssetIds] = useState<string[]>([]);
-  const [bgId, setBgId] = useState<(typeof BACKGROUNDS)[number]["id"]>("original");
+  const [bgId, setBgId] = useState<string>("original");
+  const [showCoverPreview, setShowCoverPreview] = useState(false);
+  const [bgBusy, setBgBusy] = useState(false);
   const [priceText, setPriceText] = useState("");
   const [hasPromo, setHasPromo] = useState(false);
   const [promoText, setPromoText] = useState("");
@@ -219,8 +230,29 @@ export default function AdScreen() {
   const generatingRef = useRef(false);
   const generationSeq = useRef(0);
   const sessionDraftId = useRef<string | null>(null);
+  const bgBusyRef = useRef(false);
 
-  const selectedBg = useMemo(() => BACKGROUNDS.find((item) => item.id === bgId) || BACKGROUNDS[0], [bgId]);
+  const selectedSolid = useMemo(() => SOLID_BACKGROUNDS.find((item) => item.id === bgId), [bgId]);
+  const selectedAi = useMemo(() => AI_BACKGROUNDS.find((item) => item.id === bgId), [bgId]);
+  const selectedBg = selectedSolid || selectedAi || SOLID_BACKGROUNDS[0];
+
+  useEffect(() => {
+    if (!coverUri) {
+      setShowCoverPreview(false);
+      return;
+    }
+    setShowCoverPreview(false);
+    let cancelled = false;
+    const task = InteractionManager.runAfterInteractions(() => {
+      setTimeout(() => {
+        if (!cancelled) setShowCoverPreview(true);
+      }, 280);
+    });
+    return () => {
+      cancelled = true;
+      task.cancel?.();
+    };
+  }, [coverUri]);
   const priceCents = useMemo(() => parseBrlToCents(priceText), [priceText]);
   const promoCents = useMemo(() => (hasPromo ? parseBrlToCents(promoText) : null), [hasPromo, promoText]);
 
@@ -349,6 +381,48 @@ export default function AdScreen() {
     }
     setError("");
     return true;
+  }
+
+  async function applyAiBackground(style: AiBgStyle) {
+    if (!photos[0] || bgBusyRef.current) return;
+    bgBusyRef.current = true;
+    setBgBusy(true);
+    setError("");
+    setBgId(style);
+    try {
+      await feedback.run("Gerando fundo profissional…", async () => {
+        let sourceId = assetIds[0];
+        if (!sourceId) {
+          const uploaded = await uploadLocalImage(photos[0].uri, photos[0].mimeType, "capa-original.jpg");
+          sourceId = uploaded.id;
+          setAssetIds((current) => [uploaded.id, ...current.slice(1)]);
+        }
+        const generated = await withTimeout(
+          api.productBackground({ assetId: sourceId, style }),
+          90_000,
+          "A IA demorou demais para gerar o fundo.",
+        );
+        const absolute = generated.url.startsWith("http") ? generated.url : `${apiBase}${generated.url}`;
+        const nextCover: LocalPhoto = {
+          key: `ai-bg-${Date.now()}`,
+          uri: absolute,
+          mimeType: generated.mimeType || "image/jpeg",
+        };
+        setPhotos((current) => [nextCover, ...current.slice(1)]);
+        setAssetIds((current) => [generated.id, ...current.slice(1)]);
+        setBgId(style);
+      });
+      feedback.showToast("Fundo profissional aplicado.", "success");
+    } catch (cause) {
+      if (handleTenantError(cause)) return;
+      const text = cause instanceof ApiClientError ? cause.message : cause instanceof Error ? cause.message : "Não foi possível gerar o fundo.";
+      setError(text);
+      feedback.showToast(text, "error");
+      setBgId("original");
+    } finally {
+      bgBusyRef.current = false;
+      setBgBusy(false);
+    }
   }
 
   async function runGenerate() {
@@ -500,8 +574,8 @@ export default function AdScreen() {
     step === 1 ? "Detalhes da oferta" : step === 3 ? "Anúncio gerado pela IA" : "Criar anúncio com IA";
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
   const elapsedLabel = `${String(Math.floor(elapsedSec / 60)).padStart(2, "0")}:${String(elapsedSec % 60).padStart(2, "0")}`;
-  const coverBg = selectedBg.color || "#EEF0F5";
-  const coverMode = selectedBg.color ? ("contain" as const) : ("cover" as const);
+  const coverBg = (selectedSolid?.color || selectedAi?.color || "#EEF0F5") as string;
+  const coverMode = selectedSolid?.color ? ("contain" as const) : ("cover" as const);
 
   return (
     <KeyboardAvoidingView
@@ -533,6 +607,7 @@ export default function AdScreen() {
                   setAssetIds([]);
                   setDraft(null);
                   sessionDraftId.current = null;
+                  setBgId("original");
                   setError("");
                 }}
                 emptyLabel="Escolha até 30 fotos do produto"
@@ -542,21 +617,30 @@ export default function AdScreen() {
               {coverUri ? (
                 <View style={{ gap: 10 }}>
                   <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700" }}>Fundo da capa</Text>
-                  <View style={{ borderRadius: 18, overflow: "hidden", backgroundColor: coverBg, borderWidth: 1, borderColor: colors.border }}>
-                    <Image source={{ uri: coverUri }} style={{ width: "100%", aspectRatio: 4 / 5 }} resizeMode={coverMode} />
+                  <View style={{ borderRadius: 18, overflow: "hidden", backgroundColor: coverBg, borderWidth: 1, borderColor: colors.border, minHeight: 180, alignItems: "center", justifyContent: "center" }}>
+                    {showCoverPreview ? (
+                      <Image source={{ uri: coverUri }} style={{ width: "100%", aspectRatio: 4 / 5 }} resizeMode={coverMode} />
+                    ) : (
+                      <ActivityIndicator color={colors.primary} />
+                    )}
+                    {bgBusy ? (
+                      <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(15,12,30,0.35)", alignItems: "center", justifyContent: "center" }}>
+                        <ActivityIndicator color="#fff" />
+                        <Text style={{ color: "#fff", marginTop: 8, fontWeight: "700", fontSize: fonts.caption }}>Gerando fundo…</Text>
+                      </View>
+                    ) : null}
                   </View>
+
+                  <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, fontWeight: "700" }}>Rápidos</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
-                    {BACKGROUNDS.map((bg) => {
+                    {SOLID_BACKGROUNDS.map((bg) => {
                       const active = bg.id === bgId;
                       return (
                         <Pressable
                           key={bg.id}
+                          disabled={bgBusy}
                           onPress={() => setBgId(bg.id)}
-                          style={{
-                            width: 72,
-                            alignItems: "center",
-                            gap: 6,
-                          }}
+                          style={{ width: 72, alignItems: "center", gap: 6, opacity: bgBusy ? 0.5 : 1 }}
                         >
                           <View
                             style={{
@@ -571,13 +655,45 @@ export default function AdScreen() {
                               justifyContent: "center",
                             }}
                           >
-                            {bg.id === "original" ? (
+                            {bg.id === "original" && showCoverPreview ? (
                               <Image source={{ uri: coverUri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
                             ) : (
                               <View style={{ width: 22, height: 28, borderRadius: 4, backgroundColor: "rgba(15,12,30,0.12)" }} />
                             )}
                           </View>
                           <Text style={{ color: active ? colors.primary : colors.textSecondary, fontSize: fonts.tiny, fontWeight: "700" }}>{bg.label}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+
+                  <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, fontWeight: "700", marginTop: 4 }}>Profissionais com IA</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+                    {AI_BACKGROUNDS.map((bg) => {
+                      const active = bg.id === bgId;
+                      return (
+                        <Pressable
+                          key={bg.id}
+                          disabled={bgBusy}
+                          onPress={() => void applyAiBackground(bg.id)}
+                          style={{ width: 78, alignItems: "center", gap: 6, opacity: bgBusy ? 0.5 : 1 }}
+                        >
+                          <View
+                            style={{
+                              width: 56,
+                              height: 56,
+                              borderRadius: 14,
+                              borderWidth: active ? 2 : 1,
+                              borderColor: active ? colors.primary : colors.border,
+                              overflow: "hidden",
+                              backgroundColor: bg.swatch,
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <Ionicons name="sparkles" size={16} color={colors.primary} />
+                          </View>
+                          <Text style={{ color: active ? colors.primary : colors.textSecondary, fontSize: fonts.tiny, fontWeight: "700", textAlign: "center" }}>{bg.label}</Text>
                         </Pressable>
                       );
                     })}
@@ -598,7 +714,7 @@ export default function AdScreen() {
               >
                 <Ionicons name="sparkles" size={16} color={colors.primary} style={{ marginTop: 1 }} />
                 <Text style={{ flex: 1, color: colors.text, fontSize: fonts.body2, fontWeight: "500", lineHeight: 16 }}>
-                  Escolha o fundo da capa. Depois a IA pergunta preço, promoção e condições para montar um anúncio profissional.
+                  Fundos com IA recriam a foto em estúdio profissional. Depois informe preço e promoção para a IA montar título e descrição assertivos.
                 </Text>
               </View>
 

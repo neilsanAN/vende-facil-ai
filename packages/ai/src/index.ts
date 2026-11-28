@@ -8,6 +8,7 @@ export function createAiRegistry(env: {
   GEMINI_API_KEY?: string;
   GEMINI_TEXT_MODEL?: string;
   GEMINI_VISION_MODEL?: string;
+  GEMINI_IMAGE_MODEL?: string;
   OPENAI_API_KEY?: string;
   OPENAI_TEXT_MODEL?: string;
   OPENAI_VISION_MODEL?: string;
@@ -21,6 +22,7 @@ export function createAiRegistry(env: {
     apiKey: env.GEMINI_API_KEY || "",
     textModel: env.GEMINI_TEXT_MODEL || "gemini-2.0-flash",
     visionModel: env.GEMINI_VISION_MODEL || "gemini-2.0-flash",
+    imageModel: env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image",
   });
   const openai = createOpenAiProviders({
     apiKey: env.OPENAI_API_KEY || "",
@@ -35,6 +37,7 @@ export function createAiRegistry(env: {
   return {
     // Gemini first for text/vision when configured; OpenAI remains fallback.
     vision: gemini?.vision ?? openai?.vision ?? null,
+    imageEdit: gemini?.imageEdit ?? null,
     text: gemini?.text ?? openai?.text ?? null,
     speech: [openai?.speech, eleven].filter((item): item is NonNullable<typeof item> => Boolean(item)),
     generativeVideo: createHttpVideoProvider({
@@ -45,4 +48,12 @@ export function createAiRegistry(env: {
 }
 
 export { ProviderNotConfiguredError } from "./types";
-export type { AdCopy, AiRegistry, ConfirmedFacts, ImageAnalysis, Usage, VideoScript } from "./types";
+export type {
+  AdCopy,
+  AiRegistry,
+  ConfirmedFacts,
+  ImageAnalysis,
+  StudioBackgroundStyle,
+  Usage,
+  VideoScript,
+} from "./types";

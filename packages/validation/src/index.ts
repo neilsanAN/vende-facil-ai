@@ -142,6 +142,11 @@ export const artworkSchema = z.object({
   priceLabel: z.string().trim().max(40).optional().default(""),
 });
 
+export const productBackgroundSchema = z.object({
+  assetId: z.string().uuid(),
+  style: z.enum(["white_studio", "soft_gray", "marble", "dark_premium", "wood_natural", "pastel_mint", "lifestyle_blur"]),
+});
+
 export const videoCreateSchema = z.object({
   productId: z.string().uuid(),
   title: z.string().trim().min(2).max(120).optional(),

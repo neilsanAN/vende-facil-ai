@@ -1,6 +1,12 @@
 import { createHash } from "node:crypto";
 import type { Prisma, PrismaClient } from "@prisma/client";
-import { ProviderNotConfiguredError, type AiRegistry, type ConfirmedFacts, type ImageAnalysis } from "@vendefacil/ai";
+import {
+  ProviderNotConfiguredError,
+  type AiRegistry,
+  type ConfirmedFacts,
+  type ImageAnalysis,
+  type StudioBackgroundStyle,
+} from "@vendefacil/ai";
 import { composeArtwork, type StorageService } from "@vendefacil/media";
 import { formatBrl, normalizeHashtags } from "@vendefacil/types";
 import { AppError } from "./errors";
@@ -296,6 +302,72 @@ export class StudioService {
     return { ok: true };
   }
 
+  async productBackground(
+    tenant: Tenant,
+    input: { assetId: string; style: StudioBackgroundStyle },
+    idempotencyKey: string,
+  ) {
+    assertMinRole(tenant.role, "EDITOR");
+    if (!this.ai.imageEdit) {
+      throw new AppError("PROVIDER_NOT_CONFIGURED", "A geração de fundo com IA precisa do Gemini configurado.", 503);
+    }
+    await this.guardHourly(tenant.organizationId);
+    const asset = await this.ownedImage(tenant.organizationId, input.assetId);
+    const source = await this.storage.getObject("private", asset.objectKey);
+    let result: { image: Buffer; mimeType: string; usage: { provider: string; model: string; inputTokens: number; outputTokens: number; units: number; latencyMs: number; estimatedCostCents: number } };
+    try {
+      result = await this.ai.imageEdit.studioBackground({
+        image: source,
+        mimeType: asset.mimeType,
+        style: input.style,
+      });
+    } catch (error) {
+      await this.recordFailure(tenant, "ARTWORK", this.ai.imageEdit.id, error);
+      const detail = error instanceof Error ? error.message : "";
+      throw new AppError("AI_FAILED", detail.includes("demorou") || detail.includes("fundo") ? detail : "Não foi possível gerar o fundo profissional.", 502);
+    }
+    const generation = await this.record(tenant, "ARTWORK", result.usage, { style: input.style, sourceAssetId: input.assetId });
+    try {
+      await debitKind(this.db, {
+        organizationId: tenant.organizationId,
+        kind: "ANNOUNCEMENT",
+        amount: 1,
+        reason: "product_background",
+        idempotencyKey: `bg:${idempotencyKey}`,
+        referenceType: "AiGeneration",
+        referenceId: generation.id,
+      });
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError("INSUFFICIENT_CREDITS", "Não há créditos disponíveis para gerar o fundo.", 402);
+    }
+    await this.billing.recordUsage(tenant.organizationId, "ai.artwork", 1, { generationId: generation.id, style: input.style });
+    const ext = result.mimeType.includes("png") ? "png" : "jpg";
+    const key = `org/${tenant.organizationId}/bg/${createHash("sha1").update(result.image).digest("hex").slice(0, 16)}.${ext}`;
+    await this.storage.putObject("private", key, result.image, result.mimeType);
+    const created = await this.db.mediaAsset.create({
+      data: {
+        organizationId: tenant.organizationId,
+        ownerUserId: tenant.userId,
+        kind: "IMAGE",
+        status: "READY",
+        bucket: "private",
+        objectKey: key,
+        mimeType: result.mimeType,
+        sizeBytes: result.image.byteLength,
+      },
+    });
+    await this.catalog.publishAsset(created.id).catch(() => undefined);
+    await audit(this.db, {
+      organizationId: tenant.organizationId,
+      actorUserId: tenant.userId,
+      action: "ad.background_generated",
+      entityType: "MediaAsset",
+      entityId: created.id,
+    });
+    return { id: created.id, url: `/api/media/${created.id}`, mimeType: result.mimeType, style: input.style };
+  }
+
   async artwork(tenant: Tenant, input: { productId: string; template: "story" | "feed" | "portrait"; title: string; priceLabel?: string }) {
     assertMinRole(tenant.role, "EDITOR");
     const product = await this.db.product.findFirst({ where: { id: input.productId, organizationId: tenant.organizationId }, include: { images: { orderBy: { position: "asc" }, take: 1, include: { mediaAsset: true } }, store: true } });
@@ -349,7 +421,7 @@ export class StudioService {
     });
   }
 
-  private async recordFailure(tenant: Tenant, kind: "IMAGE_ANALYSIS" | "TEXT" | "TTS" | "VIDEO", provider: string, error: unknown) {
+  private async recordFailure(tenant: Tenant, kind: "IMAGE_ANALYSIS" | "TEXT" | "TTS" | "VIDEO" | "ARTWORK", provider: string, error: unknown) {
     await this.db.aiGeneration.create({
       data: { organizationId: tenant.organizationId, userId: tenant.userId, kind, provider, model: "unknown", status: "FAILED", errorCode: error instanceof Error ? error.name : "ERROR" },
     });

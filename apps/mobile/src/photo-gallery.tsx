@@ -1,5 +1,6 @@
-import { Image, Pressable, Text, View } from "react-native";
+import { InteractionManager, Image, Platform, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { colors, fonts } from "@vendefacil/ui-tokens";
 
@@ -18,6 +19,27 @@ type Props = {
   emptyLabel?: string;
   onError?: (message: string) => void;
 };
+
+/** Copia a foto da câmera para cache estável — evita reinício ao voltar do editor/câmera no Android. */
+async function persistCapturedPhoto(uri: string, mimeType: string): Promise<LocalPhoto> {
+  const ext = mimeType.includes("png") ? "png" : "jpg";
+  const dest = `${FileSystem.cacheDirectory || ""}vf-cam-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+  try {
+    await FileSystem.copyAsync({ from: uri, to: dest });
+    return {
+      key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      uri: dest,
+      mimeType: mimeType || "image/jpeg",
+    };
+  } catch {
+    // Fallback: usa URI original se a cópia falhar.
+    return {
+      key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      uri,
+      mimeType: mimeType || "image/jpeg",
+    };
+  }
+}
 
 export async function pickPhotos(options: {
   camera: boolean;
@@ -38,26 +60,24 @@ export async function pickPhotos(options: {
   if (options.camera) {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ["images"],
-      quality: 0.85,
-      allowsEditing: true,
-      aspect: [1, 1],
+      // allowsEditing no Android costuma matar o processo ao voltar.
+      allowsEditing: Platform.OS === "ios",
+      aspect: Platform.OS === "ios" ? [1, 1] : undefined,
+      quality: 0.7,
+      exif: false,
     });
     if (result.canceled || !result.assets[0]?.uri) return [];
     const asset = result.assets[0];
-    return [
-      {
-        key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        uri: asset.uri,
-        mimeType: asset.mimeType || "image/jpeg",
-      },
-    ];
+    const persisted = await persistCapturedPhoto(asset.uri, asset.mimeType || "image/jpeg");
+    return [persisted];
   }
 
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"],
-    quality: 0.85,
+    quality: 0.75,
     allowsMultipleSelection: true,
     selectionLimit: remaining,
+    exif: false,
   });
   if (result.canceled) return [];
   return result.assets
@@ -88,7 +108,12 @@ export function PhotoGallery({
     try {
       const next = await pickPhotos({ camera, currentCount: photos.length, max: limit });
       if (!next.length) return;
-      onChange([...photos, ...next].slice(0, limit));
+      // Espera a câmera fechar antes de atualizar a UI — reduz OOM/reinício.
+      InteractionManager.runAfterInteractions(() => {
+        requestAnimationFrame(() => {
+          onChange([...photos, ...next].slice(0, limit));
+        });
+      });
     } catch (cause) {
       onError?.(cause instanceof Error ? cause.message : "Não foi possível abrir as fotos.");
     }

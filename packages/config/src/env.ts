@@ -28,6 +28,7 @@ const schema = z.object({
   GEMINI_API_KEY: z.string().optional().default(""),
   GEMINI_TEXT_MODEL: z.string().default("gemini-3.6-flash"),
   GEMINI_VISION_MODEL: z.string().default("gemini-3.6-flash"),
+  GEMINI_IMAGE_MODEL: z.string().default("gemini-2.5-flash-image"),
   OPENAI_API_KEY: z.string().optional().default(""),
   OPENAI_TEXT_MODEL: z.string().default("gpt-4o-mini"),
   OPENAI_VISION_MODEL: z.string().default("gpt-4o-mini"),

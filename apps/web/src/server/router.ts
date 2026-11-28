@@ -2,6 +2,7 @@ import {
   adGenerateSchema,
   adUpdateSchema,
   artworkSchema,
+  productBackgroundSchema,
   categorySchema,
   contactSchema,
   deleteAccountSchema,
@@ -90,6 +91,7 @@ const routes: Route[] = [
   { method: "POST", pattern: "/uploads/:id/confirm", auth: "tenant", handle: async (ctx) => json(await ctx.container.media.confirm(requireTenantSession(ctx), ctx.params.id || "")) },
   { method: "POST", pattern: "/ai/analyze", auth: "tenant", handle: analyze },
   { method: "POST", pattern: "/ai/ads", auth: "tenant", handle: generateAd },
+  { method: "POST", pattern: "/ai/product-background", auth: "tenant", handle: productBackground },
   { method: "GET", pattern: "/ads", auth: "tenant", handle: async (ctx) => json(await ctx.container.studio.listAds(requireTenantSession(ctx))) },
   { method: "POST", pattern: "/ads", auth: "tenant", handle: saveAd },
   { method: "PATCH", pattern: "/ads/:id", auth: "tenant", handle: saveAd },
@@ -391,6 +393,12 @@ async function generateAd(ctx: RouteContext) {
   const body = await readJson(ctx.req, adGenerateSchema);
   if (!body.ok) return body.response;
   return json(await ctx.container.studio.generateAd(requireTenantSession(ctx), { ...body.data, facts: body.data.facts }, idempotency(ctx.req)));
+}
+
+async function productBackground(ctx: RouteContext) {
+  const body = await readJson(ctx.req, productBackgroundSchema);
+  if (!body.ok) return body.response;
+  return json(await ctx.container.studio.productBackground(requireTenantSession(ctx), body.data, idempotency(ctx.req)));
 }
 
 async function saveAd(ctx: RouteContext) {

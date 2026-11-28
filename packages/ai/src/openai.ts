@@ -20,12 +20,13 @@ confidence: high|medium|low.
 Quando não tiver certeza, deixe o campo vazio ou use confidence low.
 Formato: {"productType":"","suggestedName":"","brandVisible":"","category":"","attributes":[],"colors":[],"visibleText":[],"form":"","context":"","uncertain":[],"confidence":"medium"}`;
 
-const AD_COPY_PROMPT = `Escreva anúncios em português do Brasil para WhatsApp/redes, com base na identificação visual do produto.
-Use somente os fatos e observações visuais fornecidos. Não invente marca, composição, garantia, certificação, preço ou especificação ausente.
-Se a marca não foi informada/visível, não cite marca. Se o preço não foi informado, não cite valor.
-Título: específico e comercial (nome do produto + diferencial visível), até ~80 caracteres.
-Descrição: 2 a 4 frases assertivas sobre o que é o produto, benefícios visíveis e CTA para chamar no WhatsApp.
-Hashtags: 6 a 10 tags específicas (categoria, tipo, marca se visível, uso/cor). Sem # no JSON, sem espaços, sem promessa não suportada.
+const AD_COPY_PROMPT = `Escreva anúncios em português do Brasil para WhatsApp/Instagram, como se a foto tivesse sido identificada pelo Google Lens.
+O título e a descrição DEVEM nomear o produto de forma assertiva (tipo + cor/modelo/marca se confirmados), sem genéricos como "Produto incrível".
+Use somente identificação visual + fatos do vendedor. Não invente marca, composição, garantia, certificação, preço ou especificação ausente.
+Se a marca não foi informada/visível, não cite marca. Se o preço não foi informado, não cite valor; se foi, use exatamente o preço informado.
+Título: específico e comercial, até ~70 caracteres.
+Descrição: 2 a 4 frases — o que é, diferencial visível, condição/pagamento/entrega se informados, CTA para WhatsApp.
+Hashtags: 6 a 10 tags específicas do produto. Sem # no JSON.
 Responda JSON: {"title":"","description":"","hashtags":[]}.`;
 
 function factsBlock(facts: ConfirmedFacts) {

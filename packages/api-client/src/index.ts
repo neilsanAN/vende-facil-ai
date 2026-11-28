@@ -173,6 +173,15 @@ export function createApiClient(options: {
         headers: { "idempotency-key": `${Date.now()}-${Math.random().toString(36).slice(2, 10)}` },
         body: JSON.stringify(body),
       }),
+    productBackground: (body: {
+      assetId: string;
+      style: "white_studio" | "soft_gray" | "marble" | "dark_premium" | "wood_natural" | "pastel_mint" | "lifestyle_blur";
+    }) =>
+      request<{ id: string; url: string; mimeType: string; style: string }>("/api/ai/product-background", {
+        method: "POST",
+        headers: { "idempotency-key": `${Date.now()}-${Math.random().toString(36).slice(2, 10)}` },
+        body: JSON.stringify(body),
+      }),
     deleteAd: (id: string) =>
       request<{ ok: boolean }>(`/api/ads/${id}`, {
         method: "DELETE",
