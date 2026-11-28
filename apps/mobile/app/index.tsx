@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { brand, colors, control, fonts } from "@vendefacil/ui-tokens";
 import { WelcomeCarousel } from "../src/welcome-carousel";
 import { ApiClientError, createApiClient } from "@vendefacil/api-client";
+import { AuthField } from "../src/auth-field";
 import { BootScreen } from "../src/boot-screen";
 import { resolveApiUrl } from "../src/config";
 import { getItem, setItem } from "../src/storage";
@@ -22,49 +23,6 @@ function looksLikeEmail(value: string) {
 
 function passwordReady(value: string) {
   return value.length >= 8 && /[A-Za-z]/.test(value) && /\d/.test(value);
-}
-
-function AuthField({
-  label,
-  required,
-  icon,
-  error,
-  trailing,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  icon: keyof typeof Ionicons.glyphMap;
-  error?: string;
-  trailing?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <View style={{ marginBottom: 12 }}>
-      <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 11, fontWeight: "600", marginBottom: 6 }}>
-        {label}
-        {required ? <Text style={{ color: "#FFB4BE" }}> *</Text> : null}
-      </Text>
-      <View
-        style={{
-          height: 40,
-          borderRadius: 10,
-          backgroundColor: "#fff",
-          paddingHorizontal: 12,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
-          borderWidth: error ? 2 : 0,
-          borderColor: error ? "#FF6B7A" : "transparent",
-        }}
-      >
-        <Ionicons name={icon} size={16} color="#9A96AB" />
-        <View style={{ flex: 1 }}>{children}</View>
-        {trailing}
-      </View>
-      {error ? <Text style={{ color: "#FFE0E4", fontSize: 11, fontWeight: "500", marginTop: 6 }}>{error}</Text> : null}
-    </View>
-  );
 }
 
 export default function AuthGate() {
