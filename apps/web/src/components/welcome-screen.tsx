@@ -118,13 +118,13 @@ export function WelcomeScreen() {
 
         <div className="mt-auto grid gap-3 pt-8">
           <Link
-            href="/cadastro"
+            href="/entrar"
             className="flex h-10 items-center justify-center rounded-full bg-gradient-to-r from-[#8B6CFF] to-[#6D4AFF] px-4 text-[12px] font-semibold text-white shadow-[0_10px_28px_rgba(109,74,255,0.45)]"
           >
-            Começar
-          </Link>
-          <Link href="/entrar" className="flex h-10 items-center justify-center rounded-full border border-white/35 bg-transparent px-4 text-[12px] font-semibold text-white">
             Já tenho conta
+          </Link>
+          <Link href="/cadastro" className="flex h-10 items-center justify-center rounded-full border border-white/35 bg-transparent px-4 text-[12px] font-semibold text-white">
+            Começar
           </Link>
         </div>
       </div>

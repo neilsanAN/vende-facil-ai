@@ -11,25 +11,58 @@ export class ApiClientError extends Error {
   }
 }
 
+function isNetworkFailure(cause: unknown) {
+  if (!(cause instanceof Error)) return false;
+  const message = cause.message.toLowerCase();
+  return (
+    cause.name === "TypeError" ||
+    message.includes("network request failed") ||
+    message.includes("failed to fetch") ||
+    message.includes("network error") ||
+    message.includes("timed out") ||
+    message.includes("timeout")
+  );
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function createApiClient(options: {
   baseUrl: string;
   getAccessToken?: () => Promise<string | null>;
   refresh?: () => Promise<string | null>;
 }) {
-  async function request<T>(path: string, init?: RequestInit, retry = true): Promise<T> {
+  async function request<T>(path: string, init?: RequestInit, retryAuth = true, networkAttempt = 0): Promise<T> {
     const token = options.getAccessToken ? await options.getAccessToken() : null;
-    const response = await fetch(`${options.baseUrl}${path}`, {
-      ...init,
-      headers: {
-        "x-vendefacil-client": "mobile",
-        ...(init?.body ? { "content-type": "application/json" } : {}),
-        ...(token ? { authorization: `Bearer ${token}` } : {}),
-        ...(init?.headers || {}),
-      },
-    });
-    if (response.status === 401 && retry && options.refresh) {
+    let response: Response;
+    try {
+      response = await fetch(`${options.baseUrl}${path}`, {
+        ...init,
+        headers: {
+          "x-vendefacil-client": "mobile",
+          ...(init?.body ? { "content-type": "application/json" } : {}),
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+          ...(init?.headers || {}),
+        },
+      });
+    } catch (cause) {
+      if (isNetworkFailure(cause) && networkAttempt < 2) {
+        await sleep(1500 * (networkAttempt + 1));
+        return request<T>(path, init, retryAuth, networkAttempt + 1);
+      }
+      if (isNetworkFailure(cause)) {
+        throw new ApiClientError(
+          "Não foi possível conectar ao servidor. Aguarde alguns segundos e tente de novo.",
+          "NETWORK",
+          0,
+        );
+      }
+      throw cause;
+    }
+    if (response.status === 401 && retryAuth && options.refresh) {
       const next = await options.refresh();
-      if (next) return request<T>(path, init, false);
+      if (next) return request<T>(path, init, false, networkAttempt);
     }
     const payload = (await response.json().catch(() => null)) as T & ApiError;
     if (!response.ok) {

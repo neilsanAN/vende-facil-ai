@@ -138,11 +138,11 @@ export default function AuthGate() {
         </View>
         <WelcomeCarousel />
         <View style={{ marginTop: "auto", gap: 12, paddingTop: 20 }}>
-          <Pressable onPress={() => setScreen("register")} style={{ height: control.height, borderRadius: 999, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}>
-            <Text style={{ color: "#fff", fontSize: fonts.body, fontWeight: "600" }}>Começar</Text>
-          </Pressable>
-          <Pressable onPress={() => void goLogin()} style={{ height: control.height, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.35)", alignItems: "center", justifyContent: "center" }}>
+          <Pressable onPress={() => void goLogin()} style={{ height: control.height, borderRadius: 999, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}>
             <Text style={{ color: "#fff", fontSize: fonts.body, fontWeight: "600" }}>Já tenho conta</Text>
+          </Pressable>
+          <Pressable onPress={() => setScreen("register")} style={{ height: control.height, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.35)", alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ color: "#fff", fontSize: fonts.body, fontWeight: "600" }}>Começar</Text>
           </Pressable>
         </View>
       </View>
