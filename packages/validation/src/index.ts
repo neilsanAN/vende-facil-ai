@@ -23,7 +23,7 @@ export const passwordSchema = z
   .refine((value) => /[A-Za-z]/.test(value) && /\d/.test(value), "Use letras e números na senha.");
 
 export const registerSchema = z.object({
-  name: z.string().trim().min(2).max(80),
+  name: z.string().trim().min(2, "O nome precisa ter pelo menos 2 caracteres.").max(80, "Use um nome com até 80 caracteres."),
   email: emailSchema,
   password: passwordSchema,
   acceptTerms: z.literal(true, { errorMap: () => ({ message: "Aceite os termos e a política de privacidade." }) }),
@@ -31,7 +31,7 @@ export const registerSchema = z.object({
 
 export const loginSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1).max(128),
+  password: z.string().min(1, "Informe sua senha.").max(128),
 });
 
 export const forgotSchema = z.object({ email: emailSchema });

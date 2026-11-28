@@ -56,7 +56,7 @@ function useIphone() {
 function AuthGradientFrame({ title, children, footer }: { title: string; children: React.ReactNode; footer?: React.ReactNode }) {
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#2A1760_0%,#6B4AD6_42%,#E9E4F8_78%,#F7F5FC_100%)]">
-      <div className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col px-6 pb-8 pt-12">
+      <div className="mx-auto flex min-h-screen w-full max-w-[360px] flex-col px-5 pb-8 pt-12">
         <div className="flex items-center justify-center gap-2.5">
           <AuthLogo />
           <p className="text-[22px] font-bold leading-7 tracking-tight text-white">
@@ -123,12 +123,12 @@ function PasswordStrength({
   const colors = ["bg-line", "bg-danger", "bg-danger", "bg-warning", "bg-success", "bg-success"];
   const width = value ? `${Math.max(20, score * 20)}%` : "0%";
   return (
-    <div className="space-y-2">
-      <div className="h-1.5 overflow-hidden rounded-full bg-line">
+    <div className="space-y-1.5 px-0.5">
+      <div className="h-1 overflow-hidden rounded-full bg-white/25">
         <div className={cn("h-full rounded-full transition-all duration-300 ease-out", colors[score])} style={{ width }} />
       </div>
-      <p className="text-[10px] font-medium leading-[13px] text-muted">{value ? labels[score] : "Digite uma senha"}</p>
-      <ul className="grid grid-cols-2 gap-1">
+      <p className="text-[11px] font-medium leading-4 text-white/90">{value ? labels[score] : "Digite uma senha"}</p>
+      <ul className="grid grid-cols-2 gap-x-2 gap-y-0.5">
         {[
           [checks.length, "8+ caracteres"],
           [checks.letter, "Letras"],
@@ -136,7 +136,7 @@ function PasswordStrength({
           [checks.upper, "Maiúscula"],
           [checks.symbol, "Símbolo"],
         ].map(([ok, text]) => (
-          <li key={String(text)} className={cn("text-[10px] font-medium leading-[13px] transition-colors duration-200", ok ? "text-success" : "text-muted")}>
+          <li key={String(text)} className={cn("text-[11px] font-medium leading-4 transition-colors duration-200", ok ? "text-[#B6F5C8]" : "text-white/75")}>
             {ok ? "✓" : "○"} {text}
           </li>
         ))}
@@ -166,11 +166,75 @@ function readLastEmail() {
   }
 }
 
+const authInputClass = "h-5 w-full border-0 bg-transparent text-[13px] font-medium text-[#171827] outline-none placeholder:text-[#9A96AB]";
+
+function looksLikeEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function fieldMessage(message: string | undefined, value: string, emptyText: string) {
+  if (!message) return undefined;
+  if (!value.trim() || /string must contain|required|expected string|invalid_type/i.test(message)) return emptyText;
+  return message;
+}
+
+function AuthField({
+  id,
+  label,
+  required,
+  icon,
+  error,
+  trailing,
+  children,
+}: {
+  id: string;
+  label: string;
+  required?: boolean;
+  icon: React.ReactNode;
+  error?: string;
+  trailing?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 flex items-center text-[11px] font-semibold tracking-wide text-white/90">
+        {label}
+        {required ? (
+          <span className="ml-0.5 text-[#FFB4BE]" aria-hidden="true">
+            *
+          </span>
+        ) : null}
+        {required ? <span className="sr-only"> obrigatório</span> : null}
+      </label>
+      <div className={cn("flex h-10 items-center gap-2 rounded-[10px] bg-white px-3 shadow-[0_4px_14px_rgba(42,23,96,0.12)]", error && "ring-2 ring-[#FF6B7A]")}>
+        <span className="shrink-0 text-[#9A96AB]">{icon}</span>
+        {children}
+        {trailing}
+      </div>
+      {error ? (
+        <p id={`${id}-error`} role="alert" className="mt-1.5 text-[11px] font-medium leading-4 text-[#FFE0E4]">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function LoginForm() {
   const router = useRouter();
-  const form = useForm({ resolver: zodResolver(loginSchema), defaultValues: { email: "", password: "" } });
+  const form = useForm({
+    resolver: zodResolver(loginSchema),
+    mode: "onTouched",
+    reValidateMode: "onChange",
+    defaultValues: { email: "", password: "" },
+  });
   const [error, setError] = useState("");
   const [visible, setVisible] = useState(false);
+  const emailValue = form.watch("email") || "";
+  const passwordValue = form.watch("password") || "";
+  const canSubmit = looksLikeEmail(emailValue) && passwordValue.length > 0;
+  const emailError = fieldMessage(form.formState.errors.email?.message, emailValue, "Informe seu e-mail.");
+  const passwordError = fieldMessage(form.formState.errors.password?.message, passwordValue, "Informe sua senha.");
 
   useEffect(() => {
     const saved = readLastEmail();
@@ -190,7 +254,8 @@ export function LoginForm() {
       }
     >
         <form
-          className="mt-7"
+          className="mt-7 space-y-3"
+          noValidate
           onSubmit={form.handleSubmit(async (values) => {
             setError("");
             try {
@@ -212,42 +277,51 @@ export function LoginForm() {
             }
           })}
         >
-          <div className="overflow-hidden rounded-2xl bg-white shadow-[0_12px_32px_rgba(42,23,96,0.18)]">
-            <label className="flex items-center gap-3 px-4 py-3.5">
-              <Mail size={18} className="shrink-0 text-[#9A96AB]" />
-              <input
-                className="h-6 w-full border-0 bg-transparent text-[13px] font-medium text-[#171827] outline-none placeholder:text-[#9A96AB]"
-                type="email"
-                autoComplete="email"
-                placeholder="seu@email.com"
-                {...form.register("email")}
-              />
-            </label>
-            <div className="mx-4 h-px bg-[#ECEAF3]" />
-            <label className="flex items-center gap-3 px-4 py-3.5">
-              <Lock size={18} className="shrink-0 text-[#9A96AB]" />
-              <input
-                className="h-6 w-full border-0 bg-transparent text-[13px] font-medium tracking-wide text-[#171827] outline-none placeholder:text-[#9A96AB]"
-                type={visible ? "text" : "password"}
-                autoComplete="current-password"
-                placeholder="••••••••"
-                {...form.register("password")}
-              />
-              <button type="button" className="grid h-8 w-8 place-items-center text-[#9A96AB]" onClick={() => setVisible((v) => !v)} aria-label={visible ? "Ocultar senha" : "Mostrar senha"}>
-                {visible ? <EyeOff size={18} /> : <Eye size={18} />}
+          <AuthField id="login-email" label="E-mail" required icon={<Mail size={16} />} error={emailError}>
+            <input
+              id="login-email"
+              className={authInputClass}
+              type="email"
+              autoComplete="email"
+              placeholder="seu@email.com"
+              aria-invalid={Boolean(emailError)}
+              aria-describedby={emailError ? "login-email-error" : undefined}
+              {...form.register("email")}
+            />
+          </AuthField>
+          <AuthField
+            id="login-password"
+            label="Senha"
+            required
+            icon={<Lock size={16} />}
+            error={passwordError}
+            trailing={
+              <button type="button" className="grid h-7 w-7 shrink-0 place-items-center text-[#9A96AB]" onClick={() => setVisible((v) => !v)} aria-label={visible ? "Ocultar senha" : "Mostrar senha"}>
+                {visible ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
-            </label>
-          </div>
+            }
+          >
+            <input
+              id="login-password"
+              className={cn(authInputClass, "tracking-wide")}
+              type={visible ? "text" : "password"}
+              autoComplete="current-password"
+              placeholder="Sua senha"
+              aria-invalid={Boolean(passwordError)}
+              aria-describedby={passwordError ? "login-password-error" : undefined}
+              {...form.register("password")}
+            />
+          </AuthField>
 
-          <div className="mt-3 flex justify-end">
-            <Link href="/recuperar-senha" className="text-[12px] font-semibold text-[#6D4AFF]">
+          <div className="flex justify-end">
+            <Link href="/recuperar-senha" className="text-[12px] font-semibold text-white underline decoration-white/40 underline-offset-2">
               Esqueci minha senha
             </Link>
           </div>
 
-          {error ? <p className="mt-3 text-center text-[12px] text-danger">{error}</p> : null}
+          {error ? <p className="text-center text-[12px] font-medium text-[#FFE0E4]">{error}</p> : null}
 
-          <button type="submit" disabled={form.formState.isSubmitting} className={cn(authPrimaryClass, "disabled:opacity-50")}>
+          <button type="submit" disabled={!canSubmit || form.formState.isSubmitting} className={cn(authPrimaryClass, "disabled:cursor-not-allowed disabled:bg-[#D9D0F5] disabled:text-[#6E6890] disabled:opacity-100 disabled:shadow-none")}>
             Entrar
           </button>
         </form>
@@ -259,11 +333,28 @@ export function LoginForm() {
 
 export function RegisterForm() {
   const router = useRouter();
-  const form = useForm({ resolver: zodResolver(registerSchema), defaultValues: { name: "", email: "", password: "", acceptTerms: false as unknown as true } });
+  const form = useForm({
+    resolver: zodResolver(registerSchema),
+    mode: "onTouched",
+    reValidateMode: "onChange",
+    defaultValues: { name: "", email: "", password: "", acceptTerms: false as unknown as true },
+  });
   const [error, setError] = useState("");
+  const nameValue = form.watch("name") || "";
+  const emailValue = form.watch("email") || "";
   const password = form.watch("password") || "";
+  const acceptTerms = Boolean(form.watch("acceptTerms"));
   const strength = scorePassword(password);
-  const canSubmit = strength.checks.length && strength.checks.letter && strength.checks.number && form.watch("acceptTerms");
+  const canSubmit =
+    nameValue.trim().length >= 2 &&
+    looksLikeEmail(emailValue) &&
+    strength.checks.length &&
+    strength.checks.letter &&
+    strength.checks.number &&
+    acceptTerms;
+  const nameError = fieldMessage(form.formState.errors.name?.message, nameValue, "Informe seu nome.");
+  const emailError = fieldMessage(form.formState.errors.email?.message, emailValue, "Informe seu e-mail.");
+  const passwordError = fieldMessage(form.formState.errors.password?.message, password, "Crie uma senha.");
   const [visible, setVisible] = useState(false);
   return (
     <AuthGradientFrame
@@ -278,7 +369,8 @@ export function RegisterForm() {
       }
     >
       <form
-        className="mt-7"
+        className="mt-7 space-y-3"
+        noValidate
         onSubmit={form.handleSubmit(async (values) => {
           setError("");
           try {
@@ -293,42 +385,71 @@ export function RegisterForm() {
           }
         })}
       >
-        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_12px_32px_rgba(42,23,96,0.18)]">
-          <label className="flex items-center gap-3 px-4 py-3.5">
-            <User size={18} className="shrink-0 text-[#9A96AB]" />
-            <input className="h-6 w-full border-0 bg-transparent text-[13px] font-medium text-[#171827] outline-none placeholder:text-[#9A96AB]" autoComplete="name" placeholder="Nome" {...form.register("name")} />
-          </label>
-          <div className="mx-4 h-px bg-[#ECEAF3]" />
-          <label className="flex items-center gap-3 px-4 py-3.5">
-            <Mail size={18} className="shrink-0 text-[#9A96AB]" />
-            <input className="h-6 w-full border-0 bg-transparent text-[13px] font-medium text-[#171827] outline-none placeholder:text-[#9A96AB]" type="email" autoComplete="email" placeholder="seu@email.com" {...form.register("email")} />
-          </label>
-          <div className="mx-4 h-px bg-[#ECEAF3]" />
-          <label className="flex items-center gap-3 px-4 py-3.5">
-            <Lock size={18} className="shrink-0 text-[#9A96AB]" />
+        <AuthField id="register-name" label="Nome" required icon={<User size={16} />} error={nameError}>
+          <input
+            id="register-name"
+            className={authInputClass}
+            autoComplete="name"
+            placeholder="Seu nome"
+            aria-invalid={Boolean(nameError)}
+            aria-describedby={nameError ? "register-name-error" : undefined}
+            {...form.register("name")}
+          />
+        </AuthField>
+        <AuthField id="register-email" label="E-mail" required icon={<Mail size={16} />} error={emailError}>
+          <input
+            id="register-email"
+            className={authInputClass}
+            type="email"
+            autoComplete="email"
+            placeholder="seu@email.com"
+            aria-invalid={Boolean(emailError)}
+            aria-describedby={emailError ? "register-email-error" : undefined}
+            {...form.register("email")}
+          />
+        </AuthField>
+        <div className="space-y-3">
+          <AuthField
+            id="register-password"
+            label="Senha"
+            required
+            icon={<Lock size={16} />}
+            error={passwordError}
+            trailing={
+              <button type="button" className="grid h-7 w-7 shrink-0 place-items-center text-[#9A96AB]" onClick={() => setVisible((v) => !v)} aria-label={visible ? "Ocultar senha" : "Mostrar senha"}>
+                {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            }
+          >
             <input
-              className="h-6 w-full border-0 bg-transparent text-[13px] font-medium tracking-wide text-[#171827] outline-none placeholder:text-[#9A96AB]"
+              id="register-password"
+              className={cn(authInputClass, "tracking-wide")}
               type={visible ? "text" : "password"}
               autoComplete="new-password"
-              placeholder="••••••••"
+              placeholder="Crie uma senha"
+              aria-invalid={Boolean(passwordError)}
+              aria-describedby={passwordError ? "register-password-error" : undefined}
               {...form.register("password")}
             />
-            <button type="button" className="grid h-8 w-8 place-items-center text-[#9A96AB]" onClick={() => setVisible((v) => !v)} aria-label={visible ? "Ocultar senha" : "Mostrar senha"}>
-              {visible ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </label>
-        </div>
-        <div className="mt-3">
+          </AuthField>
           <PasswordStrength value={password} score={strength.score} checks={strength.checks} />
         </div>
-        <label className="mt-3 flex items-start gap-2 text-[12px] leading-4 text-[#5C5870]">
-          <input className="mt-0.5" type="checkbox" {...form.register("acceptTerms")} />
-          <span>
-            Li e aceito os <Link className="font-semibold text-[#6D4AFF]" href="/termos">termos</Link> e a <Link className="font-semibold text-[#6D4AFF]" href="/privacidade">política de privacidade</Link>.
-          </span>
-        </label>
-        {error || form.formState.errors.acceptTerms ? <p className="mt-3 text-center text-[12px] text-danger">{error || form.formState.errors.acceptTerms?.message}</p> : null}
-        <button type="submit" disabled={!canSubmit || form.formState.isSubmitting} className={cn(authPrimaryClass, "disabled:opacity-50")}>
+        <div>
+          <label className="flex items-start gap-2 rounded-[10px] bg-white px-3 py-2.5 text-[12px] leading-4 text-[#3A3650] shadow-[0_4px_14px_rgba(42,23,96,0.12)]">
+            <input className="mt-0.5" type="checkbox" aria-invalid={Boolean(form.formState.errors.acceptTerms)} {...form.register("acceptTerms")} />
+            <span>
+              <span className="text-[#E11D48]" aria-hidden="true">* </span>
+              Li e aceito os <Link className="font-semibold text-[#6D4AFF]" href="/termos">termos</Link> e a <Link className="font-semibold text-[#6D4AFF]" href="/privacidade">política de privacidade</Link>.
+            </span>
+          </label>
+          {form.formState.errors.acceptTerms ? (
+            <p role="alert" className="mt-1.5 text-[11px] font-medium leading-4 text-[#FFE0E4]">
+              {form.formState.errors.acceptTerms.message}
+            </p>
+          ) : null}
+        </div>
+        {error ? <p className="text-center text-[12px] font-medium text-[#FFE0E4]">{error}</p> : null}
+        <button type="submit" disabled={!canSubmit || form.formState.isSubmitting} className={cn(authPrimaryClass, "disabled:cursor-not-allowed disabled:bg-[#D9D0F5] disabled:text-[#6E6890] disabled:opacity-100 disabled:shadow-none")}>
           Criar conta
         </button>
       </form>
@@ -338,9 +459,17 @@ export function RegisterForm() {
 }
 
 export function ForgotForm() {
-  const form = useForm({ resolver: zodResolver(forgotSchema), defaultValues: { email: "" } });
+  const form = useForm({
+    resolver: zodResolver(forgotSchema),
+    mode: "onTouched",
+    reValidateMode: "onChange",
+    defaultValues: { email: "" },
+  });
   const [link, setLink] = useState("");
   const [done, setDone] = useState(false);
+  const emailValue = form.watch("email") || "";
+  const canSubmit = looksLikeEmail(emailValue);
+  const emailError = fieldMessage(form.formState.errors.email?.message, emailValue, "Informe seu e-mail.");
   return (
     <AuthGradientFrame
       title="Recuperar senha"
@@ -354,20 +483,27 @@ export function ForgotForm() {
     >
       <p className="mt-4 text-center text-[12px] leading-4 text-white/80">Se o e-mail existir, enviaremos as instruções. A resposta não revela se a conta existe.</p>
       <form
-        className="mt-6"
+        className="mt-6 space-y-3"
+        noValidate
         onSubmit={form.handleSubmit(async (values) => {
           const result = await api<{ devResetUrl?: string | null }>("/api/auth/forgot", { method: "POST", body: JSON.stringify(values) });
           setDone(true);
           if (result.devResetUrl) setLink(result.devResetUrl);
         })}
       >
-        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_12px_32px_rgba(42,23,96,0.18)]">
-          <label className="flex items-center gap-3 px-4 py-3.5">
-            <Mail size={18} className="shrink-0 text-[#9A96AB]" />
-            <input className="h-6 w-full border-0 bg-transparent text-[13px] font-medium text-[#171827] outline-none placeholder:text-[#9A96AB]" type="email" placeholder="seu@email.com" {...form.register("email")} />
-          </label>
-        </div>
-        <button type="submit" disabled={form.formState.isSubmitting} className={cn(authPrimaryClass, "disabled:opacity-50")}>
+        <AuthField id="forgot-email" label="E-mail" required icon={<Mail size={16} />} error={emailError}>
+          <input
+            id="forgot-email"
+            className={authInputClass}
+            type="email"
+            autoComplete="email"
+            placeholder="seu@email.com"
+            aria-invalid={Boolean(emailError)}
+            aria-describedby={emailError ? "forgot-email-error" : undefined}
+            {...form.register("email")}
+          />
+        </AuthField>
+        <button type="submit" disabled={!canSubmit || form.formState.isSubmitting} className={cn(authPrimaryClass, "disabled:cursor-not-allowed disabled:bg-[#D9D0F5] disabled:text-[#6E6890] disabled:opacity-100 disabled:shadow-none")}>
           {form.formState.isSubmitting ? "Enviando…" : "Enviar"}
         </button>
       </form>
@@ -384,11 +520,17 @@ export function ForgotForm() {
 export function ResetForm() {
   const params = useSearchParams();
   const router = useRouter();
-  const form = useForm({ resolver: zodResolver(resetSchema), defaultValues: { token: params.get("token") || "", password: "" } });
+  const form = useForm({
+    resolver: zodResolver(resetSchema),
+    mode: "onTouched",
+    reValidateMode: "onChange",
+    defaultValues: { token: params.get("token") || "", password: "" },
+  });
   const [error, setError] = useState("");
   const password = form.watch("password") || "";
   const strength = scorePassword(password);
   const canSubmit = strength.checks.length && strength.checks.letter && strength.checks.number;
+  const passwordError = fieldMessage(form.formState.errors.password?.message, password, "Informe a nova senha.");
   const [visible, setVisible] = useState(false);
   return (
     <AuthGradientFrame
@@ -403,6 +545,7 @@ export function ResetForm() {
     >
       <form
         className="mt-7 space-y-3"
+        noValidate
         onSubmit={form.handleSubmit(async (values) => {
           try {
             await api("/api/auth/reset", { method: "POST", body: JSON.stringify(values) });
@@ -413,24 +556,34 @@ export function ResetForm() {
         })}
       >
         <input type="hidden" {...form.register("token")} />
-        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_12px_32px_rgba(42,23,96,0.18)]">
-          <label className="flex items-center gap-3 px-4 py-3.5">
-            <Lock size={18} className="shrink-0 text-[#9A96AB]" />
+        <div className="space-y-3">
+          <AuthField
+            id="reset-password"
+            label="Nova senha"
+            required
+            icon={<Lock size={16} />}
+            error={passwordError}
+            trailing={
+              <button type="button" className="grid h-7 w-7 shrink-0 place-items-center text-[#9A96AB]" onClick={() => setVisible((v) => !v)} aria-label={visible ? "Ocultar senha" : "Mostrar senha"}>
+                {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            }
+          >
             <input
-              className="h-6 w-full border-0 bg-transparent text-[13px] font-medium tracking-wide text-[#171827] outline-none placeholder:text-[#9A96AB]"
+              id="reset-password"
+              className={cn(authInputClass, "tracking-wide")}
               type={visible ? "text" : "password"}
               autoComplete="new-password"
-              placeholder="Nova senha"
+              placeholder="Crie uma nova senha"
+              aria-invalid={Boolean(passwordError)}
+              aria-describedby={passwordError ? "reset-password-error" : undefined}
               {...form.register("password")}
             />
-            <button type="button" className="grid h-8 w-8 place-items-center text-[#9A96AB]" onClick={() => setVisible((v) => !v)} aria-label={visible ? "Ocultar senha" : "Mostrar senha"}>
-              {visible ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </label>
+          </AuthField>
+          <PasswordStrength value={password} score={strength.score} checks={strength.checks} />
         </div>
-        <PasswordStrength value={password} score={strength.score} checks={strength.checks} />
-        {error ? <p className="text-center text-[12px] text-danger">{error}</p> : null}
-        <button type="submit" disabled={!canSubmit || form.formState.isSubmitting} className={cn(authPrimaryClass, "disabled:opacity-50")}>
+        {error ? <p className="text-center text-[12px] font-medium text-[#FFE0E4]">{error}</p> : null}
+        <button type="submit" disabled={!canSubmit || form.formState.isSubmitting} className={cn(authPrimaryClass, "disabled:cursor-not-allowed disabled:bg-[#D9D0F5] disabled:text-[#6E6890] disabled:opacity-100 disabled:shadow-none")}>
           Salvar senha
         </button>
       </form>
