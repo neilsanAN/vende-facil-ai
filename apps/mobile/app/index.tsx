@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import Constants from "expo-constants";
 import { Ionicons } from "@expo/vector-icons";
 import { brand, colors, control, fonts } from "@vendefacil/ui-tokens";
 import { WelcomeCarousel } from "../src/welcome-carousel";
 import { ApiClientError, createApiClient } from "@vendefacil/api-client";
 import { BootScreen } from "../src/boot-screen";
+import { resolveApiUrl } from "../src/config";
 import { getItem, setItem } from "../src/storage";
 import { routeAfterAuth } from "../src/session";
 
-const apiBase =
-  Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+const apiBase = resolveApiUrl();
 const api = createApiClient({ baseUrl: apiBase });
 
 function openLegal(path: "/termos" | "/privacidade") {

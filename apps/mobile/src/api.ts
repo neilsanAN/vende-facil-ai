@@ -1,8 +1,8 @@
-import Constants from "expo-constants";
 import { createApiClient } from "@vendefacil/api-client";
+import { resolveApiUrl } from "./config";
 import { getItem, setItem } from "./storage";
 
-export const apiBase = Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+export const apiBase = resolveApiUrl();
 
 export const api = createApiClient({
   baseUrl: apiBase,

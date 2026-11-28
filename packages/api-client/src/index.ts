@@ -47,13 +47,14 @@ export function createApiClient(options: {
         },
       });
     } catch (cause) {
-      if (isNetworkFailure(cause) && networkAttempt < 2) {
-        await sleep(1500 * (networkAttempt + 1));
+      // Render free pode demorar ~40s para acordar; tenta de novo com espera crescente.
+      if (isNetworkFailure(cause) && networkAttempt < 4) {
+        await sleep(2500 * (networkAttempt + 1));
         return request<T>(path, init, retryAuth, networkAttempt + 1);
       }
       if (isNetworkFailure(cause)) {
         throw new ApiClientError(
-          "Não foi possível conectar ao servidor. Aguarde alguns segundos e tente de novo.",
+          "Não foi possível conectar ao servidor. Aguarde cerca de 1 minuto e tente de novo — o servidor pode estar iniciando.",
           "NETWORK",
           0,
         );

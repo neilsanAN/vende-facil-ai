@@ -64,7 +64,7 @@ module.exports = {
           fallbackToCacheTimeout: 0,
         },
     extra: {
-      apiUrl: process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000",
+      apiUrl: process.env.EXPO_PUBLIC_API_URL || "https://vende-facil-ai.onrender.com",
       eas: projectId ? { projectId } : {},
     },
     plugins: [

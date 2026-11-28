@@ -1,8 +1,8 @@
 import { ApiClientError } from "@vendefacil/api-client";
-import Constants from "expo-constants";
 import { api } from "./api";
+import { resolveApiUrl } from "./config";
 
-const baseUrl = Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+const baseUrl = resolveApiUrl();
 
 /** Envia foto local (file:// ou content://) para a API e confirma o asset. */
 export async function uploadLocalImage(uri: string, mimeType = "image/jpeg", originalName = "produto.jpg") {
