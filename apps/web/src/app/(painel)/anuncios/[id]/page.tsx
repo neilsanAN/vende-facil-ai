@@ -11,7 +11,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const { id } = await params;
   const container = getContainer();
   const ads = await container.studio.listAds(session);
-  const ad = ads.find((item) => item.id === id);
+  const ad = ads.find((item: { id: string }) => item.id === id);
   if (!ad) notFound();
 
   let imageUrl: string | null = null;
