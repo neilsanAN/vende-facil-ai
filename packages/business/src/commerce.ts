@@ -94,8 +94,63 @@ export class CommerceService {
       this.db.product.count({ where: { organizationId: org, status: { not: "ARCHIVED" } } }),
     ]);
     const series = await this.daily(org, since, days);
-    const top = await this.db.productView.groupBy({ by: ["productId"], where: { organizationId: org, createdAt: { gte: since } }, _count: { productId: true }, orderBy: { _count: { productId: "desc" } }, take: 5 });
-    const names = await this.db.product.findMany({ where: { id: { in: top.map((item) => item.productId) } }, select: { id: true, name: true, priceCents: true } });
+    const [topViews, topClicksRaw, storeOnlyClicks] = await Promise.all([
+      this.db.productView.groupBy({
+        by: ["productId"],
+        where: { organizationId: org, createdAt: { gte: since } },
+        _count: { productId: true },
+        orderBy: { _count: { productId: "desc" } },
+        take: 12,
+      }),
+      this.db.linkClick.groupBy({
+        by: ["productId"],
+        where: { organizationId: org, kind: "WHATSAPP", createdAt: { gte: since }, productId: { not: null } },
+        _count: { productId: true },
+        orderBy: { _count: { productId: "desc" } },
+        take: 12,
+      }),
+      this.db.linkClick.count({
+        where: { organizationId: org, kind: "WHATSAPP", createdAt: { gte: since }, productId: null },
+      }),
+    ]);
+    const productIds = [
+      ...new Set([
+        ...topViews.map((item) => item.productId),
+        ...topClicksRaw.map((item) => item.productId).filter((id): id is string => Boolean(id)),
+      ]),
+    ];
+    const named = await this.db.product.findMany({
+      where: { id: { in: productIds } },
+      select: {
+        id: true,
+        name: true,
+        priceCents: true,
+        images: { orderBy: { position: "asc" }, take: 1, select: { mediaAssetId: true } },
+      },
+    });
+    const presentProduct = (id: string) => {
+      const row = named.find((item) => item.id === id);
+      if (!row) return null;
+      return {
+        id: row.id,
+        name: row.name,
+        priceCents: row.priceCents,
+        coverUrl: row.images[0]?.mediaAssetId ? `/api/media/${row.images[0].mediaAssetId}` : null,
+      };
+    };
+    const top = topViews.map((item) => ({
+      product: presentProduct(item.productId),
+      views: item._count.productId,
+    }));
+    const topClicks = [
+      ...topClicksRaw.map((item) => ({
+        product: item.productId ? presentProduct(item.productId) : null,
+        clicks: item._count.productId,
+      })),
+      ...(storeOnlyClicks > 0
+        ? [{ product: { id: "store", name: "Loja (sem produto)", priceCents: 0, coverUrl: null as string | null }, clicks: storeOnlyClicks }]
+        : []),
+    ].sort((a, b) => b.clicks - a.clicks);
     return {
       rangeDays: days,
       products,
@@ -107,7 +162,8 @@ export class CommerceService {
       orders,
       salesCents: sales._sum.totalCents ?? 0,
       series,
-      top: top.map((item) => ({ product: names.find((name) => name.id === item.productId) ?? null, views: item._count.productId })),
+      top,
+      topClicks,
       note: "Visualizações contam um acesso a cada 30 minutos por navegador. Cliques no WhatsApp não são pedidos. Vendas somam apenas pedidos confirmados na plataforma.",
     };
   }
@@ -130,8 +186,44 @@ export class CommerceService {
         url: `/api/media/${image.mediaAssetId}`,
       })),
     }));
+    const recentAdRows = await this.db.advertisement.findMany({
+      where: { organizationId: tenant.organizationId, status: { not: "ARCHIVED" } },
+      orderBy: { updatedAt: "desc" },
+      take: 24,
+      select: {
+        id: true,
+        title: true,
+        aiCategory: true,
+        imageAssetIds: true,
+        updatedAt: true,
+        status: true,
+      },
+    });
+    const recentAds = recentAdRows.map((ad) => ({
+      id: ad.id,
+      title: ad.title,
+      aiCategory: ad.aiCategory?.trim() || "Outros",
+      coverUrl: ad.imageAssetIds[0] ? `/api/media/${ad.imageAssetIds[0]}` : null,
+      status: ad.status,
+      updatedAt: ad.updatedAt,
+    }));
+    const groupMap = new Map<string, typeof recentAds>();
+    for (const ad of recentAds) {
+      const key = ad.aiCategory || "Outros";
+      const bucket = groupMap.get(key) || [];
+      bucket.push(ad);
+      groupMap.set(key, bucket);
+    }
+    const recentAdsGrouped = [...groupMap.entries()]
+      .map(([category, items]) => ({
+        category,
+        items,
+        latestAt: items[0]?.updatedAt ? new Date(items[0].updatedAt).getTime() : 0,
+      }))
+      .sort((a, b) => b.latestAt - a.latestAt)
+      .map(({ category, items }) => ({ category, items }));
     const activity = await this.db.auditLog.findMany({ where: { organizationId: tenant.organizationId }, orderBy: { createdAt: "desc" }, take: 8 });
-    return { stats, recent, activity, greeting: greeting(tenant.name, tenant.email) };
+    return { stats, recent, recentAds, recentAdsGrouped, activity, greeting: greeting(tenant.name, tenant.email) };
   }
 
   async track(input: { slug: string; type: "store_view" | "product_view" | "click"; productSlug?: string; kind?: "WHATSAPP" | "CATALOG" | "PRODUCT" | "SHARE"; visitorHash: string }) {

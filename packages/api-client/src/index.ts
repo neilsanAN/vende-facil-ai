@@ -221,9 +221,11 @@ export function createApiClient(options: {
           hashtags: string[];
           tone: string;
           status: string;
+          aiCategory?: string | null;
           product: string | null;
           imageAssetIds?: string[];
           imageUrls?: string[];
+          coverUrl?: string | null;
           updatedAt: string;
         }>
       >("/api/ads"),

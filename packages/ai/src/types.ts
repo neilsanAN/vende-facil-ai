@@ -23,6 +23,15 @@ export type ImageAnalysis = {
   form: string;
   context: string;
   uncertain: string[];
+  /** Nome comercial curto inferido da foto (estilo Google Lens). */
+  suggestedName: string;
+  /** Marca só se texto/logo legível. */
+  brandVisible: string;
+  /** Categoria curta em PT (ex.: Calçados, Eletrônicos). */
+  category: string;
+  /** Atributos visíveis (cor, modelo aparente, etc.). */
+  attributes: string[];
+  confidence: "high" | "medium" | "low";
 };
 
 export type AdCopy = {

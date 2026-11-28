@@ -66,7 +66,7 @@ export default function EditAdScreen() {
         });
       });
       feedback.showToast("Anúncio salvo.", "success");
-      router.replace("/anuncios");
+      router.replace("/produtos");
     } catch (cause) {
       if (handleTenantError(cause)) return;
       const text = cause instanceof ApiClientError ? cause.message : "Não foi possível salvar.";
@@ -79,7 +79,7 @@ export default function EditAdScreen() {
 
   return (
     <KeyboardScreen contentContainerStyle={{ gap: 12 }}>
-      <BackButton fallback="/anuncios" />
+      <BackButton fallback="/produtos" />
       <ScreenTitle style={{ marginBottom: 6 }}>Editar anúncio</ScreenTitle>
       <HelperText>{message}</HelperText>
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Dimensions, Easing, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,19 +18,89 @@ import { setItem } from "../../src/storage";
 import { LocalPhoto, MAX_PRODUCT_PHOTOS, PhotoGallery } from "../../src/photo-gallery";
 
 type Draft = { id: string; title: string; description: string; hashtags: string[] };
-type Step = 0 | 1 | 2;
+type Step = 0 | 1 | 2 | 3;
+type Condition = "novo" | "seminovo" | "usado";
+type Delivery = "retirada" | "entrega" | "combinar";
 
 const STEPS = [
   { key: "foto", label: "Foto" },
+  { key: "detalhes", label: "Detalhes" },
   { key: "ia", label: "IA" },
   { key: "ajustes", label: "Ajustes" },
 ] as const;
 
+const BACKGROUNDS = [
+  { id: "original", label: "Original", color: null as string | null },
+  { id: "white", label: "Branco", color: "#FFFFFF" },
+  { id: "soft", label: "Cinza", color: "#F3F4F8" },
+  { id: "cream", label: "Creme", color: "#F7F1E8" },
+  { id: "studio", label: "Estúdio", color: "#E8EEF5" },
+  { id: "dark", label: "Preto", color: "#111827" },
+  { id: "brand", label: "Roxo", color: "#EDE9FE" },
+  { id: "mint", label: "Menta", color: "#E7F8F2" },
+] as const;
+
+const CONDITIONS: Array<{ id: Condition; label: string }> = [
+  { id: "novo", label: "Novo" },
+  { id: "seminovo", label: "Seminovo" },
+  { id: "usado", label: "Usado" },
+];
+
+const PAYMENTS = ["Pix", "Cartão", "Dinheiro", "Boleto"] as const;
+
+const DELIVERIES: Array<{ id: Delivery; label: string }> = [
+  { id: "retirada", label: "Retirada" },
+  { id: "entrega", label: "Entrega" },
+  { id: "combinar", label: "A combinar" },
+];
+
 const PAGE_WIDTH = Dimensions.get("window").width;
+
+function parseBrlToCents(raw: string): number | null {
+  const cleaned = raw.replace(/[^\d.,]/g, "").trim();
+  if (!cleaned) return null;
+  const normalized = cleaned.includes(",")
+    ? cleaned.replace(/\./g, "").replace(",", ".")
+    : cleaned;
+  const value = Number(normalized);
+  if (!Number.isFinite(value) || value < 0) return null;
+  return Math.round(value * 100);
+}
+
+function formatCentsHint(cents: number | null) {
+  if (cents == null) return "";
+  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function Chip({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 999,
+        borderWidth: 1.5,
+        borderColor: active ? colors.primary : colors.border,
+        backgroundColor: active ? colors.primarySoft : colors.surface,
+      }}
+    >
+      <Text style={{ color: active ? colors.primary : colors.text, fontSize: fonts.caption, fontWeight: "700" }}>{label}</Text>
+    </Pressable>
+  );
+}
 
 function Stepper({ active }: { active: Step }) {
   return (
-    <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "center", marginTop: 8, marginBottom: 18, paddingHorizontal: 12 }}>
+    <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "center", marginTop: 8, marginBottom: 18, paddingHorizontal: 4 }}>
       {STEPS.map((step, index) => {
         const done = index < active;
         const current = index === active;
@@ -72,7 +142,7 @@ function Stepper({ active }: { active: Step }) {
               style={{
                 marginTop: 8,
                 color: current ? colors.primary : done ? colors.text : colors.textSecondary,
-                fontSize: fonts.caption,
+                fontSize: fonts.tiny,
                 fontWeight: current ? "700" : "600",
               }}
             >
@@ -133,15 +203,26 @@ export default function AdScreen() {
   const [step, setStep] = useState<Step>(0);
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
   const [assetIds, setAssetIds] = useState<string[]>([]);
+  const [bgId, setBgId] = useState<(typeof BACKGROUNDS)[number]["id"]>("original");
+  const [priceText, setPriceText] = useState("");
+  const [hasPromo, setHasPromo] = useState(false);
+  const [promoText, setPromoText] = useState("");
+  const [condition, setCondition] = useState<Condition>("novo");
+  const [payments, setPayments] = useState<string[]>(["Pix"]);
+  const [delivery, setDelivery] = useState<Delivery>("combinar");
+  const [extra, setExtra] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
   const coverUri = photos[0]?.uri || null;
   const [error, setError] = useState("");
   const [status, setStatus] = useState("Gerando com IA…");
+  const [elapsedSec, setElapsedSec] = useState(0);
   const generatingRef = useRef(false);
-  /** Incrementa a cada cancelamento/nova geração para ignorar respostas atrasadas. */
   const generationSeq = useRef(0);
-  /** Rascunho criado nesta sessão (para arquivar se o usuário cancelar no meio). */
   const sessionDraftId = useRef<string | null>(null);
+
+  const selectedBg = useMemo(() => BACKGROUNDS.find((item) => item.id === bgId) || BACKGROUNDS[0], [bgId]);
+  const priceCents = useMemo(() => parseBrlToCents(priceText), [priceText]);
+  const promoCents = useMemo(() => (hasPromo ? parseBrlToCents(promoText) : null), [hasPromo, promoText]);
 
   useEffect(() => {
     Animated.timing(slide, {
@@ -153,11 +234,13 @@ export default function AdScreen() {
   }, [slide, step]);
 
   useEffect(() => {
-    if (step !== 1) {
+    if (step !== 2) {
       spin.stopAnimation();
       spin.setValue(0);
+      setElapsedSec(0);
       return;
     }
+    setElapsedSec(0);
     const loop = Animated.loop(
       Animated.timing(spin, {
         toValue: 1,
@@ -167,17 +250,22 @@ export default function AdScreen() {
       }),
     );
     loop.start();
-    return () => loop.stop();
+    const timer = setInterval(() => {
+      setElapsedSec((prev) => prev + 1);
+    }, 1000);
+    return () => {
+      loop.stop();
+      clearInterval(timer);
+    };
   }, [spin, step]);
 
   function goBack() {
-    if (step === 2) {
-      setStep(0);
+    if (step === 3) {
+      setStep(1);
       setError("");
       return;
     }
-    if (step === 1) {
-      // Cancela geração em andamento e evita que a resposta atrasada crie outro anúncio.
+    if (step === 2) {
       generationSeq.current += 1;
       generatingRef.current = false;
       const orphanId = sessionDraftId.current;
@@ -185,11 +273,47 @@ export default function AdScreen() {
       if (orphanId && orphanId !== draft?.id) {
         void api.archiveAd(orphanId).catch(() => undefined);
       }
-      setStep(0);
+      setStep(1);
       setError("Geração cancelada.");
       return;
     }
+    if (step === 1) {
+      setStep(0);
+      setError("");
+      return;
+    }
     goBackNav("/inicio");
+  }
+
+  function togglePayment(label: string) {
+    setPayments((current) => {
+      if (current.includes(label)) {
+        const next = current.filter((item) => item !== label);
+        return next.length ? next : current;
+      }
+      return [...current, label];
+    });
+  }
+
+  function buildFacts() {
+    const bgLabel = selectedBg.label;
+    const lines = [
+      `Estado do produto: ${CONDITIONS.find((item) => item.id === condition)?.label || condition}`,
+      hasPromo && promoCents != null
+        ? `Tem promoção: sim. Preço promocional: ${formatCentsHint(promoCents)}. Preço cheio: ${formatCentsHint(priceCents) || "não informado"}`
+        : `Tem promoção: não`,
+      `Formas de pagamento: ${payments.join(", ")}`,
+      `Entrega/retirada: ${DELIVERIES.find((item) => item.id === delivery)?.label || delivery}`,
+      `Fundo da foto: ${bgLabel}`,
+      extra.trim() ? `Observações do vendedor: ${extra.trim()}` : "",
+    ].filter(Boolean);
+    return {
+      name: "Produto",
+      brand: "",
+      audience: "",
+      priceCents: hasPromo && promoCents != null ? promoCents : priceCents,
+      facts: lines.join(". "),
+    };
   }
 
   function withTimeout<T>(promise: Promise<T>, ms: number, message: string) {
@@ -208,19 +332,40 @@ export default function AdScreen() {
     });
   }
 
+  function validateDetails() {
+    if (priceText.trim() && priceCents == null) {
+      setError("Informe um valor válido, ex.: 149,90");
+      return false;
+    }
+    if (hasPromo) {
+      if (!promoText.trim() || promoCents == null) {
+        setError("Informe o valor da promoção.");
+        return false;
+      }
+      if (priceCents != null && promoCents >= priceCents) {
+        setError("O preço promocional precisa ser menor que o valor normal.");
+        return false;
+      }
+    }
+    setError("");
+    return true;
+  }
+
   async function runGenerate() {
     if (!photos.length) {
       setError("Tire ou escolha ao menos uma foto primeiro.");
       return;
     }
+    if (!validateDetails()) return;
     if (generatingRef.current) return;
     generatingRef.current = true;
     const seq = ++generationSeq.current;
     setError("");
     setStatus(photos.length > 1 ? `Enviando ${photos.length} fotos…` : "Enviando foto…");
-    setStep(1);
+    setStep(2);
     const previousId = draft?.id || null;
     let workingId = previousId;
+    const facts = buildFacts();
     try {
       let ids = assetIds;
       if (ids.length !== photos.length) {
@@ -239,7 +384,6 @@ export default function AdScreen() {
         setAssetIds(ids);
       }
 
-      // Garante um único ID antes da IA: timeout/late response atualizam o mesmo anúncio.
       if (!workingId) {
         setStatus("Preparando rascunho…");
         const placeholder = await api.createAd({
@@ -257,7 +401,7 @@ export default function AdScreen() {
         sessionDraftId.current = placeholder.id;
       }
 
-      setStatus("Gerando título e descrição…");
+      setStatus("Identificando produto…");
       let created: { id: string; title: string; description: string; hashtags: string[] };
       try {
         created = await withTimeout(
@@ -266,14 +410,13 @@ export default function AdScreen() {
             tone: "PROFESSIONAL",
             productId: null,
             replaceAdId: workingId,
-            facts: { name: "Produto", brand: "", facts: "", audience: "", priceCents: null },
+            facts,
           }),
-          75_000,
+          90_000,
           "A IA demorou demais. Abrimos um rascunho para você editar.",
         );
       } catch (aiCause) {
         if (seq !== generationSeq.current) return;
-        // Fallback: atualiza o mesmo rascunho — nunca cria um segundo anúncio.
         setStatus("Preparando rascunho…");
         created = await api.updateAd(workingId!, {
           title: "Seu produto em destaque",
@@ -287,7 +430,6 @@ export default function AdScreen() {
         feedback.showToast(hint.includes("demorou") || hint.includes("rascunho") ? "Rascunho pronto para editar." : hint, "info");
       }
       if (seq !== generationSeq.current) return;
-      // Se a IA ignorou replaceAdId e criou outro, arquiva o placeholder.
       if (workingId && workingId !== created.id) {
         await api.archiveAd(workingId).catch(() => undefined);
       }
@@ -296,19 +438,20 @@ export default function AdScreen() {
       if (localUris.length) await setItem(`ad_images_${created.id}`, JSON.stringify(localUris));
       if (localUris[0]) await setItem(`ad_cover_${created.id}`, localUris[0]);
       else if (ids[0]) await setItem(`ad_cover_${created.id}`, `${apiBase}/api/media/${ids[0]}`);
+      await setItem(`ad_bg_${created.id}`, bgId);
       setDraft({
         ...created,
         hashtags: normalizeHashtags(created.hashtags, created.title),
       });
-      setStep(2);
+      setStep(3);
       feedback.showToast(previousId ? "Anúncio atualizado." : "Anúncio pronto.", "success");
     } catch (cause) {
       if (seq !== generationSeq.current) return;
       if (handleTenantError(cause)) {
-        setStep(0);
+        setStep(1);
         return;
       }
-      setStep(0);
+      setStep(1);
       const text = cause instanceof ApiClientError ? cause.message : cause instanceof Error ? cause.message : "Não foi possível gerar o anúncio.";
       setError(text);
       feedback.showToast(text, "error");
@@ -341,9 +484,10 @@ export default function AdScreen() {
         if (localUris[0]) await setItem(`ad_cover_${draft.id}`, localUris[0]);
         else if (assetIds[0]) await setItem(`ad_cover_${draft.id}`, `${apiBase}/api/media/${assetIds[0]}`);
         else if (coverUri) await setItem(`ad_cover_${draft.id}`, coverUri);
+        await setItem(`ad_bg_${draft.id}`, bgId);
       });
       feedback.showToast("Anúncio salvo.", "success");
-      router.replace("/anuncios");
+      router.replace("/produtos");
     } catch (cause) {
       if (handleTenantError(cause)) return;
       const text = cause instanceof ApiClientError ? cause.message : "Não foi possível salvar.";
@@ -352,8 +496,12 @@ export default function AdScreen() {
     }
   }
 
-  const title = step === 2 ? "Anúncio gerado pela IA" : "Criar anúncio com IA";
+  const title =
+    step === 1 ? "Detalhes da oferta" : step === 3 ? "Anúncio gerado pela IA" : "Criar anúncio com IA";
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  const elapsedLabel = `${String(Math.floor(elapsedSec / 60)).padStart(2, "0")}:${String(elapsedSec % 60).padStart(2, "0")}`;
+  const coverBg = selectedBg.color || "#EEF0F5";
+  const coverMode = selectedBg.color ? ("contain" as const) : ("cover" as const);
 
   return (
     <KeyboardAvoidingView
@@ -370,12 +518,12 @@ export default function AdScreen() {
         <Animated.View
           style={{
             flex: 1,
-            width: PAGE_WIDTH * 3,
+            width: PAGE_WIDTH * 4,
             flexDirection: "row",
             transform: [{ translateX: slide }],
           }}
         >
-          {/* Step 1 — Foto */}
+          {/* Step 0 — Foto + fundos */}
           <View style={{ width: PAGE_WIDTH, flex: 1, paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom, 20) }}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 12, gap: 14 }}>
               <PhotoGallery
@@ -391,6 +539,52 @@ export default function AdScreen() {
                 onError={(text) => feedback.showToast(text, "error")}
               />
 
+              {coverUri ? (
+                <View style={{ gap: 10 }}>
+                  <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700" }}>Fundo da capa</Text>
+                  <View style={{ borderRadius: 18, overflow: "hidden", backgroundColor: coverBg, borderWidth: 1, borderColor: colors.border }}>
+                    <Image source={{ uri: coverUri }} style={{ width: "100%", aspectRatio: 4 / 5 }} resizeMode={coverMode} />
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+                    {BACKGROUNDS.map((bg) => {
+                      const active = bg.id === bgId;
+                      return (
+                        <Pressable
+                          key={bg.id}
+                          onPress={() => setBgId(bg.id)}
+                          style={{
+                            width: 72,
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                        >
+                          <View
+                            style={{
+                              width: 56,
+                              height: 56,
+                              borderRadius: 14,
+                              borderWidth: active ? 2 : 1,
+                              borderColor: active ? colors.primary : colors.border,
+                              overflow: "hidden",
+                              backgroundColor: bg.color || "#EEF0F5",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            {bg.id === "original" ? (
+                              <Image source={{ uri: coverUri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                            ) : (
+                              <View style={{ width: 22, height: 28, borderRadius: 4, backgroundColor: "rgba(15,12,30,0.12)" }} />
+                            )}
+                          </View>
+                          <Text style={{ color: active ? colors.primary : colors.textSecondary, fontSize: fonts.tiny, fontWeight: "700" }}>{bg.label}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              ) : null}
+
               <View
                 style={{
                   borderRadius: 14,
@@ -404,14 +598,104 @@ export default function AdScreen() {
               >
                 <Ionicons name="sparkles" size={16} color={colors.primary} style={{ marginTop: 1 }} />
                 <Text style={{ flex: 1, color: colors.text, fontSize: fonts.body2, fontWeight: "500", lineHeight: 16 }}>
-                  A IA analisa as fotos e sugere título, descrição e hashtags. A primeira foto vira a capa.
+                  Escolha o fundo da capa. Depois a IA pergunta preço, promoção e condições para montar um anúncio profissional.
                 </Text>
               </View>
 
               {error ? <Text style={{ color: colors.error, fontSize: fonts.body, fontWeight: "600" }}>{error}</Text> : null}
             </ScrollView>
 
-            <PrimaryButton label="Avançar" disabled={!photos.length} onPress={() => void runGenerate()} />
+            <PrimaryButton
+              label="Avançar"
+              disabled={!photos.length}
+              onPress={() => {
+                setError("");
+                setStep(1);
+              }}
+            />
+          </View>
+
+          {/* Step 1 — Detalhes comerciais */}
+          <View style={{ width: PAGE_WIDTH, flex: 1, paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom, 20) }}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 24, gap: 14 }}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+            >
+              <View style={{ borderRadius: 14, backgroundColor: colors.primarySoft, padding: 12, gap: 4 }}>
+                <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700" }}>Vamos deixar o anúncio profissional</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, lineHeight: 16 }}>
+                  Informe valor, promoção e condições. A IA usa isso no título, na descrição e nas hashtags.
+                </Text>
+              </View>
+
+              <Field
+                label="Qual valor você gostaria de anunciar?"
+                value={priceText}
+                onChangeText={setPriceText}
+                placeholder="Ex.: 149,90"
+                keyboardType="decimal-pad"
+              />
+
+              <View style={{ gap: 8 }}>
+                <Text style={{ color: colors.text, fontSize: fonts.caption, fontWeight: "700" }}>Tem promoção?</Text>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <Chip label="Não" active={!hasPromo} onPress={() => setHasPromo(false)} />
+                  <Chip label="Sim" active={hasPromo} onPress={() => setHasPromo(true)} />
+                </View>
+              </View>
+
+              {hasPromo ? (
+                <Field
+                  label="Qual o valor promocional?"
+                  value={promoText}
+                  onChangeText={setPromoText}
+                  placeholder="Ex.: 129,90"
+                  keyboardType="decimal-pad"
+                />
+              ) : null}
+
+              <View style={{ gap: 8 }}>
+                <Text style={{ color: colors.text, fontSize: fonts.caption, fontWeight: "700" }}>Estado do produto</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                  {CONDITIONS.map((item) => (
+                    <Chip key={item.id} label={item.label} active={condition === item.id} onPress={() => setCondition(item.id)} />
+                  ))}
+                </View>
+              </View>
+
+              <View style={{ gap: 8 }}>
+                <Text style={{ color: colors.text, fontSize: fonts.caption, fontWeight: "700" }}>Formas de pagamento</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                  {PAYMENTS.map((item) => (
+                    <Chip key={item} label={item} active={payments.includes(item)} onPress={() => togglePayment(item)} />
+                  ))}
+                </View>
+              </View>
+
+              <View style={{ gap: 8 }}>
+                <Text style={{ color: colors.text, fontSize: fonts.caption, fontWeight: "700" }}>Entrega ou retirada</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                  {DELIVERIES.map((item) => (
+                    <Chip key={item.id} label={item.label} active={delivery === item.id} onPress={() => setDelivery(item.id)} />
+                  ))}
+                </View>
+              </View>
+
+              <Field
+                label="Algum diferencial? (opcional)"
+                value={extra}
+                onChangeText={setExtra}
+                placeholder="Ex.: garantia, acompanhamentos, frete grátis…"
+                multiline
+              />
+
+              {error ? <Text style={{ color: colors.error, fontSize: fonts.body, fontWeight: "600" }}>{error}</Text> : null}
+            </ScrollView>
+
+            <PrimaryButton label="Gerar anúncio com IA" onPress={() => void runGenerate()} />
           </View>
 
           {/* Step 2 — IA */}
@@ -428,9 +712,9 @@ export default function AdScreen() {
                 }}
               />
             </Animated.View>
-            <Text style={{ marginTop: 20, color: colors.text, fontSize: fonts.title, fontWeight: "700" }}>{status}</Text>
-            <Text style={{ marginTop: 8, color: colors.textSecondary, fontSize: fonts.body, fontWeight: "500", textAlign: "center", maxWidth: 260, lineHeight: 18 }}>
-              Montando título, descrição e hashtags. Se demorar, toque em Voltar e tente de novo.
+            <Text style={{ marginTop: 20, color: colors.text, fontSize: fonts.title, fontWeight: "700", textAlign: "center" }}>{status}</Text>
+            <Text style={{ marginTop: 10, color: colors.primary, fontSize: fonts.title, fontWeight: "700", fontVariant: ["tabular-nums"] }}>
+              {elapsedLabel}
             </Text>
           </View>
 
@@ -445,8 +729,8 @@ export default function AdScreen() {
             >
               {coverUri ? (
                 <View>
-                  <View style={{ borderRadius: 18, overflow: "hidden", backgroundColor: colors.surface }}>
-                    <Image source={{ uri: coverUri }} style={{ width: "100%", aspectRatio: 4 / 5 }} resizeMode="cover" />
+                  <View style={{ borderRadius: 18, overflow: "hidden", backgroundColor: coverBg, borderWidth: 1, borderColor: colors.border }}>
+                    <Image source={{ uri: coverUri }} style={{ width: "100%", aspectRatio: 4 / 5 }} resizeMode={coverMode} />
                     <Pressable
                       onPress={() => {
                         setStep(0);

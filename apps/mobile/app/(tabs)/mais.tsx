@@ -84,7 +84,7 @@ export default function MoreScreen() {
       <ConfirmSheet
         open={confirmLogout}
         title="Sair da conta?"
-        message="Você precisará entrar de novo para acessar produtos, anúncios e a loja."
+        message="Você precisará entrar de novo para acessar anúncios e a loja."
         confirmLabel="Sair"
         destructive
         onClose={() => setConfirmLogout(false)}

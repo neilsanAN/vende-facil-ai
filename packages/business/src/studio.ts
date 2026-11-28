@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Prisma, PrismaClient } from "@prisma/client";
-import { ProviderNotConfiguredError, type AiRegistry, type ConfirmedFacts } from "@vendefacil/ai";
+import { ProviderNotConfiguredError, type AiRegistry, type ConfirmedFacts, type ImageAnalysis } from "@vendefacil/ai";
 import { composeArtwork, type StorageService } from "@vendefacil/media";
 import { formatBrl, normalizeHashtags } from "@vendefacil/types";
 import { AppError } from "./errors";
@@ -9,6 +9,43 @@ import { assertMinRole } from "./permissions";
 import { audit, type Tenant, type TenantService } from "./tenant";
 import { CatalogService } from "./catalog";
 import type { BillingService } from "./billing";
+
+function isGenericProductName(name: string) {
+  const normalized = name.trim().toLowerCase();
+  return (
+    !normalized ||
+    normalized === "produto" ||
+    normalized === "seu produto" ||
+    normalized === "item" ||
+    normalized === "gerando anúncio…" ||
+    normalized === "gerando anuncio..." ||
+    normalized === "gerando anúncio..."
+  );
+}
+
+function factsFromVision(
+  input: ConfirmedFacts & { priceCents?: number | null },
+  analysis: ImageAnalysis | null,
+): ConfirmedFacts & { priceCents?: number | null } {
+  if (!analysis) return input;
+  const suggested = analysis.suggestedName.trim() || analysis.productType.trim();
+  const name = isGenericProductName(input.name) && suggested ? suggested : input.name;
+  const brand = input.brand?.trim() || analysis.brandVisible.trim() || "";
+  const attributeLine = analysis.attributes.filter(Boolean).join(", ");
+  const visibleBits = [
+    analysis.productType && `Tipo: ${analysis.productType}`,
+    analysis.category && `Categoria: ${analysis.category}`,
+    attributeLine && `Atributos: ${attributeLine}`,
+    analysis.colors.length ? `Cores: ${analysis.colors.join(", ")}` : "",
+    analysis.visibleText.length ? `Texto na foto: ${analysis.visibleText.join(" | ")}` : "",
+    analysis.form && `Forma: ${analysis.form}`,
+    analysis.context && `Contexto: ${analysis.context}`,
+  ]
+    .filter(Boolean)
+    .join(". ");
+  const facts = [input.facts?.trim(), visibleBits].filter(Boolean).join("\n");
+  return { ...input, name, brand, facts, visible: analysis };
+}
 
 export class StudioService {
   constructor(
@@ -67,9 +104,33 @@ export class StudioService {
       if (target.status === "ARCHIVED") throw new AppError("NOT_FOUND", "Este anúncio foi excluído.", 404);
       existing = { id: target.id };
     }
+
+    let analysis: ImageAnalysis | null = null;
+    const coverAssetId = input.assetIds[0];
+    if (coverAssetId && this.ai.vision) {
+      try {
+        const asset = await this.ownedImage(tenant.organizationId, coverAssetId);
+        const image = await this.storage.getObject("private", asset.objectKey);
+        const visionResult = await this.ai.vision.analyze({ image, mimeType: asset.mimeType });
+        analysis = visionResult.analysis;
+        await this.record(tenant, "IMAGE_ANALYSIS", visionResult.usage, { assetId: coverAssetId, source: "ad_generate" });
+      } catch (error) {
+        await this.recordFailure(tenant, "IMAGE_ANALYSIS", this.ai.vision?.id || "ai", error);
+        analysis = null;
+      }
+    }
+
+    const groundedFacts = factsFromVision(input.facts, analysis);
+    const aiCategory = (analysis?.category || "").trim() || "Outros";
     let result;
     try {
-      result = await this.ai.text.adCopy({ facts: { ...input.facts, priceLabel: input.facts.priceCents != null ? formatBrl(input.facts.priceCents) : undefined }, tone: input.tone });
+      result = await this.ai.text.adCopy({
+        facts: {
+          ...groundedFacts,
+          priceLabel: groundedFacts.priceCents != null ? formatBrl(groundedFacts.priceCents) : undefined,
+        },
+        tone: input.tone,
+      });
     } catch (error) {
       if (error instanceof ProviderNotConfiguredError) throw new AppError("PROVIDER_NOT_CONFIGURED", error.message, 503);
       if (error instanceof AppError) throw error;
@@ -78,19 +139,19 @@ export class StudioService {
       throw new AppError("AI_FAILED", detail.includes("demorou") ? detail : "Não foi possível gerar o anúncio. Tente de novo.", 502);
     }
     try {
-      assertGroundedCopy(`${result.copy.title}\n${result.copy.description}`, input.facts.priceCents != null);
+      assertGroundedCopy(`${result.copy.title}\n${result.copy.description}`, groundedFacts.priceCents != null);
     } catch {
       // Remove menção a preço inventado em vez de travar o fluxo.
       result = {
         ...result,
         copy: {
           ...result.copy,
-          title: result.copy.title.replace(/R\$\s?\d[\d.,]*/gi, "").replace(/\s{2,}/g, " ").trim() || input.facts.name,
+          title: result.copy.title.replace(/R\$\s?\d[\d.,]*/gi, "").replace(/\s{2,}/g, " ").trim() || groundedFacts.name,
           description: result.copy.description.replace(/R\$\s?\d[\d.,]*/gi, "").replace(/\d+[\.,]?\d*\s?reais/gi, "").replace(/\s{2,}/g, " ").trim(),
         },
       };
     }
-    const generation = await this.record(tenant, "TEXT", result.usage, { tone: input.tone });
+    const generation = await this.record(tenant, "TEXT", result.usage, { tone: input.tone, aiCategory });
     try {
       await debitKind(this.db, { organizationId: tenant.organizationId, kind: "ANNOUNCEMENT", amount: 1, reason: "ad_generation", idempotencyKey: `ad:${idempotencyKey}`, referenceType: "AiGeneration", referenceId: generation.id });
     } catch (error) {
@@ -98,7 +159,7 @@ export class StudioService {
       throw new AppError("INSUFFICIENT_CREDITS", "Não há créditos de anúncio disponíveis neste plano.", 402);
     }
     await this.billing.recordUsage(tenant.organizationId, "ai.announcement", 1, { generationId: generation.id });
-    const hashtags = normalizeHashtags(result.copy.hashtags, input.facts.name);
+    const hashtags = normalizeHashtags(result.copy.hashtags, groundedFacts.name);
 
     if (existing) {
       await this.db.advertisement.update({
@@ -109,6 +170,7 @@ export class StudioService {
           description: result.copy.description,
           hashtags,
           imageAssetIds: input.assetIds,
+          aiCategory,
           tone: input.tone,
           status: "DRAFT",
         },
@@ -137,6 +199,7 @@ export class StudioService {
         description: result.copy.description,
         hashtags,
         imageAssetIds: input.assetIds,
+        aiCategory,
         tone: input.tone,
         versions: {
           create: {
@@ -204,7 +267,7 @@ export class StudioService {
     const rows = await this.db.advertisement.findMany({
       where: { organizationId: tenant.organizationId, status: { not: "ARCHIVED" } },
       orderBy: { updatedAt: "desc" },
-      take: 50,
+      take: 80,
       include: { product: { select: { name: true } } },
     });
     return rows.map((row) => ({
@@ -214,6 +277,7 @@ export class StudioService {
       hashtags: row.hashtags,
       tone: row.tone,
       status: row.status,
+      aiCategory: row.aiCategory?.trim() || "Outros",
       productId: row.productId,
       product: row.product?.name ?? null,
       imageAssetIds: row.imageAssetIds,

@@ -523,6 +523,8 @@ model Advertisement {
   description    String
   hashtags       String[]
   imageAssetIds  String[]                @default([])
+  /** Categoria detectada pela IA (ex.: Calçados). */
+  aiCategory     String?
   tone           AdTone                  @default(PROFESSIONAL)
   status         AdStatus                @default(DRAFT)
   createdAt      DateTime                @default(now())
@@ -532,6 +534,7 @@ model Advertisement {
   versions       AdvertisementVersion[]
 
   @@index([organizationId, status])
+  @@index([organizationId, aiCategory])
 }
 
 model AdvertisementVersion {

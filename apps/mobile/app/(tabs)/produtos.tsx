@@ -1,49 +1,67 @@
-import { useCallback, useMemo, useState } from "react";
-import { FlatList, Image, Pressable, Text, TextInput, View } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Image, Pressable, SectionList, Text, TextInput, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { formatHashtag } from "@vendefacil/types";
 import { colors, control, fonts } from "@vendefacil/ui-tokens";
 import { ApiClientError } from "@vendefacil/api-client";
 import { api, apiBase } from "../../src/api";
 import { handleTenantError } from "../../src/session";
 import { ActionMenu } from "../../src/action-menu";
 import { ConfirmSheet, useFeedback } from "../../src/feedback";
+import { deleteItem, getItem } from "../../src/storage";
 
-function mediaUrl(path?: string) {
-  if (!path) return null;
-  return path.startsWith("http") ? path : `${apiBase}${path}`;
-}
-
-type Product = {
+type Ad = {
   id: string;
-  name: string;
-  priceCents: number;
-  promoPriceCents?: number | null;
-  status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
-  published?: boolean;
-  images?: Array<{ url: string }>;
+  title: string;
+  description: string;
+  hashtags: string[];
+  tone?: string;
+  status: string;
+  aiCategory?: string | null;
+  product: string | null;
+  updatedAt: string;
+  coverUrl?: string | null;
+  imageUrls?: string[];
 };
 
-type Filter = "ALL" | "ACTIVE" | "DRAFT";
+function resolveCover(ad: Ad, local?: string | null) {
+  if (local) return local;
+  if (ad.coverUrl) return ad.coverUrl.startsWith("http") ? ad.coverUrl : `${apiBase}${ad.coverUrl}`;
+  const first = ad.imageUrls?.[0];
+  if (first) return first.startsWith("http") ? first : `${apiBase}${first}`;
+  return null;
+}
 
-export default function ProductsScreen() {
+export default function AnunciosTabScreen() {
+  const insets = useSafeAreaInsets();
   const feedback = useFeedback();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [ads, setAds] = useState<Ad[]>([]);
+  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<Filter>("ALL");
   const [error, setError] = useState("");
-  const [menuProduct, setMenuProduct] = useState<Product | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<Product | null>(null);
+  const [menuAd, setMenuAd] = useState<Ad | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Ad | null>(null);
+  const deletingRef = useRef(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (soft = false) => {
+    if (!soft) setLoading(true);
+    setError("");
     try {
-      const result = await api.products();
-      const payload = result as { data?: Product[] };
-      setProducts(payload.data || []);
-      setError("");
+      const rows = await api.listAds();
+      const withCovers = await Promise.all(
+        rows.map(async (row) => ({
+          ...row,
+          coverUrl: (await getItem(`ad_cover_${row.id}`)) || row.coverUrl || null,
+        })),
+      );
+      setAds(withCovers);
     } catch (cause) {
       if (handleTenantError(cause)) return;
-      setError(cause instanceof ApiClientError ? cause.message : "Falha ao carregar.");
+      setError(cause instanceof ApiClientError ? cause.message : "Falha ao carregar anúncios.");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -53,231 +71,228 @@ export default function ProductsScreen() {
     }, [load]),
   );
 
-  const counts = useMemo(
-    () => ({
-      ALL: products.length,
-      ACTIVE: products.filter((item) => item.status === "ACTIVE").length,
-      DRAFT: products.filter((item) => item.status === "DRAFT").length,
-    }),
-    [products],
-  );
-
-  const filtered = useMemo(() => {
+  const sections = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return products.filter((item) => {
-      if (filter === "ACTIVE" && item.status !== "ACTIVE") return false;
-      if (filter === "DRAFT" && item.status !== "DRAFT") return false;
+    const filtered = ads.filter((item) => {
       if (!needle) return true;
-      return item.name.toLowerCase().includes(needle);
+      const hay = `${item.title} ${item.description} ${item.aiCategory || ""} ${item.hashtags?.join(" ") || ""}`.toLowerCase();
+      return hay.includes(needle);
     });
-  }, [products, filter, q]);
+    const map = new Map<string, Ad[]>();
+    for (const ad of filtered) {
+      const key = (ad.aiCategory || "Outros").trim() || "Outros";
+      const bucket = map.get(key) || [];
+      bucket.push(ad);
+      map.set(key, bucket);
+    }
+    return [...map.entries()]
+      .map(([title, data]) => ({
+        title,
+        data,
+        latestAt: data[0]?.updatedAt ? new Date(data[0].updatedAt).getTime() : 0,
+      }))
+      .sort((a, b) => b.latestAt - a.latestAt)
+      .map(({ title, data }) => ({ title, data }));
+  }, [ads, q]);
 
-  const tabs: Array<{ key: Filter; label: string; count: number }> = [
-    { key: "ALL", label: "Todos", count: counts.ALL },
-    { key: "ACTIVE", label: "Ativos", count: counts.ACTIVE },
-    { key: "DRAFT", label: "Rascunhos", count: counts.DRAFT },
-  ];
-
-  async function archive(id: string) {
+  async function removeAd(ad: Ad) {
+    if (deletingRef.current) return;
+    deletingRef.current = true;
+    setError("");
+    setConfirmDelete(null);
+    setMenuAd(null);
+    const previous = ads;
+    setAds((current) => current.filter((item) => item.id !== ad.id));
     try {
-      await feedback.run("Excluindo produto…", async () => {
-        await api.archiveProduct(id);
+      await feedback.run("Excluindo anúncio…", async () => {
+        try {
+          await api.archiveAd(ad.id);
+        } catch (cause) {
+          if (cause instanceof ApiClientError && (cause.status === 404 || cause.status === 405)) {
+            try {
+              await api.deleteAd(ad.id);
+            } catch {
+              await api.softArchiveAd({
+                id: ad.id,
+                title: ad.title,
+                description: ad.description,
+                hashtags: ad.hashtags?.length ? ad.hashtags : ["loja"],
+                tone: (ad.tone as "PROFESSIONAL" | "FRIENDLY" | "URGENT" | "ELEGANT") || "PROFESSIONAL",
+              });
+            }
+          } else {
+            throw cause;
+          }
+        }
+        await deleteItem(`ad_cover_${ad.id}`).catch(() => undefined);
       });
-      setProducts((current) => current.filter((item) => item.id !== id));
-      feedback.showToast("Produto excluído.", "success");
+      feedback.showToast("Anúncio excluído.", "success");
+      void load(true);
     } catch (cause) {
+      setAds(previous);
       if (handleTenantError(cause)) return;
       const text = cause instanceof ApiClientError ? cause.message : "Não foi possível excluir.";
       setError(text);
       feedback.showToast(text, "error");
-    }
-  }
-
-  async function duplicate(id: string) {
-    try {
-      await feedback.run("Duplicando…", async () => {
-        await api.duplicateProduct(id);
-        await load();
-      });
-      feedback.showToast("Produto duplicado.", "success");
-    } catch (cause) {
-      if (handleTenantError(cause)) return;
-      const text = cause instanceof ApiClientError ? cause.message : "Não foi possível duplicar.";
-      setError(text);
-      feedback.showToast(text, "error");
+    } finally {
+      deletingRef.current = false;
     }
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background, padding: 16 }}>
-      <Text style={{ color: colors.text, fontSize: fonts.heading, fontWeight: "700", marginBottom: 12 }}>Produtos</Text>
-      <View style={{ flexDirection: "row", gap: 8, marginBottom: 10 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <Text style={{ color: colors.text, fontSize: fonts.heading, fontWeight: "700" }}>Anúncios</Text>
+        <Pressable
+          onPress={() => router.push("/anuncios/novo")}
+          style={{
+            height: control.buttonHeight,
+            borderRadius: control.radiusButton,
+            backgroundColor: colors.primary,
+            paddingHorizontal: 14,
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "row",
+            gap: 6,
+          }}
+        >
+          <Ionicons name="add" size={control.icon} color="#fff" />
+          <Text style={{ color: "#fff", fontSize: control.buttonFontSize, fontWeight: "700" }}>Novo</Text>
+        </Pressable>
+      </View>
+
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: 12,
+          paddingHorizontal: 12,
+          marginBottom: 12,
+          height: 42,
+        }}
+      >
+        <Ionicons name="search-outline" size={16} color={colors.textSecondary} />
         <TextInput
           value={q}
           onChangeText={setQ}
-          placeholder="Buscar produto..."
+          placeholder="Buscar anúncio ou categoria"
           placeholderTextColor={colors.textSecondary}
-          style={{
-            flex: 1,
-            height: control.height,
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: control.radiusInput,
-            backgroundColor: "#F3F4F8",
-            color: colors.text,
-            paddingHorizontal: control.paddingH,
-            fontSize: control.fontSize,
-          }}
+          style={{ flex: 1, color: colors.text, fontSize: fonts.body }}
         />
-        <View style={{ width: 40, height: 40, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" }}>
-          <Ionicons name="options-outline" size={16} color={colors.text} />
-        </View>
       </View>
-      <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
-        {tabs.map((tab) => {
-          const active = filter === tab.key;
-          return (
+
+      {error ? <Text style={{ color: colors.error, fontSize: fonts.body, marginBottom: 8 }}>{error}</Text> : null}
+      {loading ? (
+        <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
+      ) : (
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => item.id}
+          stickySectionHeadersEnabled={false}
+          contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 28) }}
+          ListEmptyComponent={
             <Pressable
-              key={tab.key}
-              onPress={() => setFilter(tab.key)}
+              onPress={() => router.push("/anuncios/novo")}
               style={{
-                borderRadius: 999,
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                backgroundColor: active ? colors.primary : colors.surface,
-                borderWidth: active ? 0 : 1,
+                borderRadius: control.radiusSheet,
+                borderWidth: 1,
+                borderStyle: "dashed",
                 borderColor: colors.border,
+                backgroundColor: colors.surface,
+                paddingVertical: 28,
+                paddingHorizontal: 16,
+                alignItems: "center",
+                marginTop: 8,
               }}
             >
-              <Text style={{ color: active ? "#fff" : colors.textSecondary, fontSize: fonts.caption, fontWeight: "600" }}>
-                {tab.label} ({tab.count})
+              <Ionicons name="sparkles-outline" size={26} color={colors.primary} />
+              <Text style={{ color: colors.text, fontSize: fonts.body, fontWeight: "700", marginTop: 10 }}>Nenhum anúncio ainda</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, marginTop: 4, textAlign: "center" }}>
+                Tire uma foto e a IA identifica, categoriza e monta o anúncio.
               </Text>
             </Pressable>
-          );
-        })}
-      </View>
-      {error ? <Text style={{ color: colors.error, fontSize: fonts.caption, marginBottom: 8 }}>{error}</Text> : null}
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 88 }}
-        ListEmptyComponent={error ? null : <Text style={{ color: colors.textSecondary, fontSize: fonts.body }}>Nenhum produto neste filtro.</Text>}
-        renderItem={({ item }) => {
-          const imageUrl = mediaUrl(item.images?.[0]?.url);
-          const price = ((item.promoPriceCents ?? item.priceCents) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-          return (
-            <View
-              style={{
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-                borderWidth: 1,
-                borderRadius: 16,
-                padding: 12,
-                marginBottom: 10,
-                flexDirection: "row",
-                gap: 12,
-                alignItems: "center",
-              }}
-            >
-              <View style={{ width: 92, height: 92, borderRadius: 16, overflow: "hidden", backgroundColor: "#F3F4F8", borderWidth: 1, borderColor: colors.border }}>
-                {imageUrl ? (
-                  <Image source={{ uri: imageUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
-                ) : (
-                  <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-                    <Ionicons name="cube-outline" size={26} color={colors.textSecondary} />
-                  </View>
-                )}
-                {(item.images?.length || 0) > 1 ? (
-                  <View
-                    style={{
-                      position: "absolute",
-                      right: 6,
-                      bottom: 6,
-                      borderRadius: 999,
-                      backgroundColor: "rgba(23,24,39,0.72)",
-                      paddingHorizontal: 7,
-                      paddingVertical: 3,
-                    }}
-                  >
-                    <Text style={{ color: "#fff", fontSize: 9, fontWeight: "700" }}>{item.images?.length} fotos</Text>
-                  </View>
-                ) : null}
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700" }} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700", marginTop: 2 }}>{price}</Text>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
-                  <View style={{ borderRadius: control.radiusButton, backgroundColor: item.status === "ACTIVE" ? "#DCFCE7" : "#FFF4E5", paddingHorizontal: 8, paddingVertical: 3 }}>
-                    <Text style={{ color: item.status === "ACTIVE" ? "#166534" : "#B45309", fontSize: fonts.caption, fontWeight: "700" }}>
-                      {item.status === "ACTIVE" ? "Ativo" : item.status === "DRAFT" ? "Rascunho" : "Arquivo"}
+          }
+          renderSectionHeader={({ section }) => (
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10, marginBottom: 8 }}>
+              <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700" }}>{section.title}</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, fontWeight: "600" }}>{section.data.length}</Text>
+            </View>
+          )}
+          renderItem={({ item }) => {
+            const cover = resolveCover(item);
+            return (
+              <Pressable
+                onPress={() => router.push({ pathname: "/anuncios/editar", params: { id: item.id } })}
+                style={{
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                  borderRadius: control.radiusSheet,
+                  padding: 10,
+                  marginBottom: 8,
+                  flexDirection: "row",
+                  gap: 10,
+                }}
+              >
+                <View style={{ width: 64, height: 64, borderRadius: 12, overflow: "hidden", backgroundColor: "#F3F4F8" }}>
+                  {cover ? (
+                    <Image source={{ uri: cover }} style={{ width: "100%", height: "100%" }} />
+                  ) : (
+                    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                      <Ionicons name="sparkles-outline" size={20} color={colors.primary} />
+                    </View>
+                  )}
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={{ color: colors.text, fontSize: fonts.subtitle, fontWeight: "700" }} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: fonts.caption, marginTop: 3 }} numberOfLines={2}>
+                    {item.description}
+                  </Text>
+                  {item.hashtags?.length ? (
+                    <Text style={{ color: colors.primary, fontSize: fonts.caption, marginTop: 5, fontWeight: "600" }} numberOfLines={1}>
+                      {item.hashtags.map(formatHashtag).join(" ")}
                     </Text>
-                  </View>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-                    <Ionicons name="eye-outline" size={12} color={colors.textSecondary} />
-                    <Text style={{ color: colors.textSecondary, fontSize: fonts.caption }}>0</Text>
-                  </View>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-                    <Ionicons name="cart-outline" size={12} color={colors.textSecondary} />
-                    <Text style={{ color: colors.textSecondary, fontSize: fonts.caption }}>0</Text>
+                  ) : null}
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
+                    <View style={{ borderRadius: control.radiusButton, backgroundColor: item.status === "PUBLISHED" ? "#DCFCE7" : "#FFF4E5", paddingHorizontal: 8, paddingVertical: 3 }}>
+                      <Text style={{ color: item.status === "PUBLISHED" ? "#166534" : "#B45309", fontSize: fonts.caption, fontWeight: "700" }}>
+                        {item.status === "PUBLISHED" ? "Publicado" : "Rascunho"}
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
-              <Pressable onPress={() => setMenuProduct(item)} hitSlop={10} style={{ width: 28, height: 28, alignItems: "center", justifyContent: "center" }}>
-                <Ionicons name="ellipsis-vertical" size={18} color={colors.textSecondary} />
+                <Pressable onPress={() => setMenuAd(item)} hitSlop={10} style={{ width: 28, height: 28, alignItems: "center", justifyContent: "center" }}>
+                  <Ionicons name="ellipsis-vertical" size={18} color={colors.textSecondary} />
+                </Pressable>
               </Pressable>
-            </View>
-          );
-        }}
-      />
-
-      <Pressable
-        onPress={() => router.push("/produtos/novo")}
-        style={{
-          position: "absolute",
-          right: 16,
-          bottom: 16,
-          height: control.buttonHeight,
-          borderRadius: control.radiusButton,
-          backgroundColor: colors.primary,
-          paddingHorizontal: 16,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 6,
-          shadowColor: "#5B3DF0",
-          shadowOpacity: 0.25,
-          shadowRadius: 10,
-          shadowOffset: { width: 0, height: 6 },
-          elevation: 5,
-        }}
-      >
-        <Ionicons name="add" size={control.icon} color="#fff" />
-        <Text style={{ color: "#fff", fontSize: control.buttonFontSize, fontWeight: "700" }}>Novo produto</Text>
-      </Pressable>
+            );
+          }}
+        />
+      )}
 
       <ActionMenu
-        open={Boolean(menuProduct)}
-        title={menuProduct?.name}
-        onClose={() => setMenuProduct(null)}
+        open={Boolean(menuAd)}
+        title={menuAd?.title}
+        onClose={() => setMenuAd(null)}
         items={
-          menuProduct
+          menuAd
             ? [
                 {
                   key: "edit",
                   label: "Editar",
-                  onPress: () => router.push(`/produtos/${menuProduct.id}`),
-                },
-                {
-                  key: "duplicate",
-                  label: "Duplicar",
-                  onPress: () => void duplicate(menuProduct.id),
+                  onPress: () => router.push({ pathname: "/anuncios/editar", params: { id: menuAd.id } }),
                 },
                 {
                   key: "delete",
                   label: "Excluir",
                   destructive: true,
-                  onPress: () => setConfirmDelete(menuProduct),
+                  onPress: () => setConfirmDelete(menuAd),
                 },
               ]
             : []
@@ -286,13 +301,13 @@ export default function ProductsScreen() {
 
       <ConfirmSheet
         open={Boolean(confirmDelete)}
-        title="Excluir este produto?"
-        message="Ele sai da vitrine e da lista de ativos."
+        title="Excluir este anúncio?"
+        message="Ele sai da lista de anúncios ativos."
         confirmLabel="Excluir"
         destructive
         onClose={() => setConfirmDelete(null)}
         onConfirm={() => {
-          if (confirmDelete) void archive(confirmDelete.id);
+          if (confirmDelete) void removeAd(confirmDelete);
         }}
       />
     </View>

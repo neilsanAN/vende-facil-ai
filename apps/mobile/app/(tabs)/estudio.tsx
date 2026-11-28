@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, fonts } from "@vendefacil/ui-tokens";
 
 const items = [
-  { href: "/estudio/video/novo", label: "Criar vídeo com IA", text: "Transforme fotos em um vídeo com voz", icon: "film-outline" as const },
+  { href: "/estudio/video/novo", label: "Criar vídeos profissionais com IA", text: "Com narração, artes e exportação para redes", icon: "videocam-outline" as const },
   { href: "/estudio/publicar", label: "Publicar nas redes", text: "WhatsApp, Instagram e Facebook", icon: "share-social-outline" as const },
   { href: "/anuncios/novo", label: "Criar anúncio com IA", text: "Título, descrição e hashtags", icon: "sparkles-outline" as const },
   { href: "/estudio/historico", label: "Meus projetos", text: "Vídeos, artes e rascunhos", icon: "folder-outline" as const },
@@ -19,26 +19,6 @@ export default function EstudioScreen() {
       contentContainerStyle={{ paddingTop: Math.max(insets.top, 12), paddingHorizontal: 16, paddingBottom: 40 }}
     >
       <Text style={{ color: colors.text, fontSize: fonts.heading, fontWeight: "700", marginBottom: 14 }}>Estúdio IA</Text>
-      <Pressable
-        onPress={() => router.push("/estudio/video/novo")}
-        style={{
-          borderRadius: 22,
-          padding: 18,
-          backgroundColor: colors.primary,
-          marginBottom: 16,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 14,
-        }}
-      >
-        <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" }}>
-          <Ionicons name="play" size={22} color="#fff" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: "#fff", fontSize: fonts.title, fontWeight: "700" }}>Crie vídeos profissionais com IA</Text>
-          <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: fonts.caption, marginTop: 4 }}>Com narração, artes e exportação para redes</Text>
-        </View>
-      </Pressable>
       {items.map((item) => (
         <Pressable
           key={item.label}

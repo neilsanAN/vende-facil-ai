@@ -7,13 +7,25 @@ type GeminiConfig = {
   visionModel: string;
 };
 
-const ANALYSIS_PROMPT = `Você analisa fotos de produtos para um vendedor no Brasil.
+const ANALYSIS_PROMPT = `Você identifica produtos em fotos como o Google Lens, para um vendedor no Brasil.
 Responda somente JSON válido.
-Descreva apenas o que está visível.
-Não invente marca, material que não dê para ver, composição, garantia, certificação, preço, medida, voltagem ou origem.
+Identifique o que é o produto, a categoria e atributos visíveis.
+Marca e modelo só se estiverem legíveis (texto/logo). Não invente marca, preço, composição oculta, garantia, certificação, medida ou voltagem.
 Se houver texto legível, transcreva em visibleText.
-Quando não tiver certeza, deixe o campo vazio.
-Formato: {"productType":"","colors":[],"visibleText":[],"form":"","context":"","uncertain":[]}`;
+suggestedName: nome comercial curto e específico (ex.: "Tênis Nike Air Max preto").
+category: uma categoria curta em português (ex.: Calçados, Eletrônicos, Beleza, Moda, Casa, Alimentos, Outros).
+attributes: lista curta do que dá para ver.
+confidence: high|medium|low.
+Quando não tiver certeza, deixe o campo vazio ou use confidence low.
+Formato: {"productType":"","suggestedName":"","brandVisible":"","category":"","attributes":[],"colors":[],"visibleText":[],"form":"","context":"","uncertain":[],"confidence":"medium"}`;
+
+const AD_COPY_PROMPT = `Escreva anúncios em português do Brasil para WhatsApp/redes, com base na identificação visual do produto.
+Use somente os fatos e observações visuais fornecidos. Não invente marca, composição, garantia, certificação, preço ou especificação ausente.
+Se a marca não foi informada/visível, não cite marca. Se o preço não foi informado, não cite valor.
+Título: específico e comercial (nome do produto + diferencial visível), até ~80 caracteres.
+Descrição: 2 a 4 frases assertivas sobre o que é o produto, benefícios visíveis e CTA para chamar no WhatsApp.
+Hashtags: 6 a 10 tags específicas (categoria, tipo, marca se visível, uso/cor). Sem # no JSON, sem espaços, sem promessa não suportada.
+Responda JSON: {"title":"","description":"","hashtags":[]}.`;
 
 function factsBlock(facts: ConfirmedFacts) {
   return [
@@ -22,8 +34,26 @@ function factsBlock(facts: ConfirmedFacts) {
     `Marca confirmada: ${facts.brand || "não informada"}`,
     `Características confirmadas pelo vendedor: ${facts.facts || "nenhuma"}`,
     `Público informado: ${facts.audience || "não informado"}`,
-    `Observações visuais: ${facts.visible ? JSON.stringify(facts.visible) : "não disponíveis"}`,
+    `Identificação visual (estilo Lens): ${facts.visible ? JSON.stringify(facts.visible) : "não disponíveis"}`,
   ].join("\n");
+}
+
+function parseAnalysis(raw: Partial<ImageAnalysis>): ImageAnalysis {
+  const confidenceRaw = String(raw.confidence || "medium").toLowerCase();
+  const confidence = confidenceRaw === "high" || confidenceRaw === "low" ? confidenceRaw : "medium";
+  return {
+    productType: String(raw.productType || ""),
+    suggestedName: String(raw.suggestedName || ""),
+    brandVisible: String(raw.brandVisible || ""),
+    category: String(raw.category || "").trim() || "Outros",
+    attributes: Array.isArray(raw.attributes) ? raw.attributes.map(String).slice(0, 8) : [],
+    colors: Array.isArray(raw.colors) ? raw.colors.map(String).slice(0, 6) : [],
+    visibleText: Array.isArray(raw.visibleText) ? raw.visibleText.map(String).slice(0, 8) : [],
+    form: String(raw.form || ""),
+    context: String(raw.context || ""),
+    uncertain: Array.isArray(raw.uncertain) ? raw.uncertain.map(String).slice(0, 8) : [],
+    confidence,
+  };
 }
 
 function estimateTextCost(model: string, inputTokens: number, outputTokens: number) {
@@ -118,15 +148,7 @@ export function createGeminiProviders(config: GeminiConfig) {
           },
         ],
       });
-      const raw = parseJson<Partial<ImageAnalysis>>(result.content);
-      const analysis: ImageAnalysis = {
-        productType: String(raw.productType || ""),
-        colors: Array.isArray(raw.colors) ? raw.colors.map(String).slice(0, 6) : [],
-        visibleText: Array.isArray(raw.visibleText) ? raw.visibleText.map(String).slice(0, 8) : [],
-        form: String(raw.form || ""),
-        context: String(raw.context || ""),
-        uncertain: Array.isArray(raw.uncertain) ? raw.uncertain.map(String).slice(0, 8) : [],
-      };
+      const analysis = parseAnalysis(parseJson<Partial<ImageAnalysis>>(result.content));
       const usage: Usage = {
         provider: "gemini",
         model: result.model,
@@ -144,16 +166,16 @@ export function createGeminiProviders(config: GeminiConfig) {
     id: "gemini",
     async adCopy(input: { facts: ConfirmedFacts; tone: string }) {
       const result = await generateContent(config.apiKey, config.textModel, {
-        temperature: 0.4,
-        systemInstruction:
-          "Escreva anúncios em português do Brasil. Use somente os fatos confirmados. Não invente marca, composição, garantia, certificação, preço ou especificação ausente. Se a marca não foi informada, não cite marca. Se o preço não foi informado, não cite valor. Responda JSON: {\"title\":\"\",\"description\":\"\",\"hashtags\":[]}. Hashtags sem #, curtas e sem promessa não suportada.",
+        temperature: 0.35,
+        systemInstruction: AD_COPY_PROMPT,
         parts: [{ text: `Tom: ${input.tone}\n${factsBlock(input.facts)}` }],
       });
       const raw = parseJson<Partial<AdCopy>>(result.content);
+      const fallbackName = input.facts.visible?.suggestedName || input.facts.name;
       const copy: AdCopy = {
-        title: String(raw.title || input.facts.name).slice(0, 140),
+        title: String(raw.title || fallbackName).slice(0, 140),
         description: String(raw.description || "").slice(0, 4000),
-        hashtags: normalizeHashtags(raw.hashtags, input.facts.name),
+        hashtags: normalizeHashtags(raw.hashtags, fallbackName),
       };
       return {
         copy,
